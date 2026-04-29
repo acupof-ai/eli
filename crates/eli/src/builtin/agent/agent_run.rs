@@ -307,12 +307,11 @@ async fn maybe_auto_handoff_on_error(
     if !is_context_or_timeout_error(error) {
         return;
     }
-    if try_decrement_grace(tapes, tape_name).await {
-        return;
-    }
+    let was_in_grace = try_decrement_grace(tapes, tape_name).await;
     tracing::info!(
         tape = tape_name,
         error = %error.message,
+        was_in_grace,
         "auto-handoff: triggering from error path (context overflow or timeout)"
     );
     place_handoff_anchor(
@@ -747,12 +746,19 @@ mod tests {
     }
 
     async fn assert_auto_anchor_count(tapes: &TapeService, tape_name: &str, expected: usize) {
-        let anchors = tapes.anchors(tape_name, 20).await.unwrap();
-        let actual = anchors
-            .iter()
-            .filter(|a| a.name.starts_with("auto-handoff/"))
-            .count();
+        let actual = auto_anchor_names(tapes, tape_name).await.len();
         assert_eq!(actual, expected);
+    }
+
+    async fn auto_anchor_names(tapes: &TapeService, tape_name: &str) -> Vec<String> {
+        tapes
+            .anchors(tape_name, 20)
+            .await
+            .unwrap()
+            .into_iter()
+            .filter(|a| a.name.starts_with("auto-handoff/"))
+            .map(|a| a.name)
+            .collect()
     }
 
     async fn assert_last_auto_anchor(
@@ -880,7 +886,7 @@ mod tests {
         assert_grace(&tapes, &tape_name, 1, "session/start").await;
     }
 
-    async fn injected_overflow_error_during_grace_only_decrements(
+    async fn injected_overflow_error_during_grace_advances_handoff(
         tapes: TapeService,
         tape_name: String,
         settings: AgentSettings,
@@ -893,8 +899,9 @@ mod tests {
                 .await
                 .is_err()
         );
-        assert_auto_anchor_count(&tapes, &tape_name, 1).await;
-        assert_grace(&tapes, &tape_name, 1, "session/start").await;
+        let anchors = auto_anchor_names(&tapes, &tape_name).await;
+        assert_eq!(anchors.len(), 2);
+        assert_grace(&tapes, &tape_name, 2, &anchors[0]).await;
     }
 
     #[tokio::test]
@@ -1020,10 +1027,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_injected_overflow_error_during_grace_only_decrements() {
+    async fn test_injected_overflow_error_during_grace_advances_handoff() {
         with_injected_tape(
             "inject_grace_error",
-            injected_overflow_error_during_grace_only_decrements,
+            injected_overflow_error_during_grace_advances_handoff,
         )
         .await;
     }

@@ -140,13 +140,12 @@ Build a small sequence over one tape.
 | handoff, below threshold turn | grace 2 -> 1, no new anchor |
 | another below threshold turn | grace 1 -> 0, no active grace |
 | handoff, above threshold during grace | grace decrements and a new handoff is written |
-| handoff, overflow error during grace | grace decrements, no new handoff today |
+| handoff, overflow error during grace | writes a new auto handoff and moves grace to the previous auto anchor |
 | active grace with prior anchor | next turn uses `AnchorSelector::Named(prev_anchor)` |
 | active grace without prior anchor | no override |
 
-This layer should decide whether "overflow error during grace only decrements"
-is intended behavior or a bug. The test can lock the current behavior only after
-that decision.
+Overflow during grace means the current fallback anchor is still too old. The
+handoff point must move forward so the next turn sees a shorter slice.
 
 ### Layer 5: Collision And Repeatability Tests
 
@@ -190,9 +189,9 @@ environment. Do not use real provider credentials.
 2. **Timeout breadth**: Bare `timeout` may be correct for SSE failures but can
    over-trigger. Decide whether to keep it broad or require provider/network
    context.
-3. **Grace error behavior**: Current error-path overflow during grace only
-   decrements grace. Decide whether repeated hard overflow should force a new
-   handoff immediately, matching the success path.
+3. **Grace error behavior**: Error-path overflow during grace must force a new
+   handoff immediately, matching the success path and advancing the next
+   fallback anchor.
 4. **Anchor uniqueness**: Decide whether second-granularity anchor names are
    acceptable. If not, add milliseconds or a monotonic suffix before writing
    collision tests.
@@ -222,4 +221,3 @@ environment. Do not use real provider credentials.
 - Do not modify prompt construction unless a failing test proves it necessary.
 - Do not change tape serialization format.
 - Do not alter context budgeting in `nexil` during this experiment.
-
