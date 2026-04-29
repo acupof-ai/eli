@@ -641,16 +641,27 @@ async fn process_agent_result(
 
 #[cfg(test)]
 mod tests {
+    use std::future::Future;
+
     use super::*;
     use crate::builtin::store::{FileTapeStore, ForkTapeStore};
     use crate::control_plane::{TurnContext, drain_save_events, with_turn_context};
-    use nexil::UsageEvent;
+    use nexil::{TapeEntryKind, TapeQuery, UsageEvent};
+
+    const OVERFLOW_SUMMARY: &str = "[auto-handoff triggered by context overflow or timeout]";
+    const SUMMARY_PREFIX: &str = "[Context summary from auto-handoff]\n";
 
     fn make_tape_service() -> (tempfile::TempDir, TapeService) {
         let tmp = tempfile::tempdir().unwrap();
         let tapes_dir = tmp.path().join("tapes");
         let store = ForkTapeStore::from_sync(FileTapeStore::new(tapes_dir.clone()));
         (tmp, TapeService::new(tapes_dir, store))
+    }
+
+    fn test_settings(context_window: usize) -> AgentSettings {
+        let mut settings = AgentSettings::from_env();
+        settings.context_window = context_window;
+        settings
     }
 
     fn make_usage(input: u64, output: u64) -> Vec<UsageEvent> {
@@ -673,6 +684,217 @@ mod tests {
             dispatch: None,
             outbound_media: Default::default(),
         }
+    }
+
+    fn text_with_usage(text: &str, input_tokens: u64) -> ToolAutoResult {
+        let mut result = ToolAutoResult::text_result(text);
+        result.usage = make_usage(input_tokens, 0);
+        result
+    }
+
+    fn tool_result_without_usage(chars: usize) -> ToolAutoResult {
+        let mut result = ToolAutoResult::text_result("");
+        result.tool_results = vec![serde_json::json!({ "payload": "x".repeat(chars) })];
+        result
+    }
+
+    fn context_overflow_error() -> ConduitError {
+        ConduitError::new(ErrorKind::Provider, "context_length_exceeded")
+    }
+
+    async fn run_injected_turn<F>(
+        tapes: &TapeService,
+        tape_name: &str,
+        settings: &AgentSettings,
+        injected: F,
+    ) -> (Option<TapeContext>, Result<String, ConduitError>)
+    where
+        F: FnOnce(Option<&TapeContext>) -> Result<ToolAutoResult, ConduitError>,
+    {
+        let tape_context = resolve_tape_context_override(tapes, tape_name).await;
+        let result = injected(tape_context.as_ref());
+        let text = process_agent_result(tapes, tape_name, result, 1, settings).await;
+        (tape_context, text)
+    }
+
+    async fn inject_text(
+        tapes: &TapeService,
+        tape_name: &str,
+        settings: &AgentSettings,
+        text: &str,
+        input_tokens: u64,
+    ) -> Result<String, ConduitError> {
+        run_injected_turn(tapes, tape_name, settings, |_| {
+            Ok(text_with_usage(text, input_tokens))
+        })
+        .await
+        .1
+    }
+
+    async fn inject_overflow_error(
+        tapes: &TapeService,
+        tape_name: &str,
+        settings: &AgentSettings,
+    ) -> Result<String, ConduitError> {
+        run_injected_turn(
+            tapes,
+            tape_name,
+            settings,
+            |_| Err(context_overflow_error()),
+        )
+        .await
+        .1
+    }
+
+    async fn assert_auto_anchor_count(tapes: &TapeService, tape_name: &str, expected: usize) {
+        let anchors = tapes.anchors(tape_name, 20).await.unwrap();
+        let actual = anchors
+            .iter()
+            .filter(|a| a.name.starts_with("auto-handoff/"))
+            .count();
+        assert_eq!(actual, expected);
+    }
+
+    async fn assert_last_auto_anchor(
+        tapes: &TapeService,
+        tape_name: &str,
+        input_tokens: u64,
+        summary: &str,
+    ) {
+        let anchors = tapes.anchors(tape_name, 20).await.unwrap();
+        let anchor = anchors.last().unwrap();
+        assert!(anchor.name.starts_with("auto-handoff/"));
+        assert_eq!(anchor.state["input_tokens"].as_u64(), Some(input_tokens));
+        assert_eq!(anchor.state["summary"].as_str(), Some(summary));
+    }
+
+    async fn assert_grace(tapes: &TapeService, tape_name: &str, remaining: u32, anchor: &str) {
+        let grace = tapes.auto_handoff_grace(tape_name).await.unwrap();
+        assert_eq!(grace, Some((remaining, anchor.to_owned())));
+    }
+
+    async fn latest_system_content(tapes: &TapeService, tape_name: &str) -> String {
+        let query = TapeQuery::new(tape_name);
+        let entries = tapes.store().fetch_all(&query).await.unwrap();
+        entries
+            .iter()
+            .rev()
+            .find(|e| e.kind == TapeEntryKind::System)
+            .and_then(|e| e.payload.get("content").and_then(Value::as_str))
+            .unwrap_or("")
+            .to_owned()
+    }
+
+    async fn assert_summary_written(tapes: &TapeService, tape_name: &str, summary: &str) {
+        let expected = format!("{SUMMARY_PREFIX}{summary}");
+        assert_eq!(latest_system_content(tapes, tape_name).await, expected);
+    }
+
+    fn assert_named_context(ctx: Option<TapeContext>, expected: &str) {
+        let Some(ctx) = ctx else {
+            panic!("expected injected turn to receive tape context");
+        };
+        match ctx.anchor {
+            AnchorSelector::Named(name) => assert_eq!(name, expected),
+            other => panic!("expected named anchor, got {other:?}"),
+        }
+    }
+
+    async fn with_injected_tape<F, Fut>(tape_name: &str, f: F)
+    where
+        F: FnOnce(TapeService, String, AgentSettings) -> Fut,
+        Fut: Future<Output = ()>,
+    {
+        let (_tmp, tapes) = make_tape_service();
+        tapes.ensure_bootstrap_anchor(tape_name).await.unwrap();
+        let settings = test_settings(1000);
+        with_turn_context(
+            test_turn_context(),
+            f(tapes, tape_name.to_owned(), settings),
+        )
+        .await;
+    }
+
+    async fn injected_small_result_does_not_handoff(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        let (_, result) = run_injected_turn(&tapes, &tape_name, &settings, |_| {
+            Ok(text_with_usage("small", 0))
+        })
+        .await;
+        assert_eq!(result.unwrap(), "small");
+        assert_auto_anchor_count(&tapes, &tape_name, 0).await;
+    }
+
+    async fn injected_high_usage_result_places_handoff_anchor(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        let result = inject_text(&tapes, &tape_name, &settings, "large response", 1000).await;
+        assert_eq!(result.unwrap(), "large response");
+        assert_last_auto_anchor(&tapes, &tape_name, 1000, "large response").await;
+        assert_summary_written(&tapes, &tape_name, "large response").await;
+        assert_grace(&tapes, &tape_name, 2, "session/start").await;
+    }
+
+    async fn injected_tool_result_estimate_places_handoff_anchor(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        let (_, result) = run_injected_turn(&tapes, &tape_name, &settings, |_| {
+            Ok(tool_result_without_usage(5000))
+        })
+        .await;
+        assert_eq!(result.unwrap(), "");
+        assert_auto_anchor_count(&tapes, &tape_name, 1).await;
+    }
+
+    async fn injected_overflow_error_places_handoff_anchor(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        let result = inject_overflow_error(&tapes, &tape_name, &settings).await;
+        assert!(result.is_err());
+        assert_last_auto_anchor(&tapes, &tape_name, 1000, OVERFLOW_SUMMARY).await;
+        assert_summary_written(&tapes, &tape_name, OVERFLOW_SUMMARY).await;
+    }
+
+    async fn injected_grace_turn_uses_previous_anchor(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        inject_text(&tapes, &tape_name, &settings, "large", 1000)
+            .await
+            .unwrap();
+        let (ctx, _) = run_injected_turn(&tapes, &tape_name, &settings, |_| {
+            Ok(text_with_usage("small", 0))
+        })
+        .await;
+        assert_named_context(ctx, "session/start");
+        assert_grace(&tapes, &tape_name, 1, "session/start").await;
+    }
+
+    async fn injected_overflow_error_during_grace_only_decrements(
+        tapes: TapeService,
+        tape_name: String,
+        settings: AgentSettings,
+    ) {
+        inject_text(&tapes, &tape_name, &settings, "large", 1000)
+            .await
+            .unwrap();
+        assert!(
+            inject_overflow_error(&tapes, &tape_name, &settings)
+                .await
+                .is_err()
+        );
+        assert_auto_anchor_count(&tapes, &tape_name, 1).await;
+        assert_grace(&tapes, &tape_name, 1, "session/start").await;
     }
 
     #[tokio::test]
@@ -753,6 +975,56 @@ mod tests {
             assert_eq!(events[0].0, "agent.run");
             assert_eq!(events[0].1["usage"]["total_tokens"], 2400);
         })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_small_result_does_not_handoff() {
+        with_injected_tape("inject_small", injected_small_result_does_not_handoff).await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_high_usage_result_places_handoff_anchor() {
+        with_injected_tape(
+            "inject_high_usage",
+            injected_high_usage_result_places_handoff_anchor,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_tool_result_estimate_places_handoff_anchor() {
+        with_injected_tape(
+            "inject_tool_estimate",
+            injected_tool_result_estimate_places_handoff_anchor,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_overflow_error_places_handoff_anchor() {
+        with_injected_tape(
+            "inject_overflow_error",
+            injected_overflow_error_places_handoff_anchor,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_grace_turn_uses_previous_anchor() {
+        with_injected_tape(
+            "inject_grace_context",
+            injected_grace_turn_uses_previous_anchor,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_injected_overflow_error_during_grace_only_decrements() {
+        with_injected_tape(
+            "inject_grace_error",
+            injected_overflow_error_during_grace_only_decrements,
+        )
         .await;
     }
 
