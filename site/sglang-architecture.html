@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SGLang 架构、精髓与高吞吐解析</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg2: #0b1728;
+      --panel: rgba(12, 23, 40, 0.78);
+      --panel-2: rgba(16, 31, 54, 0.9);
+      --text: #eaf2ff;
+      --muted: #9fb1cc;
+      --accent: #66e3ff;
+      --accent2: #8b7cff;
+      --good: #75f0a0;
+      --warn: #ffd479;
+      --line: rgba(255,255,255,0.09);
+      --shadow: 0 24px 60px rgba(0,0,0,0.35);
+      --max: 1200px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(102,227,255,0.16), transparent 28%),
+        radial-gradient(circle at 85% 10%, rgba(139,124,255,0.18), transparent 25%),
+        linear-gradient(180deg, #07111f 0%, #081423 45%, #09192a 100%);
+      line-height: 1.65;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { width: min(var(--max), calc(100% - 32px)); margin: 0 auto; }
+    .hero {
+      padding: 72px 0 36px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero h1 {
+      font-size: clamp(2.2rem, 5vw, 4.4rem);
+      line-height: 1.02;
+      margin: 0 0 18px;
+      letter-spacing: -0.04em;
+      max-width: 980px;
+    }
+    .hero p.lead {
+      font-size: clamp(1rem, 1.7vw, 1.2rem);
+      color: var(--muted);
+      max-width: 860px;
+      margin: 0 0 24px;
+    }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 22px 0 28px; }
+    .badge {
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      color: #d7e7ff;
+      font-size: 0.95rem;
+      backdrop-filter: blur(8px);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .hero-card { padding: 24px; }
+    .hero-card h3 { margin-top: 0; font-size: 1.05rem; letter-spacing: 0.01em; }
+    .metric-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .metric {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .metric .k { color: var(--muted); font-size: 0.9rem; }
+    .metric .v { margin-top: 6px; font-size: 1.15rem; font-weight: 700; }
+    nav.sticky {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(18px);
+      background: rgba(7,17,31,0.72);
+      border-bottom: 1px solid var(--line);
+    }
+    nav .nav-inner {
+      width: min(var(--max), calc(100% - 32px));
+      margin: 0 auto;
+      display: flex;
+      gap: 18px;
+      padding: 12px 0;
+      overflow-x: auto;
+    }
+    nav a {
+      white-space: nowrap;
+      color: #c5d8f5;
+      font-size: 0.95rem;
+    }
+    section { padding: 42px 0; }
+    h2 {
+      font-size: clamp(1.6rem, 3vw, 2.3rem);
+      margin: 0 0 12px;
+      letter-spacing: -0.03em;
+    }
+    .sub { color: var(--muted); margin-bottom: 24px; max-width: 860px; }
+    .grid-2, .grid-3 { display: grid; gap: 20px; }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card {
+      padding: 22px;
+      border-radius: 22px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.1rem; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .pill {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(102,227,255,0.12);
+      color: var(--accent);
+      font-size: 0.82rem;
+      border: 1px solid rgba(102,227,255,0.2);
+    }
+    .flow {
+      display: grid;
+      gap: 16px;
+    }
+    .flow-step {
+      padding: 18px 20px;
+      border-left: 3px solid var(--accent);
+      border-radius: 0 18px 18px 0;
+      background: rgba(255,255,255,0.035);
+      border-top: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .flow-step strong { display: block; margin-bottom: 6px; }
+    .diagram {
+      padding: 22px;
+      overflow-x: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.92rem;
+      white-space: pre;
+      color: #d9e7ff;
+      background: #08111d;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    ul.clean { margin: 0; padding-left: 18px; }
+    li + li { margin-top: 8px; }
+    .quote {
+      padding: 20px 22px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(102,227,255,0.08), rgba(139,124,255,0.1));
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e8f4ff;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+    .table th, .table td {
+      text-align: left;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    .table th { color: #fff; background: rgba(255,255,255,0.03); }
+    .table tr:last-child td { border-bottom: 0; }
+    .ref-list { display: grid; gap: 12px; }
+    .ref {
+      padding: 16px 18px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      color: #dce8fb;
+    }
+    footer {
+      padding: 36px 0 60px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 960px) {
+      .hero-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .metric-list { grid-template-columns: 1fr; }
+      .hero { padding-top: 56px; }
+    }
+    .home-link { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; text-decoration:none; transition:color .2s; }
+    .home-link:hover { color:var(--text); }
+    .home-link svg { width:16px; height:16px; }
+  </style>
+</head>
+<body>
+  <div style="max-width:var(--max); margin:0 auto; padding:14px 24px 0;">
+    <a href="index.html" class="home-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      eli
+    </a>
+  </div>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="badge-row">
+          <span class="badge">Serving Runtime</span>
+          <span class="badge">Scheduler + KV Cache</span>
+          <span class="badge">Speculative Decoding</span>
+          <span class="badge">CUDA Graph / FlashInfer / Triton</span>
+        </div>
+        <h1>SGLang 为什么这么快：架构、精髓、和高吞吐的真正来源</h1>
+        <p class="lead">
+          SGLang 的核心不是“某一个神奇 kernel”，而是一整条为在线推理吞吐优化的系统链路：请求编排、前后处理、动态批处理、KV Cache 复用、attention backend 选择、speculative decoding、CUDA Graph、并行与观测体系，一层一层把 GPU 从“偶尔很忙”推到“几乎一直很忙”。
+        </p>
+      </div>
+      <aside class="panel hero-card">
+        <h3>一句话抓重点</h3>
+        <div class="metric-list">
+          <div class="metric">
+            <div class="k">架构重心</div>
+            <div class="v">scheduler 驱动的 serving runtime</div>
+          </div>
+          <div class="metric">
+            <div class="k">吞吐关键</div>
+            <div class="v">减少空转 + 复用 prefix + 大批量 decode</div>
+          </div>
+          <div class="metric">
+            <div class="k">性能手段</div>
+            <div class="v">RadixCache / FlashInfer / Triton / CUDA Graph</div>
+          </div>
+          <div class="metric">
+            <div class="k">进阶加速</div>
+            <div class="v">speculative decoding + overlap + 并行策略</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="sticky">
+    <div class="nav-inner">
+      <a href="#overview">总览</a>
+      <a href="#architecture">系统架构</a>
+      <a href="#flow">请求路径</a>
+      <a href="#essence">精髓</a>
+      <a href="#throughput">高吞吐来源</a>
+      <a href="#ops">运维与观测</a>
+      <a href="#refs">引用</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="overview">
+      <div class="wrap">
+        <h2>先说结论</h2>
+        <p class="sub">SGLang 之所以吞吐高，不是因为它只做了“快推理”，而是因为它把在线服务里最贵的几个环节都做了系统级优化：请求怎么进入、怎么合批、怎么复用 prefix、怎么组织 KV cache、怎么选 attention kernel、怎么降低 launch overhead、怎么在 decode 阶段少走弯路。</p>
+        <div class="grid-3">
+          <div class="card">
+            <span class="pill">本质 01</span>
+            <h3>把 prefix 复用做成一等公民</h3>
+            <p>很多线上请求并不完全独立。系统提示词、聊天模板、RAG 前缀、agent tool scaffolding 都会重复。SGLang 直接把 prefix 复用放到 runtime 中心，而不是事后补丁。</p>
+          </div>
+          <div class="card">
+            <span class="pill">本质 02</span>
+            <h3>让调度器决定 GPU 的忙碌方式</h3>
+            <p>高吞吐不是“模型单步快”，而是“GPU 每一步都在干最值钱的活”。SGLang 的 scheduler 决定哪些请求进 batch、prefill 和 decode 怎么穿插、缓存怎么命中、草稿模型怎么协同。</p>
+          </div>
+          <div class="card">
+            <span class="pill">本质 03</span>
+            <h3>把软硬件细节都吃干榨尽</h3>
+            <p>它同时利用 FlashInfer、Triton、自定义 backend、CUDA Graph、分块 prefill、speculative decoding、不同并行策略和大量 launch 参数，把“理论性能”尽量变成“稳定吞吐”。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="wrap">
+        <h2>系统架构</h2>
+        <p class="sub">从代码结构看，SGLang 的 serving runtime 不是一个薄 HTTP 壳子，而是一套完整的在线推理执行系统。入口有 HTTP server，核心有 tokenizer / scheduler / model runner / attention backend / KV cache / speculative worker 等模块。</p>
+        <div class="diagram">Client / OpenAI API / Native API
+        │
+        ▼
+HTTP Server (entrypoints/http_server.py)
+        │
+        ▼
+TokenizerManager / request preprocessing
+        │
+        ▼
+Scheduler (managers/scheduler.py)
+   ├─ batching / admission / policy
+   ├─ prefix matching via RadixCache
+   ├─ prefill / decode orchestration
+   ├─ speculative decoding coordination
+   └─ worker / IPC / parallel runtime control
+        │
+        ▼
+ModelRunner (model_executor/model_runner.py)
+   ├─ forward batch construction
+   ├─ KV cache allocation
+   ├─ attention backend dispatch
+   ├─ CUDA graph / piecewise graph path
+   └─ logits + sampling pipeline
+        │
+        ▼
+Attention / Kernels
+   ├─ FlashInfer backend
+   ├─ Triton backend
+   ├─ FlashAttention / MLA / sparse variants
+   └─ hardware-specific backends
+        │
+        ▼
+Streaming tokens / metrics / tracing</div>
+
+        <div class="grid-2" style="margin-top:20px;">
+          <div class="card">
+            <h3>入口层：HTTP Server</h3>
+            <p>HTTP 入口负责协议兼容和请求接入。官方 bench 文档明确区分了在线 benchmark（经过 HTTP server 和 scheduler）与离线 benchmark（直接走 Engine / ModelRunner），这也说明 SGLang 很清楚“HTTP、调度、模型执行”是不同层级的成本。</p>
+          </div>
+          <div class="card">
+            <h3>编排层：Scheduler</h3>
+            <p>源码里 <code>scheduler.py</code> 直接写明它是 “A scheduler that manages a tensor parallel GPU worker.”。它不是配角，而是 serving runtime 的大脑。这里还直接引入了 <code>RadixCache</code>、调度策略模块、以及 speculative decoding 相关类型。</p>
+          </div>
+          <div class="card">
+            <h3>执行层：ModelRunner</h3>
+            <p><code>model_runner.py</code> 顶部说明非常直白：<code>ModelRunner runs the forward passes of the models.</code> 也就是说，Scheduler 决定做什么，ModelRunner 负责把这件事在 GPU 上真正跑出来。</p>
+          </div>
+          <div class="card">
+            <h3>Kernel 层：多 attention backend</h3>
+            <p>在 <code>flashinfer_backend.py</code> 顶部，SGLang 直接写了：现在有 FlashInfer 和 Triton 两类 backend，FlashInfer 更快，Triton 更容易定制；而且 prefill 和 decode 是分开优化的。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="wrap">
+        <h2>一条请求在 SGLang 里怎么跑</h2>
+        <p class="sub">理解这条链路，你就知道它为什么快。核心就是：在进入 GPU 之前就尽量做好组织，在进入 GPU 之后尽量避免重复算。</p>
+        <div class="flow">
+          <div class="flow-step">
+            <strong>1. 请求进入 HTTP Server</strong>
+            支持 OpenAI-compatible 和 native endpoint。真实线上 benchmark 默认走这里，因为这一步会带上 HTTP、异步客户端、scheduler 等真实开销。
+          </div>
+          <div class="flow-step">
+            <strong>2. Tokenizer / 前处理整理请求</strong>
+            把 prompt、采样参数、流式输出模式、多模态输入等整理成调度器可处理的结构。
+          </div>
+          <div class="flow-step">
+            <strong>3. Scheduler 做准入、合批和 cache 匹配</strong>
+            它决定哪些请求一起 prefill，哪些请求进入 decode，哪些请求共享已有前缀，是否启用 speculative path，是否需要不同并行策略。
+          </div>
+          <div class="flow-step">
+            <strong>4. RadixCache 复用 prefix</strong>
+            如果不同请求共享系统提示词、模板、长前缀，SGLang 可以避免从头重算整段 prefill。这个收益在线上 agent、chat、RAG 场景特别大。
+          </div>
+          <div class="flow-step">
+            <strong>5. ModelRunner 构造 forward batch</strong>
+            把 batch、KV cache、attention 元数据、采样与 logits 处理准备好，交给具体 backend 执行。
+          </div>
+          <div class="flow-step">
+            <strong>6. Attention backend 选择最合适实现</strong>
+            prefill 和 decode 用的实现不一定一样。FlashInfer 路径偏极致性能，Triton 路径偏灵活和定制，SGLang 让两者并存。
+          </div>
+          <div class="flow-step">
+            <strong>7. Decode 阶段尽量把 GPU 喂满</strong>
+            真正长期吞吐高不靠单次 prefill 峰值，而靠 decode 持续高效。SGLang 会通过动态批处理、分页 KV cache、speculative decoding、CUDA Graph 等手段把 decode 做厚。
+          </div>
+          <div class="flow-step">
+            <strong>8. 输出 token，同时暴露 metrics / tracing</strong>
+            生产环境可以打开 Prometheus 指标，并进一步分析 TTFT、ITL、吞吐、token 统计和估算内存使用。</n          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="essence">
+      <div class="wrap">
+        <h2>SGLang 的精髓</h2>
+        <p class="sub">如果只记三个词，我会选：<strong>prefix-aware</strong>、<strong>scheduler-centric</strong>、<strong>kernel-pragmatic</strong>。</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>精髓一：把“程序结构”变成“服务结构”</h3>
+            <p>SGLang 最早不是只想做一个 server，而是想让 LLM generation 有更强的结构表达能力。这件事延伸到 serving，就自然走向 prefix 复用、约束生成、批量管理、多请求共享执行状态。它不是把模型 API 包一层，而是在重写“请求应该怎样组织”。</p>
+          </div>
+          <div class="card">
+            <h3>精髓二：prefill 和 decode 分开看</h3>
+            <p>很多系统把“推理”当成一件事，但 SGLang 很清楚 prefill 与 decode 的瓶颈不同、最优 kernel 不同、调度方式也不同。官方 attention backend 文档式源码就写明：backend 同时支持 extend（带 cached prefix 的 prefill）和 decode，两者分别优化。</p>
+          </div>
+          <div class="card">
+            <h3>精髓三：高性能不是单点，而是整条链</h3>
+            <p>在线推理会被很多小损耗拖死：host-to-device copy、kernel launch、KV 分配、批次抖动、无谓 prefill、低 accept-rate 的 speculative path。SGLang 的设计很明显是在削这些边角料，让每个阶段都别拖后腿。</p>
+          </div>
+          <div class="card">
+            <h3>精髓四：工程上非常务实</h3>
+            <p>它不执着一种 backend。FlashInfer 快就用 FlashInfer，Triton 好改就保留 Triton；能开 CUDA Graph 就开；不适合就切换；launch 参数多到像赛车调教台，因为他们追求的是现实机器上的最优解，不是论文里的整洁感。</p>
+          </div>
+        </div>
+        <div class="quote" style="margin-top:20px;">
+          真正厉害的地方是：SGLang 把“模型推理”从一个函数调用，升级成了一个高密度资源调度问题，然后用 runtime 设计去解它。
+        </div>
+      </div>
+    </section>
+
+    <section id="throughput">
+      <div class="wrap">
+        <h2>它怎么做到这么高的吞吐</h2>
+        <p class="sub">下面这些因素叠起来，才构成 SGLang 的高吞吐。少一个点，它都还是快；但真正可怕的是它把这些点串成了一套组合拳。</p>
+        <div class="grid-3">
+          <div class="card">
+            <span class="pill">01</span>
+            <h3>Prefix / KV Cache 复用</h3>
+            <p>Scheduler 里直接依赖 <code>RadixCache</code>。这意味着 prefix 命中不是外围特性，而是核心调度路径的一部分。共享 system prompt、相同模板、类似上下文的请求，能跳过大量重复 prefill。</p>
+          </div>
+          <div class="card">
+            <span class="pill">02</span>
+            <h3>动态批处理把 decode 做厚</h3>
+            <p>高并发服务时，decode 阶段往往是长期主战场。SGLang 通过调度器不断把活跃请求拼成合适 batch，让 GPU 在每一步 decode 里处理尽可能多 token，而不是被很多小请求打碎。</p>
+          </div>
+          <div class="card">
+            <span class="pill">03</span>
+            <h3>把 prefill 和 decode 用不同实现打磨</h3>
+            <p>FlashInfer backend 顶部直接说明：它区分 extend 和 decode；Triton backend 也专门为 forward metadata、kv splits、窗口化 attention 等准备不同逻辑。阶段分治本身就是吞吐来源。</p>
+          </div>
+          <div class="card">
+            <span class="pill">04</span>
+            <h3>Paged KV / 分页式 attention 执行</h3>
+            <p>从 FlashInfer backend 中出现的 <code>BatchDecodeWithPagedKVCacheWrapper</code>、<code>BatchPrefillWithPagedKVCacheWrapper</code> 就能看出，SGLang 明确围绕分页 KV cache 设计 attention 执行路径。这让长上下文和动态 batch 更可控。</p>
+          </div>
+          <div class="card">
+            <span class="pill">05</span>
+            <h3>CUDA Graph 降低 launch overhead</h3>
+            <p>ModelRunner 和多个 runtime 路径都集成了 CUDA graph / piecewise graph。对稳定批次和重复图来说，这能明显减少 CPU 发射 kernel 的开销，尤其是在小步 decode 高频调用时很值钱。</p>
+          </div>
+          <div class="card">
+            <span class="pill">06</span>
+            <h3>Speculative Decoding 提高有效输出速度</h3>
+            <p>Scheduler 里直接解析 <code>SpeculativeAlgorithm</code>，并在初始化时启动 model worker 与 draft worker。也就是说 speculative decoding 不是外围插件，而是主路径能力。accept length 越好，真实吞吐就越高。</p>
+          </div>
+          <div class="card">
+            <span class="pill">07</span>
+            <h3>Kernel backend 可切换，贴硬件调优</h3>
+            <p>FlashInfer 更快，Triton 更可定制，这是源码直接写出来的取舍。SGLang 不赌单一路线，而是让 runtime 根据模型、硬件、功能需求走最合适 backend。</p>
+          </div>
+          <div class="card">
+            <span class="pill">08</span>
+            <h3>大量 launch 参数暴露真实性能旋钮</h3>
+            <p>官方 server arguments 文档里，和并行、memory、chunked prefill、attention backend、speculative、hybrid kvcache ratio、load watch 等相关的参数非常多。说明团队把性能当成“可调系统”，不是黑盒。</p>
+          </div>
+          <div class="card">
+            <span class="pill">09</span>
+            <h3>在线 benchmark 体系很完整</h3>
+            <p>bench_serving 会直接测 TTFT、ITL、吞吐、端到端延迟，还会在 SGLang 场景下查询 <code>/get_server_info</code> 报 speculative accept length。能持续测，才能持续压性能。</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <h3>高吞吐的底层逻辑，可以压缩成一个公式</h3>
+          <p><strong>吞吐 ≈ 更少重复计算 + 更少 GPU 空转 + 更少 launch 开销 + 更高 batch 利用率 + 更高 cache 命中率 + 更高 speculative accept 效率。</strong></p>
+          <p>你会发现，SGLang 的每个核心模块几乎都在为这几个项服务。</p>
+        </div>
+
+        <div style="margin-top:20px; overflow-x:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>瓶颈</th>
+                <th>SGLang 的应对</th>
+                <th>为什么有效</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>相同前缀重复 prefill</td>
+                <td>RadixCache / prefix reuse</td>
+                <td>直接省掉最贵的一段算力和内存流量</td>
+              </tr>
+              <tr>
+                <td>请求碎片化导致 batch 太小</td>
+                <td>scheduler 动态合批</td>
+                <td>提高每步 decode 的有效 token 数</td>
+              </tr>
+              <tr>
+                <td>prefill / decode 瓶颈不同</td>
+                <td>分阶段 backend 和元数据组织</td>
+                <td>每个阶段各用最优路径</td>
+              </tr>
+              <tr>
+                <td>KV cache 管理混乱</td>
+                <td>Paged KV + allocator</td>
+                <td>更适合长上下文和动态请求生命周期</td>
+              </tr>
+              <tr>
+                <td>kernel launch 太频繁</td>
+                <td>CUDA Graph / piecewise graph</td>
+                <td>降低 CPU 发射与图构建成本</td>
+              </tr>
+              <tr>
+                <td>decode decode 每步只出一个 token 太慢</td>
+                <td>speculative decoding</td>
+                <td>高 accept 时显著提升有效输出速率</td>
+              </tr>
+              <tr>
+                <td>不同硬件最优路径不同</td>
+                <td>FlashInfer / Triton / 多 backend</td>
+                <td>避免单一路径吃遍所有场景</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="ops">
+      <div class="wrap">
+        <h2>生产环境怎么证明它真的快</h2>
+        <p class="sub">不是看一句“我们很高效”，而是看它能不能稳定把关键指标吐出来。SGLang 这点做得也挺完整。</p>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Benchmark 分层很清楚</h3>
+            <ul class="clean">
+              <li><code>bench_serving</code>：走 HTTP server 和 scheduler，最接近真实线上。</li>
+              <li><code>bench_one_batch_server</code>：测单批次端到端延迟，含 HTTP 和调度开销。</li>
+              <li><code>bench_offline_throughput</code>：绕开 HTTP，直测 Engine 级最大吞吐。</li>
+              <li><code>bench_one_batch</code>：更接近 kernel / 单静态 batch 剖析。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>可观测指标不只吞吐</h3>
+            <ul class="clean">
+              <li>TTFT（首 token 时间）</li>
+              <li>ITL / TPOT（token 间延迟）</li>
+              <li>端到端请求延迟</li>
+              <li>prompt / generation token 总量</li>
+              <li>推测解码 accept length</li>
+              <li>Prometheus 指标与 Grafana 面板</li>
+            </ul>
+          </div>
+        </div>
+        <div class="quote" style="margin-top:20px;">
+          一个 serving 系统只有在你能分清“HTTP 慢、调度慢、kernel 慢、还是 prefix 命中差”的时候，性能优化才不是玄学。SGLang 已经把这个诊断面铺出来了。
+        </div>
+      </div>
+    </section>
+
+    <section id="refs">
+      <div class="wrap">
+        <h2>引用与依据</h2>
+        <p class="sub">下面这些说法都尽量落在可见文档或源码上，不吹玄学。</p>
+        <div class="ref-list">
+          <div class="ref"><strong>SGLang README</strong>：项目自述和整体定位，来源：<a href="https://raw.githubusercontent.com/sgl-project/sglang/main/README.md">sgl-project/sglang README</a></div>
+          <div class="ref"><strong>Scheduler 角色</strong>：<code>python/sglang/srt/managers/scheduler.py:14</code> 写明 “A scheduler that manages a tensor parallel GPU worker.”；同文件引入 <code>RadixCache</code>（约第 183 行）和 <code>SpeculativeAlgorithm</code>（约第 201 行）。</div>
+          <div class="ref"><strong>ModelRunner 角色</strong>：<code>python/sglang/srt/model_executor/model_runner.py</code> 顶部注释写明 “ModelRunner runs the forward passes of the models.”</div>
+          <div class="ref"><strong>FlashInfer / Triton backend 取舍</strong>：<code>python/sglang/srt/layers/attention/flashinfer_backend.py</code> 顶部说明：FlashInfer 更快，Triton 更易定制；都支持 extend 与 decode。</div>
+          <div class="ref"><strong>Paged KV 迹象</strong>：同文件直接使用 <code>BatchDecodeWithPagedKVCacheWrapper</code>、<code>BatchPrefillWithPagedKVCacheWrapper</code>。</div>
+          <div class="ref"><strong>Benchmark 分层</strong>：<a href="https://raw.githubusercontent.com/sgl-project/sglang/main/docs/developer_guide/benchmark_and_profiling.md">benchmark_and_profiling.md</a> 列出四类 benchmark，对应 HTTP server、scheduler、Engine、ModelRunner 不同层级。</div>
+          <div class="ref"><strong>Serving 指标</strong>：<a href="https://raw.githubusercontent.com/sgl-project/sglang/main/docs/developer_guide/bench_serving.md">bench_serving.md</a> 说明 TTFT、ITL、throughput、accept length 等测量方式。</div>
+          <div class="ref"><strong>生产观测</strong>：<a href="https://raw.githubusercontent.com/sgl-project/sglang/main/docs/references/production_metrics.md">production_metrics.md</a> 给出 Prometheus 指标与 Grafana 支持。</div>
+          <div class="ref"><strong>可调性能参数</strong>：<a href="https://raw.githubusercontent.com/sgl-project/sglang/main/docs/advanced_features/server_arguments.md">server_arguments.md</a> 展示了 attention backend、memory、parallelism、chunked prefill、speculative 等大量参数。</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      这页是给工程师看的版本：重点不在概念定义，而在“系统到底快在哪”。如果你要，我下一步可以继续把它升级成带动画的交互式版本，再加一页 <strong>SGLang vs vLLM</strong> 的对照图。
+    </div>
+  </footer>
+</body>
+</html>

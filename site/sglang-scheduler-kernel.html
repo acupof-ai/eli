@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SGLang Scheduler × Kernel 深拆</title>
+  <style>
+    :root {
+      --bg: #07101b;
+      --panel: rgba(13, 23, 38, 0.92);
+      --panel-2: rgba(17, 29, 49, 0.95);
+      --text: #ecf4ff;
+      --muted: #9fb0c7;
+      --line: rgba(130, 166, 255, 0.18);
+      --blue: #74b6ff;
+      --cyan: #65f0ff;
+      --green: #5df2b6;
+      --yellow: #ffd76a;
+      --pink: #ff8ed8;
+      --shadow: 0 20px 60px rgba(0,0,0,.35);
+      --max: 1240px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(101,240,255,.10), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(116,182,255,.14), transparent 24%),
+        linear-gradient(180deg, #06101b, #08131f 45%, #091521 100%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px 80px; }
+    .hero {
+      padding: 72px 0 32px;
+      border-bottom: 1px solid var(--line);
+    }
+    .kicker {
+      display: inline-flex;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(101,240,255,.25);
+      border-radius: 999px;
+      color: var(--cyan);
+      font-size: 13px;
+      background: rgba(101,240,255,.07);
+    }
+    h1 {
+      margin: 18px 0 12px;
+      font-size: clamp(34px, 7vw, 68px);
+      line-height: 1.02;
+      letter-spacing: -.03em;
+      max-width: 960px;
+    }
+    .subtitle {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: clamp(16px, 2vw, 21px);
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .chip {
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: #d8e8ff;
+      font-size: 13px;
+    }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(14px);
+      background: rgba(7,16,27,.72);
+      border-bottom: 1px solid rgba(130,166,255,.12);
+    }
+    .nav .inner {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .nav a { color: #d7e7ff; font-size: 14px; }
+    section { padding: 44px 0 0; }
+    h2 {
+      font-size: clamp(26px, 4vw, 40px);
+      margin: 0 0 12px;
+      letter-spacing: -.02em;
+    }
+    h3 {
+      font-size: 22px;
+      margin: 0 0 10px;
+      letter-spacing: -.02em;
+    }
+    .sub { color: var(--muted); max-width: 900px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-top: 22px;
+    }
+    .card {
+      grid-column: span 12;
+      background: linear-gradient(180deg, rgba(17,29,49,.92), rgba(10,18,31,.96));
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+    .span-6 { grid-column: span 6; }
+    .span-4 { grid-column: span 4; }
+    .span-8 { grid-column: span 8; }
+    .span-7 { grid-column: span 7; }
+    .span-5 { grid-column: span 5; }
+    .quote {
+      border-left: 3px solid var(--cyan);
+      padding-left: 14px;
+      color: #cfe4ff;
+      margin: 14px 0 0;
+    }
+    .architecture {
+      display: grid;
+      gap: 14px;
+      margin-top: 20px;
+    }
+    .layer {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(255,255,255,.02);
+    }
+    .layer strong { color: #fff; }
+    .pill {
+      display: inline-block;
+      font-size: 12px;
+      color: #08111d;
+      background: linear-gradient(135deg, var(--cyan), var(--green));
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .step {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      padding: 14px 16px;
+      position: relative;
+    }
+    .step::before {
+      content: attr(data-step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      margin-right: 10px;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #08111d;
+      font-weight: 800;
+    }
+    .compare {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      overflow: hidden;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+    }
+    .compare th, .compare td {
+      padding: 14px;
+      border-bottom: 1px solid rgba(130,166,255,.12);
+      text-align: left;
+      vertical-align: top;
+    }
+    .compare th {
+      color: #b9cbff;
+      background: rgba(255,255,255,.03);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    ul { padding-left: 18px; }
+    li + li { margin-top: 8px; }
+    .refs li { margin-top: 10px; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 8px;
+      padding: 2px 6px;
+      color: #d4f3ff;
+    }
+    .footer {
+      margin-top: 56px;
+      padding-top: 26px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 900px) {
+      .span-6, .span-4, .span-8, .span-7, .span-5 { grid-column: span 12; }
+      .wrap { padding: 0 16px 72px; }
+      .nav .inner { padding: 10px 16px; }
+    }
+    .home-link { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:13px; text-decoration:none; transition:color .2s; }
+    .home-link:hover { color:var(--text); }
+    .home-link svg { width:16px; height:16px; }
+  </style>
+</head>
+<body>
+  <div style="max-width:var(--max); margin:0 auto; padding:14px 24px 0;">
+    <a href="index.html" class="home-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      eli
+    </a>
+  </div>
+  <div class="nav">
+    <div class="inner">
+      <a href="#core">核心判断</a>
+      <a href="#scheduler">Scheduler 架构</a>
+      <a href="#flow">调度流程</a>
+      <a href="#kernel">Kernel 路径</a>
+      <a href="#fusion">两者怎么咬合</a>
+      <a href="#whyfast">为什么快</a>
+      <a href="#refs">引用依据</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header class="hero">
+      <div class="kicker">SGLang 深拆 · Scheduler × Kernel</div>
+      <h1>Scheduler 决定 GPU 吃什么，Kernel 决定 GPU 怎么吃。</h1>
+      <p class="subtitle">
+        如果只看 SGLang 的 benchmark，很容易把“快”理解成某个 attention kernel 很猛。其实不是。SGLang 真正厉害的地方是：<strong>上层 scheduler 负责把请求组织成对 GPU 最友好的工作负载，下层 kernel/backend 再把这批工作尽量以最少浪费跑完</strong>。这页就专门拆这两层。
+      </p>
+      <div class="chips">
+        <div class="chip">Scheduler = admission + batching + cache + phase orchestration</div>
+        <div class="chip">Kernel = attention backend + graph replay + KV planning</div>
+        <div class="chip">高吞吐来自两层配合，不是单点魔法</div>
+      </div>
+    </header>
+
+    <section id="core">
+      <h2>一句话先说透</h2>
+      <p class="sub">SGLang 不是“某个算子快”，而是“把在线 serving 的碎片化工作，压成更连续、更可预测、更可复用的 GPU 工作流”。</p>
+      <div class="grid">
+        <div class="card span-4">
+          <h3>Scheduler 的职责</h3>
+          <p>决定哪些请求进入 batch、prefill 与 decode 怎么穿插、哪些 prefix 能复用、KV cache 何时保留或释放、speculative worker 何时介入。</p>
+        </div>
+        <div class="card span-4">
+          <h3>Kernel 的职责</h3>
+          <p>把已经成型的 batch 真正落到 GPU 上，选择 FlashInfer / Triton / CUDA Graph / piecewise graph / paged KV 等低层执行路径。</p>
+        </div>
+        <div class="card span-4">
+          <h3>系统精髓</h3>
+          <p>上层尽量减少“坏 batch”，下层尽量减少“坏执行”。前者决定工作形状，后者决定执行效率。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="scheduler">
+      <h2>Scheduler 的核心架构是什么样</h2>
+      <p class="sub">从源码结构看，<code>Scheduler</code> 不是单纯的 FIFO 队列，而是一个把请求、缓存、batch、worker、speculative 路径、并行策略绑在一起的“在线推理控制器”。</p>
+      <div class="architecture">
+        <div class="layer">
+          <div class="pill">入口对象</div>
+          <strong>Scheduler 主体</strong><br/>
+          在 <code>python/sglang/srt/managers/scheduler.py:270</code> 定义 <code>class Scheduler</code>。它直接依赖 <code>ScheduleBatch</code>、<code>PrefillAdder</code>、<code>SchedulePolicy</code>、<code>RadixCache</code> 和 speculative 相关结构，说明它是整个 serving runtime 的编排中心，而不只是一个“排队器”。
+        </div>
+        <div class="layer">
+          <div class="pill">批组织层</div>
+          <strong>ScheduleBatch + PrefillAdder</strong><br/>
+          <code>ScheduleBatch</code> 在 <code>schedule_batch.py:1250</code>，负责把一轮要跑的请求整理成 GPU 可消费的 batch；<code>prepare_for_extend()</code> 在 <code>1503</code>，<code>mix_with_running()</code> 在 <code>1831</code>，这两个点说明它既要准备 prefill/extend，又要跟正在运行的 decode batch 进行合流。
+        </div>
+        <div class="layer">
+          <div class="pill">策略层</div>
+          <strong>SchedulePolicy</strong><br/>
+          <code>schedule_policy.py:96</code> 定义 <code>class SchedulePolicy</code>，<code>calc_priority()</code> 在 <code>117</code>。这层的意义不是抽象优雅，而是把“谁先跑”“怎么兼顾延迟和吞吐”从具体执行里分离出来。
+        </div>
+        <div class="layer">
+          <div class="pill">缓存层</div>
+          <strong>Radix / Chunk / SWA Tree Cache</strong><br/>
+          <code>scheduler.py:746-780</code> 一段很关键：根据不同模式实例化 <code>ChunkCache</code>、<code>SWAChunkCache</code>、<code>RadixCacheCpp</code>、<code>HiRadixCache</code>、<code>SWARadixCache</code>。这说明 scheduler 一开始就在思考“prefix 怎么复用”，不是把 cache 当附属品。
+        </div>
+        <div class="layer">
+          <div class="pill">推测执行层</div>
+          <strong>Speculative Worker</strong><br/>
+          <code>scheduler.py:334</code> 会解析 <code>speculative_algorithm</code>；<code>381</code> 和 <code>601</code> 注释明确写了会在 speculative decoding 下额外启动 draft worker。也就是说，推测解码不是外挂，而是 scheduler 内建的分支路径。
+        </div>
+      </div>
+      <p class="quote">最本质的理解：<strong>Scheduler 的目标不是公平，而是把请求组织成 GPU 最赚钱的 batch。</strong></p>
+    </section>
+
+    <section id="flow">
+      <h2>Scheduler 具体怎么跑</h2>
+      <div class="flow">
+        <div class="step" data-step="1">
+          <strong>收请求，先变成可调度对象。</strong> 新请求进入后，不会直接怼进 GPU，而是先进入 scheduler 维护的 waiting / running 语义里，准备和已有 batch、已有 cache 命中关系一起评估。
+        </div>
+        <div class="step" data-step="2">
+          <strong>优先算 prefix 复用价值。</strong> 因为 <code>Scheduler</code> 直接绑定 <code>RadixCache</code>（<code>scheduler.py:183</code>）和多种 tree cache 初始化逻辑（<code>746-780</code>），说明一个请求值不值得马上跑，取决于它能否复用已有 KV，而不是只看 arrival time。
+        </div>
+        <div class="step" data-step="3">
+          <strong>构造这一轮 batch。</strong> <code>ScheduleBatch</code> 负责把这轮能一起跑的请求打包，<code>prepare_for_extend()</code> 说明 prefill/extend 是单独准备的，<code>mix_with_running()</code> 则说明 SGLang 会想办法把新增工作和正在 decode 的工作合并，避免 GPU 出现空洞。
+        </div>
+        <div class="step" data-step="4">
+          <strong>决定这一轮跑 prefill、decode，还是 speculative 路径。</strong> <code>scheduler.py:334</code> 解析 speculative algorithm，<code>381</code>/<code>601</code> 启动 draft worker。也就是说 scheduler 不只是发 batch，还要选执行模式。
+        </div>
+        <div class="step" data-step="5">
+          <strong>执行后更新 cache 与请求生命周期。</strong> 跑完并不是简单返回 token；还要维护 tree cache 状态、释放终止或中断请求的 KV。像 <code>scheduler.py:3144-3162</code> 这些位置就是显式的释放逻辑。
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>Scheduler 真正在优化什么</h3>
+          <ul>
+            <li>减少小而碎的 batch</li>
+            <li>提高 prefix 复用命中率</li>
+            <li>把 prefill 和 decode 的资源冲突压到最低</li>
+            <li>让 speculative decoding 在 accept 率高时真正赚到吞吐</li>
+            <li>控制 KV cache 生命周期，避免内存浪费拖垮后续 batch</li>
+          </ul>
+        </div>
+        <div class="card span-6">
+          <h3>它不是在优化什么</h3>
+          <ul>
+            <li>不是单纯追求单请求最短延迟</li>
+            <li>不是机械 FIFO</li>
+            <li>不是把所有请求都尽快塞进 GPU</li>
+            <li>不是把 cache 命中留给底层 kernel 再说</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="kernel">
+      <h2>Kernel 这层到底是什么逻辑</h2>
+      <p class="sub">SGLang 的“kernel”不是单一 .cu 文件，而是一整条执行路径：attention backend 选择、KV 索引规划、workspace 复用、CUDA Graph 捕获与 replay，以及对 speculative/滑窗/cross-attention 的特殊处理。</p>
+      <div class="grid">
+        <div class="card span-7">
+          <h3>FlashInfer 路径：默认追求最快</h3>
+          <p><code>flashinfer_backend.py:5-6</code> 直接写明：现在有 FlashInfer 和 Triton 两个 backend，<strong>FlashInfer 更快，Triton 更容易定制</strong>。</p>
+          <ul>
+            <li><code>51-58</code> 引入 <code>BatchDecodeWithPagedKVCacheWrapper</code>、<code>BatchPrefillWithPagedKVCacheWrapper</code>、<code>fast_decode_plan</code>，说明它不是手写一个 attention kernel 就完事，而是用 paged KV 的批式执行接口组织 decode/prefill。</li>
+            <li><code>110</code> 定义 <code>global_workspace_buffer</code>，<code>203-219</code> 复用全局 workspace，目的就是减少每轮临时分配。</li>
+            <li><code>1132-1144</code> 的 <code>global_override_indptr_cpu</code> 是个很工程化的点：为了绕掉一部分 host-to-device copy 开销，直接快路径覆盖 plan 所需的 indptr。</li>
+            <li>后面大量 <code>decode_wrappers</code> / <code>prefill_wrappers</code> 逻辑说明，kernel 层已经按场景区分了 sliding window、cross attention、speculative 等路径，而不是一个大一统 kernel。</li>
+          </ul>
+        </div>
+        <div class="card span-5">
+          <h3>Triton 路径：可控和可定制</h3>
+          <p><code>triton_backend.py</code> 里把 <code>decode_attention_fwd</code>、<code>extend_attention_fwd</code>、<code>extend_attention_fwd_unified</code> 包进 backend，对自定义逻辑和调试更友好。</p>
+          <ul>
+            <li>显式维护 <code>kv_indptr</code>、<code>kv_indices</code>、<code>qo_indptr</code>、<code>mask_indptr</code> 等 metadata</li>
+            <li>支持 sliding window / deterministic inference / split KV</li>
+            <li>说明 SGLang 的内核思路不是押单一库，而是保留多 backend 路由能力</li>
+          </ul>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>CUDA Graph / Piecewise Graph</h3>
+          <p><code>cuda_graph_runner.py:40</code> 有 <code>graph_capture</code>，<code>454</code> 有 <code>get_batch_sizes_to_capture()</code>，后面还有 <code>replay()</code>。这说明 SGLang 会为常见 batch 形状提前 capture，再在运行时 replay，减少 kernel launch 和 Python/CPU 调度噪音。</p>
+          <p><code>model_runner.py:664-665</code> 明确初始化了 <code>piecewise CUDA graph</code>。它的价值在于：在线 serving 的 batch 形状并不总固定，piecewise 图能在“不完全静态”的情况下也吃到 graph 的收益。</p>
+        </div>
+        <div class="card span-6">
+          <h3>ModelRunner 是内核执行的总控</h3>
+          <p><code>model_runner.py:285</code> 定义 <code>ModelRunner</code>，它拿着 <code>req_to_token_pool</code> 和 <code>token_to_kv_pool_allocator</code>（<code>339-340</code>），说明执行层并不只看到 tensor，还直接掌握 request→token 和 token→KV 的映射资源。</p>
+          <p>这很关键：它让 kernel 执行不是“盲算”，而是和 serving cache 布局强绑定。</p>
+        </div>
+      </div>
+      <p class="quote">Kernel 层的本质不是把 attention 写得更炫，而是把 <strong>batch 的 memory layout、KV 访问方式、launch 开销、graph 复用</strong> 一起压缩到最省的形态。</p>
+    </section>
+
+    <section id="fusion">
+      <h2>Scheduler 和 Kernel 是怎么咬合的</h2>
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>层</th>
+            <th>它决定什么</th>
+            <th>如果做不好会怎样</th>
+            <th>典型源码锚点</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Scheduler</td>
+            <td>请求分组、cache 命中、prefill/decode 穿插、speculative 是否启用</td>
+            <td>GPU 吃到碎 batch，prefix 复用低，延迟和吞吐一起烂</td>
+            <td><code>scheduler.py:270</code>, <code>183</code>, <code>334</code>, <code>746-780</code></td>
+          </tr>
+          <tr>
+            <td>ScheduleBatch</td>
+            <td>把逻辑请求整理成一轮可执行 batch</td>
+            <td>batch 形状差，kernel 即使快也救不回来</td>
+            <td><code>schedule_batch.py:1250</code>, <code>1503</code>, <code>1831</code></td>
+          </tr>
+          <tr>
+            <td>ModelRunner</td>
+            <td>承接 batch，组织 forward、KV pool、graph 路径</td>
+            <td>执行层和 cache 布局脱节，memory traffic 暴涨</td>
+            <td><code>model_runner.py:285</code>, <code>339-340</code>, <code>664-665</code></td>
+          </tr>
+          <tr>
+            <td>Kernel Backend</td>
+            <td>paged KV、attention kernel、workspace、metadata、launch 优化</td>
+            <td>单步算得慢，或每步 overhead 太高</td>
+            <td><code>flashinfer_backend.py:5-6</code>, <code>110</code>, <code>203-219</code>, <code>1132-1144</code></td>
+          </tr>
+          <tr>
+            <td>CUDA Graph</td>
+            <td>把高频 batch 形状 capture/replay</td>
+            <td>CPU launch 开销吃掉吞吐收益</td>
+            <td><code>cuda_graph_runner.py:40</code>, <code>454</code>, <code>1250</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="grid">
+        <div class="card span-8">
+          <h3>真正的协同链路</h3>
+          <p><strong>请求进来 → scheduler 判定 cache / priority / phase → ScheduleBatch 组织 batch → ModelRunner 把 batch 映射到 KV pool 与 graph 路径 → backend 用合适 kernel 跑出来。</strong></p>
+          <p>这里最容易被忽略的一点是：<strong>kernel 的好坏，严重依赖 scheduler 先给它一个“好问题”</strong>。如果上层让 GPU 每轮都面对随机长度、低命中、低合并度的碎请求，再牛的 kernel 也只能在烂输入上尽量少输。</p>
+        </div>
+        <div class="card span-4">
+          <h3>一句最直白的话</h3>
+          <p>SGLang 快，不是因为有“一个神级 kernel”；而是因为它有一套 <strong>让 kernel 持续工作在甜区</strong> 的 scheduler。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="whyfast">
+      <h2>为什么这套组合能打出高吞吐</h2>
+      <div class="grid">
+        <div class="card span-6">
+          <h3>1. 把 prefix 复用提升到系统级</h3>
+          <p>很多系统也有 KV cache，但 SGLang 的关键是 scheduler 自己就围绕 tree cache / radix cache 做决策，而不是让 kernel 被动处理已经定型的请求。</p>
+        </div>
+        <div class="card span-6">
+          <h3>2. 把 prefill / decode 拆清楚再重组</h3>
+          <p>prefill 和 decode 的资源画像不同。SGLang 通过 <code>ScheduleBatch</code> 的 prepare / mix 逻辑，把两种 phase 的冲突尽量压低，同时保留合流机会。</p>
+        </div>
+        <div class="card span-6">
+          <h3>3. 用 paged KV 和元数据规划，降低 memory traffic 浪费</h3>
+          <p>FlashInfer / Triton backend 都显式维护 KV 索引、indptr、workspace、wrapper metadata。这不是“代码复杂”，而是在买更低的访存浪费。</p>
+        </div>
+        <div class="card span-6">
+          <h3>4. 用 CUDA Graph 把高频形状收敛成低开销重放</h3>
+          <p>在线���务最烦的是每步都要 launch 一堆小 kernel。graph capture/replay 把这部分 CPU 发射成本压掉，尤其在 decode 场景更值钱。</p>
+        </div>
+        <div class="card span-6">
+          <h3>5. speculative decoding 真赚的时候能被调度层兜住</h3>
+          <p>推测解码不是 accept rate 高就行，还需要 scheduler 能组织 draft worker 和验证路径，不然收益会被同步与协调开销吃掉。</p>
+        </div>
+        <div class="card span-6">
+          <h3>6. 多 backend 不是分裂，而是避免单一路径失灵</h3>
+          <p>FlashInfer 追求极致性能，Triton 保留可定制性，piecewise graph 处理非完全静态形状。它的哲学是：不同硬件和模型，留多条最优路径。</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px;">
+        <h3>最后压成一个公式</h3>
+        <p><strong>高吞吐 ≈ 好调度 × 高 cache 命中 × 低 launch 开销 × 高效 attention backend × 尽量稳定的 batch 形状</strong></p>
+        <p>这也是为什么你如果只 benchmark 单个 kernel，通常只能解释 SGLang 为什么“局部快”；但解释不了它为什么在真实 online serving 里整体更猛。</p>
+      </div>
+    </section>
+
+    <section id="refs">
+      <h2>引用依据</h2>
+      <p class="sub">下面这些点都来自我实际抓到的官方文档或源码路径，不是拍脑袋总结。</p>
+      <div class="card">
+        <ul class="refs">
+          <li><code>python/sglang/srt/managers/scheduler.py:270</code> — <code>class Scheduler</code></li>
+          <li><code>python/sglang/srt/managers/scheduler.py:183</code> — 引入 <code>RadixCache</code></li>
+          <li><code>python/sglang/srt/managers/scheduler.py:334</code> — 解析 speculative algorithm</li>
+          <li><code>python/sglang/srt/managers/scheduler.py:381</code>, <code>601</code> — 启动 speculative draft worker 注释</li>
+          <li><code>python/sglang/srt/managers/scheduler.py:746-780</code> — 初始化 Chunk/Radix/SWA/HiRadix 等 tree cache</li>
+          <li><code>python/sglang/srt/managers/scheduler.py:3144-3162</code> — aborted / release KV cache 相关逻辑</li>
+          <li><code>python/sglang/srt/managers/schedule_batch.py:1250</code> — <code>class ScheduleBatch</code></li>
+          <li><code>python/sglang/srt/managers/schedule_batch.py:1503</code> — <code>prepare_for_extend()</code></li>
+          <li><code>python/sglang/srt/managers/schedule_batch.py:1831</code> — <code>mix_with_running()</code></li>
+          <li><code>python/sglang/srt/managers/schedule_policy.py:96</code>, <code>117</code> — <code>SchedulePolicy</code> 与 <code>calc_priority()</code></li>
+          <li><code>python/sglang/srt/model_executor/model_runner.py:285</code>, <code>339-340</code>, <code>664-665</code> — <code>ModelRunner</code>、KV pool、piecewise CUDA graph</li>
+          <li><code>python/sglang/srt/model_executor/cuda_graph_runner.py:40</code>, <code>454</code>, <code>1250</code> — graph capture、batch size capture、replay</li>
+          <li><code>python/sglang/srt/layers/attention/flashinfer_backend.py:5-6</code> — FlashInfer 更快，Triton 更易定制</li>
+          <li><code>python/sglang/srt/layers/attention/flashinfer_backend.py:51-58</code> — paged KV wrappers / <code>fast_decode_plan</code></li>
+          <li><code>python/sglang/srt/layers/attention/flashinfer_backend.py:110</code>, <code>203-219</code> — 全局 workspace 复用</li>
+          <li><code>python/sglang/srt/layers/attention/flashinfer_backend.py:1132-1144</code> — override indptr 以减少 host-to-device copy</li>
+          <li><code>docs/developer_guide/benchmark_and_profiling.md</code> — benchmark 分层：server / scheduler / model runner / kernel</li>
+          <li><code>docs/developer_guide/bench_serving.md</code> — 在线 serving 的 TTFT、ITL、throughput 观测口径</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="footer">
+      这页已经按你的默认要求准备成可部署页面。下一步如果你要，我可以继续做一页更狠的：<strong>SGLang Scheduler vs vLLM Scheduler</strong>，或者再拆 <strong>RadixCache / speculative decoding</strong> 的单页。
+    </div>
+  </div>
+</body>
+</html>

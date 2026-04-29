@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>高速 KV 缓存基础设施：组件、原理与拓扑架构</title>
+  <style>
+    :root {
+      --bg: #FAFAF8;
+      --surface: #FFFFFF;
+      --surface-alt: #F5F4EF;
+      --text: #1A1A1A;
+      --text-secondary: #5C5C5C;
+      --text-tertiary: #8A8A8A;
+      --border: #E8E5DE;
+      --border-light: #F0EDE6;
+      --accent: #D4A27F;
+      --accent-bg: #FDF8F4;
+      --code-bg: #F7F5F0;
+      --code-border: #E8E5DE;
+      --green: #2D7A4F;
+      --green-bg: #F0F9F4;
+      --red: #B8433A;
+      --red-bg: #FDF4F3;
+      --amber: #A06B1A;
+      --amber-bg: #FFF9ED;
+      --mono: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      width: 100%;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 80px 0 56px;
+    }
+    .label {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: clamp(28px, 4.5vw, 42px);
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .lead {
+      font-size: 17px;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      max-width: 720px;
+    }
+
+    /* ── Stats row ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 40px;
+    }
+    .stat {
+      background: var(--surface);
+      padding: 24px;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    /* ── Sections ── */
+    section {
+      padding: 56px 0;
+      border-top: 1px solid var(--border-light);
+    }
+
+    h2 {
+      font-size: clamp(22px, 3vw, 30px);
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    p {
+      color: var(--text-secondary);
+      margin-bottom: 16px;
+    }
+
+    section > .wrap > p:first-of-type {
+      font-size: 16px;
+      max-width: 680px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    ul li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+
+    ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    /* ── Blockquote ── */
+    blockquote {
+      border-left: 3px solid var(--accent);
+      padding: 16px 24px;
+      margin: 24px 0;
+      background: var(--accent-bg);
+      border-radius: 0 8px 8px 0;
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.8;
+    }
+
+    /* ── Cards ── */
+    .grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .card p {
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .card ul li {
+      font-size: 14px;
+    }
+
+    .card h3 {
+      font-size: 15px;
+    }
+
+    /* ── Code / Diagram blocks ── */
+    .diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      overflow-x: auto;
+      margin: 24px 0;
+    }
+
+    pre {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre;
+      margin: 0;
+    }
+
+    /* ── Table ── */
+    .table-wrap {
+      margin: 24px 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: var(--surface-alt);
+    }
+
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 14px 16px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-light);
+      vertical-align: top;
+      line-height: 1.6;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── Callout ── */
+    .callout {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 24px 0;
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.75;
+    }
+
+    .callout strong {
+      color: var(--text);
+    }
+
+    /* ── Tags ── */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .tag {
+      padding: 5px 12px;
+      border-radius: 6px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* ── Colored indicators ── */
+    .good { color: var(--green); }
+    .warn { color: var(--amber); }
+    .bad { color: var(--red); }
+
+    .good::before { background: var(--green); }
+    .warn::before { background: var(--amber); }
+    .bad::before { background: var(--red); }
+
+    /* ── Fit cards ── */
+    .fit-card {
+      border-radius: 12px;
+      padding: 24px;
+      border: 1px solid;
+    }
+    .fit-card.yes {
+      background: var(--green-bg);
+      border-color: #C6E7D2;
+    }
+    .fit-card.no {
+      background: var(--red-bg);
+      border-color: #F0D4D1;
+    }
+    .fit-card h3 {
+      margin-bottom: 12px;
+    }
+    .fit-card ul li {
+      font-size: 14px;
+    }
+
+    /* ── Phased cards ── */
+    .phase-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      margin-bottom: 12px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      padding: 56px 0 80px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    footer .summary {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+
+    footer .summary strong {
+      color: var(--text);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      header { padding: 48px 0 40px; }
+      section { padding: 40px 0; }
+      .stats { grid-template-columns: 1fr; }
+      .grid-3, .grid-2 { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+      .diagram { padding: 20px 16px; }
+      pre { font-size: 11px; }
+      .stat { padding: 16px 20px; }
+      .card { padding: 20px; }
+      table { font-size: 13px; }
+      th, td { padding: 10px 12px; }
+    }
+
+    @media (max-width: 480px) {
+      .wrap { padding: 0 16px; }
+      .diagram { padding: 16px 12px; }
+      pre { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width:820px; margin:0 auto; padding:14px 24px 0;">
+    <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;color:var(--text-tertiary);font-size:13px;text-decoration:none;transition:color .2s;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      eli
+    </a>
+  </div>
+
+  <header>
+    <div class="wrap">
+      <div class="label">KV Cache Infrastructure</div>
+      <h1>高速 KV 缓存基础设施：组件、原理与拓扑架构</h1>
+      <p class="lead">
+        高速 KV 缓存基础设施不是"搞一块大显存"这么简单。真正要解决的是如何把 prefix 复用、paged 分配、跨请求共享、分层存储、调度器、传输链路、失效回收和观测系统串成一套能长期稳定运行的系统。
+      </p>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">本质目标</div>
+          <div class="stat-value">少算 · 少搬 · 少等</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">系统核心</div>
+          <div class="stat-value">把 token 复用变成一等公民</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">最终效果</div>
+          <div class="stat-value">更低 TTFT · 更高吞吐 · 更稳成本</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ────────── 目标 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>高速 KV 缓存在解决什么</h2>
+        <blockquote>
+          对大模型推理来说，最贵的不是"保存数据"，而是"重复做本来可以复用的 attention 计算"。KV 缓存基础设施的使命，是把已经算过的 prefix/value 变成后续请求能直接命中的资产，而不是每次从头 prefill。
+        </blockquote>
+        <div class="tags">
+          <span class="tag">减少重复 prefill</span>
+          <span class="tag">提高 prefix 命中率</span>
+          <span class="tag">控制显存碎片</span>
+          <span class="tag">缩短 TTFT</span>
+          <span class="tag">提升 GPU 利用率</span>
+          <span class="tag">支撑多节点扩展</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 核心组件 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>核心组件拆解</h2>
+        <p>一个完整的 KV 缓存基础设施需要六类组件协同工作。</p>
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Token / Block 分配器</h3>
+            <p>把连续 KV 存储切成固定大小 block/page，避免每个请求拿一大段连续显存。</p>
+            <ul>
+              <li>页式分配，降低显存碎片</li>
+              <li>按 block 建索引，支持重映射</li>
+              <li>配合批量回收和惰性回收</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Prefix 索引与查找层</h3>
+            <p>把前缀转成可匹配的结构——radix tree、trie、hash 索引——快速判断"哪些 token 之前已经算过"。</p>
+            <ul>
+              <li>最长前缀匹配</li>
+              <li>增量插入</li>
+              <li>共享前缀引用计数</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Scheduler / Admission</h3>
+            <p>调度器必须知道哪些请求能命中缓存、哪些值得等待合批、哪些需要抢占显存。</p>
+            <ul>
+              <li>prefill / decode 分阶段调度</li>
+              <li>命中优先级决策</li>
+              <li>容量水位保护</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>多级存储层</h3>
+            <p>真正的基础设施不只有 HBM。一层 GPU，二层 host DRAM，三层本地 NVMe 或远端缓存。</p>
+            <ul>
+              <li>GPU 常驻热块</li>
+              <li>CPU 存温数据</li>
+              <li>磁盘/远端存冷数据</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>传输与预取链路</h3>
+            <p>DMA、PCIe、NVLink、RDMA、异步预取——决定了命中是不是"真有收益"。</p>
+            <ul>
+              <li>异步 load / prefetch</li>
+              <li>带宽预算与限流</li>
+              <li>搬运与计算重叠</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>回收、压缩与观测</h3>
+            <p>没有 eviction、引用计数、碎片治理、命中率观测，缓存迟早从加速器变成负债。</p>
+            <ul>
+              <li>LRU/LFU/成本感知回收</li>
+              <li>OOM 保护与降级</li>
+              <li>hit rate / load latency / spill rate 指标</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 原理 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>底层原理：为什么这些组件能提速</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>原理</th>
+                <th>解决的问题</th>
+                <th>收益</th>
+                <th>代价</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Prefix reuse</strong></td>
+                <td>重复请求每次都从头 prefill</td>
+                <td>直接减少 attention FLOPs 和 TTFT</td>
+                <td>需要复杂索引与失效管理</td>
+              </tr>
+              <tr>
+                <td><strong>Paged / blocked KV</strong></td>
+                <td>连续显存分配碎片严重</td>
+                <td>更稳定的内存管理和并发容量</td>
+                <td>额外 indptr / indices 映射</td>
+              </tr>
+              <tr>
+                <td><strong>Multi-tier cache</strong></td>
+                <td>GPU HBM 太贵太小</td>
+                <td>扩大可复用上下文池</td>
+                <td>引入搬运延迟</td>
+              </tr>
+              <tr>
+                <td><strong>Async prefetch</strong></td>
+                <td>命中冷数据但取回太慢</td>
+                <td>减少 stall，GPU 不空等</td>
+                <td>需要预测和调度协同</td>
+              </tr>
+              <tr>
+                <td><strong>Ref counting / pinning</strong></td>
+                <td>共享前缀被误删</td>
+                <td>提升正确性和热数据稳定性</td>
+                <td>状态维护复杂</td>
+              </tr>
+              <tr>
+                <td><strong>Cost-aware eviction</strong></td>
+                <td>命中率高但搬入搬出抖动大</td>
+                <td>回收更接近真实收益最大化</td>
+                <td>策略和观测门槛更高</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout">
+          真正的关键不是"有没有缓存"，而是<strong>缓存命中节省的计算</strong>是否大于<strong>缓存带来的索引、搬运、回收、同步成本</strong>。
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 拓扑 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>常见拓扑架构</h2>
+        <p>单机热缓存、多机共享目录、分层冷存——三种拓扑各有适用场景。</p>
+        <div class="diagram">
+<pre>                  ┌──────────────────────────────────────┐
+                  │           Router / Gateway            │
+                  │  prompt normalize + route by prefix   │
+                  └──────────────────────────────────────┘
+                                    │
+                  ┌─────────────────┴─────────────────┐
+                  │                                   │
+        ┌─────────────────────┐            ┌─────────────────────┐
+        │  Inference Node A   │            │  Inference Node B   │
+        │                     │            │                     │
+        │  ┌───────────────┐  │            │  ┌───────────────┐  │
+        │  │ GPU HBM (hot) │  │            │  │ GPU HBM (hot) │  │
+        │  ├───────────────┤  │            │  ├───────────────┤  │
+        │  │ CPU DRAM (warm)│  │            │  │ CPU DRAM (warm)│  │
+        │  ├───────────────┤  │            │  ├───────────────┤  │
+        │  │ NVMe (spill)  │  │            │  │ NVMe (spill)  │  │
+        │  └───────────────┘  │            │  └───────────────┘  │
+        └──────────┬──────────┘            └──────────┬──────────┘
+                   │                                  │
+                   └──────────────┬───────────────────┘
+                                  │
+                  ┌──────────────────────────────────────┐
+                  │  Shared metadata / prefix directory   │
+                  │  hash · trie · radix · ownership map  │
+                  └──────────────────────────────────────┘</pre>
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>拓扑 A：单机内闭环</h3>
+            <p>适合单机多卡或小规模集群。调度、索引、HBM/DRAM 分层都在一个节点内完成。</p>
+            <ul>
+              <li class="good">延迟最低</li>
+              <li class="good">实现最稳</li>
+              <li class="warn">缓存复用范围仅限本机</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>拓扑 B：多机共享元数据</h3>
+            <p>各推理节点本地存 KV，只共享 prefix 元数据目录和 ownership 信息。</p>
+            <ul>
+              <li class="good">扩展性更强</li>
+              <li class="good">不会把所有流量压到中心缓存</li>
+              <li class="warn">需要更聪明的路由与失效同步</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 不要一上来就做全局远程 KV ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>不要一上来就做"全局远程 KV"</h2>
+        <blockquote>
+          远程共享 KV 听起来很美——所有节点都能复用所有前缀。但现实是 KV 数据体量大、访问模式细碎、热度变化快。很多团队一开始就做中心化远程 KV，最后不是被网络打爆，就是被一致性和回收拖死。
+        </blockquote>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>更靠谱的演进顺序</h3>
+            <ul>
+              <li>先做本地 HBM + DRAM 两级缓存</li>
+              <li>再加 prefix 目录和路由亲和</li>
+              <li>最后再考虑跨机 materialized KV 迁移</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>原因</h3>
+            <ul>
+              <li>绝大部分收益先来自本地 prefix 命中</li>
+              <li>网络 hop 是硬成本，不会凭空消失</li>
+              <li>先把命中、回收、碎片治理做好再扩展</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 请求流转时序 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>请求流转时序</h2>
+        <p>一条命中的请求在基础设施中的完整路径。</p>
+        <div class="diagram">
+<pre>Client Request
+    │
+    ▼
+┌─ Prompt normalize ─────────────────────────────┐
+│  tokenize · trim · template canonicalization    │
+└─────────────────────────────────────────────────┘
+    │
+    ▼
+┌─ Prefix lookup ────────────────────────────────┐
+│  longest-prefix match → locate cache entry      │
+├─── miss ──► full prefill on GPU                 │
+└─── hit ───► map token blocks / fetch warm blocks│
+                  │
+                  ▼
+           ┌─ Scheduler admission ───────────────┐
+           │  merge with running decode batch     │
+           └─────────────────────────────────────┘
+                  │
+                  ▼
+           GPU execute remaining prefill
+                  │
+                  ▼
+           Decode loop
+                  │
+                  ▼
+           Update index + refcount + heat
+                  │
+                  ▼
+           Evict / pin / spill if needed</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 组件边界 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>组件边界：各层职责划分</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>层</th>
+                <th>职责</th>
+                <th>不要做什么</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Router</strong></td>
+                <td>规范化请求、做亲和路由、把相似 prefix 打到同节点</td>
+                <td>不要自己维护 KV 细粒度生命周期</td>
+              </tr>
+              <tr>
+                <td><strong>Prefix Index</strong></td>
+                <td>维护 prefix → block list / ownership / heat</td>
+                <td>不要直接碰 GPU 执行细节</td>
+              </tr>
+              <tr>
+                <td><strong>Memory Manager</strong></td>
+                <td>管理 HBM/DRAM/NVMe block、引用计数、回收策略</td>
+                <td>不要决定业务优先级</td>
+              </tr>
+              <tr>
+                <td><strong>Scheduler</strong></td>
+                <td>决定 admission、batch 组成、prefetch 时机</td>
+                <td>不要把索引结构硬编码死</td>
+              </tr>
+              <tr>
+                <td><strong>Transfer Engine</strong></td>
+                <td>执行异步搬运和预取，重叠通信与计算</td>
+                <td>不要自己拍脑袋回收缓存</td>
+              </tr>
+              <tr>
+                <td><strong>Observability</strong></td>
+                <td>输出 hit rate、spill rate、fetch latency、fragmentation</td>
+                <td>不要只看平均值</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 设计取舍 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>设计中的关键取舍</h2>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>固定 block 大小 vs 可变 block</h3>
+            <p>固定 block 更利于实现和管理；可变 block 理论上能减少浪费，但 metadata 和重组复杂度更高。多数工程系统会先用固定 block，再局部加优化。</p>
+          </div>
+          <div class="card">
+            <h3>精确匹配 vs 模糊共享</h3>
+            <p>严格 prefix 匹配最稳；做相似 prompt 的模糊共享往往收益不如风险大，因为位置、模板、special token 差一点都可能让缓存失效。</p>
+          </div>
+          <div class="card">
+            <h3>中心目录 vs 去中心目录</h3>
+            <p>中心目录简单但容易成为瓶颈；完全去中心又难协调。现实里经常是分片目录 + 局部 ownership + 路由亲和。</p>
+          </div>
+          <div class="card">
+            <h3>回收看"最近"还是看"成本"</h3>
+            <p>单纯 LRU 容易错杀刚好贵的 prefix。更好的策略是结合热度、重算成本、传输成本、命中概率做综合回收。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── Prompt 规范化 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>前提：prompt 体系得可规范化</h2>
+        <div class="callout">
+          如果上游 prompt 每次都多一个随机字段、时间戳、顺序噪音、不可控系统提示，那再强的 KV cache infra 也很难有高命中率。缓存基础设施和 prompt canonicalization 是绑在一起的。
+        </div>
+        <div class="grid grid-2">
+          <div class="card">
+            <h3>该做的</h3>
+            <ul>
+              <li>统一模板和 separator</li>
+              <li>把高频 system prompt 固化</li>
+              <li>把无关动态字段后移</li>
+              <li>做 tokenize 之前的 canonicalization</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>别做的</h3>
+            <ul>
+              <li>每个请求塞唯一 trace id 到 prefix</li>
+              <li>让同构请求拥有不同模板空格/换行</li>
+              <li>把工具结果历史无限拼进同一前缀</li>
+              <li>指望缓存层替你纠正 prompt 设计问题</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 瓶颈诊断 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>缓存基础设施最容易挂掉的地方</h2>
+        <div class="diagram">
+<pre>症状                          根因
+─────────────────────────     ─────────────────────────────────────
+命中率看起来高                 但搬运延迟太大，实际 TTFT 没降
+显存经常爆                     block 回收不及时 / pin 太多 / 批量回收缺失
+吞吐抖动                      prefetch 与 decode 抢带宽 / admission 不稳
+跨节点命中率低                 路由没做 prefix affinity
+缓存越大越慢                   metadata 过重 / 查找成本过高 / 冷数据太多
+系统很复杂但收益一般            上游 prompt 根本不规范、复用率不够</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 落地路线 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>推荐的落地路线</h2>
+        <div class="grid grid-3">
+          <div class="card">
+            <div class="phase-num">1</div>
+            <h3>单机高质量缓存</h3>
+            <ul>
+              <li>paged KV allocator</li>
+              <li>prefix index</li>
+              <li>引用计数 + eviction</li>
+              <li>基础 hit / miss 指标</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="phase-num">2</div>
+            <h3>调度协同</h3>
+            <ul>
+              <li>命中优先 admission</li>
+              <li>prefetch 与 batch 构造结合</li>
+              <li>热数据 pinning</li>
+              <li>容量水位和降级路径</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="phase-num">3</div>
+            <h3>集群化</h3>
+            <ul>
+              <li>prefix-aware routing</li>
+              <li>共享元数据目录</li>
+              <li>跨机 warmup / transfer</li>
+              <li>基于收益的全局回收策略</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ────────── 适合/不适合 ────────── -->
+    <section>
+      <div class="wrap">
+        <h2>适合什么团队 / 不适合什么团队</h2>
+        <div class="grid grid-2">
+          <div class="fit-card yes">
+            <h3 class="good">适合</h3>
+            <ul>
+              <li>有明显重复前缀流量的 LLM 服务</li>
+              <li>长 system prompt、长上下文、RAG 模板固定的场景</li>
+              <li>在线推理成本高、TTFT 敏感的团队</li>
+              <li>已有基本调度和显存管理能力的 infra 团队</li>
+            </ul>
+          </div>
+          <div class="fit-card no">
+            <h3 class="bad">不适合</h3>
+            <ul>
+              <li>请求高度随机、前缀几乎不复用</li>
+              <li>业务还在 prompt 形态剧烈变化期</li>
+              <li>团队还没有观测、回收、调度的工程基础</li>
+              <li>想一步到位做全球共享远程 KV，但没有高带宽低延迟网络预算</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="callout">
+        <strong>一句话总结</strong> — 高速 KV 缓存基础设施 = prefix 复用索引 + 页式内存管理 + 分层存储 + 调度协同 + 传输预取 + 成本感知回收 + 全链路观测。少任何一个，系统都可能"看起来有缓存，实际上并不快"。
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw 架构全景</title>
+  <meta name="description" content="完整展示 OpenClaw 本体架构：Gateway、Channels、Clients、Nodes、Plugin SDK、协议与运行流。" />
+  <meta property="og:title" content="OpenClaw 架构全景" />
+  <meta property="og:description" content="从控制平面到消息渠道、节点、客户端和插件运行时，一页看懂 OpenClaw。" />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(99,102,241,0.12), transparent 34%),
+        radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 28%),
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(148,163,184,0.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.6), transparent 85%);
+    }
+    .glass {
+      backdrop-filter: blur(16px);
+      background: rgba(255,255,255,0.72);
+    }
+    .card {
+      border: 1px solid rgba(226,232,240,0.9);
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 12px 32px rgba(15,23,42,0.06);
+    }
+    .chip {
+      border: 1px solid rgba(148,163,184,0.24);
+      background: rgba(248,250,252,0.9);
+    }
+    .kpi {
+      background: linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.92));
+      border: 1px solid rgba(226,232,240,0.95);
+      box-shadow: 0 12px 32px rgba(15,23,42,0.05);
+    }
+    .flow-line {
+      position: absolute;
+      inset: auto 0 0 0;
+      height: 2px;
+      background: linear-gradient(90deg, #6366f1 0%, #3b82f6 35%, #10b981 100%);
+      opacity: 0.55;
+    }
+    .module {
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+    .module:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(15,23,42,0.10);
+      border-color: rgba(99,102,241,0.35);
+    }
+    [data-anim] {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .55s ease, transform .55s ease;
+    }
+    [data-anim].show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="text-slate-900 antialiased">
+  <div class="pointer-events-none fixed inset-0 grid-bg"></div>
+
+  <div class="mx-auto max-w-7xl px-6 pt-4 sm:px-8 lg:px-10">
+    <a href="index.html" style="display:inline-flex; align-items:center; gap:6px; color:#64748b; font-size:13px; text-decoration:none; transition:color .2s;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      eli
+    </a>
+  </div>
+  <header class="relative overflow-hidden">
+    <div class="mx-auto max-w-7xl px-6 pt-4 sm:px-8 lg:px-10">
+      <div class="glass flex items-center justify-between rounded-full border border-white/60 px-5 py-3 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-lg text-white shadow-lg">🦞</div>
+          <div>
+            <div class="text-sm font-semibold tracking-tight">OpenClaw 架构全景</div>
+            <div class="text-xs text-slate-500">基于 OpenClaw 文档与已安装包结构整理</div>
+          </div>
+        </div>
+        <nav class="hidden items-center gap-5 text-sm text-slate-600 md:flex">
+          <a href="#overview" class="hover:text-slate-900">总览</a>
+          <a href="#layers" class="hover:text-slate-900">分层</a>
+          <a href="#lifecycle" class="hover:text-slate-900">生命周期</a>
+          <a href="#channels" class="hover:text-slate-900">渠道</a>
+          <a href="#protocol" class="hover:text-slate-900">协议</a>
+        </nav>
+      </div>
+    </div>
+
+    <section id="overview" class="relative mx-auto max-w-7xl px-6 pb-20 pt-20 sm:px-8 lg:px-10 lg:pb-28 lg:pt-24">
+      <div class="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <div data-anim>
+          <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700">
+            Control Plane Architecture
+          </div>
+          <h1 class="mt-6 max-w-4xl text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+            一页看懂 <span class="text-indigo-600">OpenClaw 本体架构</span>
+          </h1>
+          <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+            OpenClaw 的核心不是单个 bot，而是一个长期运行的 Gateway。它统一接管消息渠道、对外暴露 WebSocket 控制平面，再把客户端、节点、WebChat、插件和 agent 全部接到同一张运行网络里。
+          </p>
+          <div class="mt-8 flex flex-wrap gap-3 text-sm">
+            <span class="chip rounded-full px-4 py-2 font-medium text-slate-700">单一 Gateway 持有消息面</span>
+            <span class="chip rounded-full px-4 py-2 font-medium text-slate-700">WebSocket 控制平面</span>
+            <span class="chip rounded-full px-4 py-2 font-medium text-slate-700">插件化渠道扩展</span>
+            <span class="chip rounded-full px-4 py-2 font-medium text-slate-700">节点能力并入同一协议</span>
+          </div>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-7">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-bold text-slate-900">核心判断</h2>
+            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">OpenClaw docs</span>
+          </div>
+          <div class="mt-6 space-y-4 text-sm leading-7 text-slate-600">
+            <p><span class="font-semibold text-slate-900">架构中心：</span>单个长期运行的 Gateway 拥有所有 messaging surfaces，并负责 provider 连接、协议校验、事件广播。</p>
+            <p><span class="font-semibold text-slate-900">统一入口：</span>macOS app、CLI、web admin、automations、WebChat、nodes 都通过同一个 WS server 接入。</p>
+            <p><span class="font-semibold text-slate-900">平台模型：</span>聊天渠道是外部 surface，nodes 是具备显式能力声明的设备侧执行体，二者都受 Gateway 编排。</p>
+            <p><span class="font-semibold text-slate-900">运行方式：</span>TypeScript 核心，推荐 Node 运行；Gateway 可在 macOS / Linux / WSL2 上常驻。</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div data-anim class="kpi rounded-3xl p-5">
+          <div class="text-3xl font-black text-slate-950">1</div>
+          <div class="mt-1 text-sm font-semibold text-slate-900">中心 Gateway</div>
+          <p class="mt-2 text-sm leading-6 text-slate-600">一个 host 上一个 Gateway，统一接管连接、事件和路由。</p>
+        </div>
+        <div data-anim class="kpi rounded-3xl p-5">
+          <div class="text-3xl font-black text-slate-950">WS</div>
+          <div class="mt-1 text-sm font-semibold text-slate-900">控制协议</div>
+          <p class="mt-2 text-sm leading-6 text-slate-600">请求、响应、server-push events 全走 typed WebSocket API。</p>
+        </div>
+        <div data-anim class="kpi rounded-3xl p-5">
+          <div class="text-3xl font-black text-slate-950">20+</div>
+          <div class="mt-1 text-sm font-semibold text-slate-900">聊天渠道</div>
+          <p class="mt-2 text-sm leading-6 text-slate-600">Telegram、Slack、Discord、Signal、Feishu、Matrix 等通过 Gateway 接入。</p>
+        </div>
+        <div data-anim class="kpi rounded-3xl p-5">
+          <div class="text-3xl font-black text-slate-950">Node</div>
+          <div class="mt-1 text-sm font-semibold text-slate-900">设备执行体</div>
+          <p class="mt-2 text-sm leading-6 text-slate-600">macOS / iOS / Android / headless 节点以 role=node 接入。</p>
+        </div>
+      </div>
+    </section>
+  </header>
+
+  <main>
+    <section id="layers" class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div data-anim class="mb-10 max-w-3xl">
+        <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Architecture layers</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">系统分层</h2>
+        <p class="mt-4 text-base leading-7 text-slate-600">按职责拆开，OpenClaw 可以看成 6 层：外部消息面、Gateway 控制平面、客户端、节点、插件/SDK、协议与运维设施。</p>
+      </div>
+
+      <div class="space-y-6">
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <div class="mb-5 flex items-center gap-3">
+            <div class="rounded-2xl bg-indigo-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-indigo-700">L1</div>
+            <h3 class="text-2xl font-bold text-slate-950">Channels · 外部消息渠道</h3>
+          </div>
+          <p class="max-w-4xl text-sm leading-7 text-slate-600">WhatsApp、Telegram、Slack、Discord、Signal、iMessage、WebChat 等都不是各自独立 bot 进程，而是被 Gateway 统一收口成 messaging surfaces。</p>
+          <div class="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">Telegram</div><div class="mt-1 text-xs text-slate-500">Bot API / grammY</div></div>
+            <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">Slack</div><div class="mt-1 text-xs text-slate-500">Bolt SDK</div></div>
+            <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">Discord</div><div class="mt-1 text-xs text-slate-500">Bot API + Gateway</div></div>
+            <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">Signal</div><div class="mt-1 text-xs text-slate-500">signal-cli</div></div>
+            <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">Feishu / Matrix / LINE...</div><div class="mt-1 text-xs text-slate-500">plugin-installed separately</div></div>
+          </div>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <div class="mb-5 flex items-center gap-3">
+            <div class="rounded-2xl bg-blue-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">L2</div>
+            <h3 class="text-2xl font-bold text-slate-950">Gateway · 控制平面核心</h3>
+          </div>
+          <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <p class="text-sm leading-7 text-slate-600">Gateway 是长期运行 daemon，负责维护 provider connections、暴露 typed WS API、按 JSON Schema 校验 inbound frames，并持续发出 agent/chat/presence/health/heartbeat/cron 等事件。</p>
+              <div class="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 font-mono text-[13px] leading-7 text-slate-700">
+                Channels / Nodes / Clients<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+                Gateway (daemon, ws://127.0.0.1:18789)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ typed WS requests / responses<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ server-push events<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ provider connections<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ canvas / A2UI / web surfaces
+              </div>
+            </div>
+            <div class="rounded-3xl bg-gradient-to-br from-blue-50 to-indigo-50 p-5">
+              <h4 class="text-sm font-bold uppercase tracking-[0.16em] text-blue-800">Gateway responsibilities</h4>
+              <ul class="mt-4 space-y-3 text-sm leading-7 text-slate-700">
+                <li>维护各渠道和 provider 的长连接</li>
+                <li>承载单一控制面 WS server</li>
+                <li>对请求协议做 schema-level 验证</li>
+                <li>广播 presence / tick / agent / shutdown 等事件</li>
+                <li>提供 canvas host 与控制 UI 的 HTTP 面</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <div class="mb-5 flex items-center gap-3">
+            <div class="rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">L3</div>
+            <h3 class="text-2xl font-bold text-slate-950">Clients · 操作与交互入口</h3>
+          </div>
+          <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div class="module rounded-3xl border border-slate-200 p-5">
+              <div class="text-sm font-bold text-slate-900">CLI</div>
+              <p class="mt-2 text-sm leading-6 text-slate-600">每个 client 一条 WS 连接，可发 health、status、send、agent、system-presence 等请求。</p>
+            </div>
+            <div class="module rounded-3xl border border-slate-200 p-5">
+              <div class="text-sm font-bold text-slate-900">macOS app</div>
+              <p class="mt-2 text-sm leading-6 text-slate-600">菜单栏控制面，适合本机常驻、远程 gateway 管理、语音入口和调试。</p>
+            </div>
+            <div class="module rounded-3xl border border-slate-200 p-5">
+              <div class="text-sm font-bold text-slate-900">Web admin / Control UI</div>
+              <p class="mt-2 text-sm leading-6 text-slate-600">由 Gateway 直接提供，查看状态、操作会话、连接远端实例。</p>
+            </div>
+            <div class="module rounded-3xl border border-slate-200 p-5">
+              <div class="text-sm font-bold text-slate-900">WebChat</div>
+              <p class="mt-2 text-sm leading-6 text-slate-600">静态 UI，经同一个 WS API 读取 chat history 并发送消息。</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <div class="mb-5 flex items-center gap-3">
+            <div class="rounded-2xl bg-fuchsia-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-fuchsia-700">L4</div>
+            <h3 class="text-2xl font-bold text-slate-950">Nodes · 设备侧执行层</h3>
+          </div>
+          <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div class="rounded-3xl bg-gradient-to-br from-fuchsia-50 to-rose-50 p-5">
+              <h4 class="text-sm font-bold uppercase tracking-[0.16em] text-fuchsia-800">role = node</h4>
+              <p class="mt-3 text-sm leading-7 text-slate-700">macOS / iOS / Android / headless 节点连接到同一个 WS server，但在 connect 阶段声明 <span class="font-mono text-[13px]">role: node</span> 和设备能力。节点暴露的不是聊天 surface，而是设备能力面。</p>
+            </div>
+            <div>
+              <div class="grid gap-3 md:grid-cols-2">
+                <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">canvas.*</div><div class="mt-1 text-xs text-slate-500">agent-driven visual workspace</div></div>
+                <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">camera.*</div><div class="mt-1 text-xs text-slate-500">拍照 / 录像入口</div></div>
+                <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">screen.record</div><div class="mt-1 text-xs text-slate-500">屏幕录制</div></div>
+                <div class="module rounded-2xl border border-slate-200 bg-slate-50 p-4"><div class="text-sm font-semibold">location.get</div><div class="mt-1 text-xs text-slate-500">设备位置能力</div></div>
+              </div>
+              <p class="mt-4 text-sm leading-7 text-slate-600">节点采用 device-based pairing，审批信息存放在 device pairing store。也就是说，它们被当成具身份的执行设备，而不是普通聊天客户端。</p>
+            </div>
+          </div>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <div class="mb-5 flex items-center gap-3">
+            <div class="rounded-2xl bg-amber-50 px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-amber-700">L5</div>
+            <h3 class="text-2xl font-bold text-slate-950">Plugin SDK · 扩展层</h3>
+          </div>
+          <div class="grid gap-6 lg:grid-cols-2">
+            <div>
+              <p class="text-sm leading-7 text-slate-600">从已安装包结构看，OpenClaw 明确导出了大块 <span class="font-mono text-[13px]">./plugin-sdk/*</span> 能力，包括 core、runtime、routing、provider-setup、account helpers、compat 等，说明插件扩展不是边角功能，而是正式架构面。</p>
+              <div class="mt-4 flex flex-wrap gap-2 text-xs font-medium text-slate-700">
+                <span class="chip rounded-full px-3 py-1.5">plugin-sdk/core</span>
+                <span class="chip rounded-full px-3 py-1.5">plugin-sdk/runtime</span>
+                <span class="chip rounded-full px-3 py-1.5">plugin-sdk/routing</span>
+                <span class="chip rounded-full px-3 py-1.5">plugin-sdk/account-helpers</span>
+                <span class="chip rounded-full px-3 py-1.5">plugin-sdk/compat</span>
+              </div>
+            </div>
+            <div class="rounded-3xl border border-dashed border-amber-300 bg-amber-50/60 p-5 text-sm leading-7 text-slate-700">
+              <div class="font-bold text-slate-900">这层的意义</div>
+              <p class="mt-2">渠道接入、provider 适配、运行时共用逻辑、账户解析与路由能力，都被设计成可复用的 SDK 面。也因此 Feishu、Matrix、LINE、Mattermost 这类渠道常以“插件单独安装”的形式存在。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div data-anim class="card relative overflow-hidden rounded-[2rem] p-6 sm:p-8 lg:p-10">
+        <div class="flow-line"></div>
+        <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">System map</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">总架构图</h2>
+        <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-600">这张图把 OpenClaw 的主干关系压到一页里：消息面、控制面、客户端、节点和扩展面都围着 Gateway 组织。</p>
+
+        <div class="mt-10 space-y-6">
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">External messaging surfaces</div>
+            <div class="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">WhatsApp</div>
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">Telegram</div>
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">Slack</div>
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">Discord</div>
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">Signal</div>
+              <div class="rounded-2xl bg-white p-4 text-sm font-semibold shadow-sm">Feishu / Matrix / More</div>
+            </div>
+          </div>
+
+          <div class="rounded-[2rem] border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.18em] text-indigo-700">Center</div>
+            <div class="mt-2 text-2xl font-black text-slate-950">Gateway</div>
+            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div class="rounded-2xl bg-white p-4 shadow-sm"><div class="text-sm font-semibold">Provider connections</div><div class="mt-1 text-xs text-slate-500">维护模型与渠道连接</div></div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm"><div class="text-sm font-semibold">Typed WS API</div><div class="mt-1 text-xs text-slate-500">req / res / events</div></div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm"><div class="text-sm font-semibold">Schema validation</div><div class="mt-1 text-xs text-slate-500">JSON Schema 校验</div></div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm"><div class="text-sm font-semibold">Canvas host / Web UI</div><div class="mt-1 text-xs text-slate-500">同端口提供可视化界面</div></div>
+            </div>
+          </div>
+
+          <div class="grid gap-6 lg:grid-cols-2">
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+              <div class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Clients</div>
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl bg-white p-4 shadow-sm">CLI</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">macOS App</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">Web Admin / Control UI</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">WebChat</div>
+              </div>
+            </div>
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+              <div class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Nodes</div>
+              <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-2xl bg-white p-4 shadow-sm">macOS node</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">iOS node</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">Android node</div>
+                <div class="rounded-2xl bg-white p-4 shadow-sm">Headless node</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Extension + runtime surfaces</div>
+            <div class="mt-4 grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+              <div class="rounded-2xl bg-white p-4 shadow-sm">Plugin SDK</div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm">Agents</div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm">Canvas Host</div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm">Control UI</div>
+              <div class="rounded-2xl bg-white p-4 shadow-sm">Gateway CLI</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="lifecycle" class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div data-anim class="mb-10 max-w-3xl">
+        <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Connection lifecycle</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">连接生命周期</h2>
+        <p class="mt-4 text-base leading-7 text-slate-600">OpenClaw 的控制面连接是严肃协议，不是“连上就发消息”的松散 websocket。先握手，再订阅，再请求，再收流式事件。</p>
+      </div>
+
+      <div data-anim class="card rounded-[2rem] p-6 sm:p-8 lg:p-10">
+        <div class="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+          <div>
+            <ol class="space-y-4 text-sm leading-7 text-slate-700">
+              <li><span class="font-bold text-slate-900">1. req:connect</span>：client 首帧必须先 connect。</li>
+              <li><span class="font-bold text-slate-900">2. res(ok)</span>：Gateway 返回 hello-ok，并附 presence + health snapshot。</li>
+              <li><span class="font-bold text-slate-900">3. event push</span>：之后持续推送 presence、tick 等事件。</li>
+              <li><span class="font-bold text-slate-900">4. req:agent</span>：客户端发起 agent 请求。</li>
+              <li><span class="font-bold text-slate-900">5. res:agent ack</span>：先回 accepted，再通过 event:agent 流式发过程。</li>
+              <li><span class="font-bold text-slate-900">6. final</span>：最终返回包含 runId、status、summary 的完成结果。</li>
+            </ol>
+          </div>
+          <div class="rounded-3xl bg-slate-950 p-5 font-mono text-[13px] leading-7 text-slate-100">
+Client  -> Gateway : req:connect
+
+Gateway -> Client  : res(ok) + hello-ok
+
+Gateway -> Client  : event:presence
+
+Gateway -> Client  : event:tick
+
+Client  -> Gateway : req:agent
+
+Gateway -> Client  : res:agent ack { runId, status: accepted }
+
+Gateway -> Client  : event:agent (streaming)
+
+Gateway -> Client  : res:agent final { runId, status, summary }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="protocol" class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Protocol model</span>
+          <h3 class="mt-3 text-2xl font-black tracking-tight text-slate-950">协议与类型系统</h3>
+          <ul class="mt-5 space-y-3 text-sm leading-7 text-slate-700">
+            <li>TypeBox schemas 定义协议。</li>
+            <li>JSON Schema 从这些 schema 自动生成。</li>
+            <li>Swift models 再由 JSON Schema 生成。</li>
+            <li>握手是 mandatory；首帧不是 connect 就 hard close。</li>
+          </ul>
+        </div>
+
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Invariants</span>
+          <h3 class="mt-3 text-2xl font-black tracking-tight text-slate-950">架构硬约束</h3>
+          <ul class="mt-5 space-y-3 text-sm leading-7 text-slate-700">
+            <li>Exactly one Gateway controls a single Baileys session per host。</li>
+            <li>Handshake is mandatory；非 JSON 或非 connect 首帧直接关闭。</li>
+            <li>Events are not replayed；客户端错过事件后必须主动刷新状态。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="channels" class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div data-anim class="mb-10 max-w-3xl">
+        <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Channels + platforms</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">渠道与平台面</h2>
+        <p class="mt-4 text-base leading-7 text-slate-600">文档明确写了：每个 channel 都是通过 Gateway 连接。核心是统一路由和统一控制面，而不是为每个应用单独造一套 runtime。</p>
+      </div>
+
+      <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div data-anim class="card rounded-[2rem] p-6 sm:p-8">
+          <h3 class="text-xl font-bold text-slate-950">支持的主要聊天渠道</h3>
+          <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">BlueBubbles</div><div class="mt-1 text-xs text-slate-500">推荐 iMessage</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Discord</div><div class="mt-1 text-xs text-slate-500">servers / channels / DMs</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Feishu</div><div class="mt-1 text-xs text-slate-500">plugin separately installed</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Google Chat</div><div class="mt-1 text-xs text-slate-500">HTTP webhook app</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">IRC / LINE / Matrix</div><div class="mt-1 text-xs text-slate-500">classic + plugin channels</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Mattermost / Teams</div><div class="mt-1 text-xs text-slate-500">enterprise surfaces</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Nextcloud Talk / Nostr</div><div class="mt-1 text-xs text-slate-500">self-hosted / decentralized</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Signal / Slack</div><div class="mt-1 text-xs text-slate-500">privacy / workspace</div></div>
+            <div class="module rounded-2xl border border-slate-200 p-4"><div class="font-semibold">Synology / Telegram / Tlon</div><div class="mt-1 text-xs text-slate-500">NAS / bot / Urbit</div></div>
+          </div>
+          <div class="mt-6 rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-600">
+            渠道可以同时运行；OpenClaw 会按 chat 路由。文档还特别强调：最快的初始接入通常是 Telegram，而 WhatsApp 需要 QR pairing，磁盘状态也更多。
+          </div>
+        </div>
+
+        <div data-anim class="space-y-6">
+          <div class="card rounded-[2rem] p-6 sm:p-8">
+            <h3 class="text-xl font-bold text-slate-950">运行平台</h3>
+            <ul class="mt-5 space-y-3 text-sm leading-7 text-slate-700">
+              <li><span class="font-semibold text-slate-900">核心：</span>TypeScript 编写，推荐 Node 运行。</li>
+              <li><span class="font-semibold text-slate-900">不推荐：</span>Bun 跑 Gateway，尤其 WhatsApp / Telegram 有 bug。</li>
+              <li><span class="font-semibold text-slate-900">Companion apps：</span>macOS 菜单栏应用，iOS / Android 移动节点。</li>
+              <li><span class="font-semibold text-slate-900">部署：</span>Gateway 在 macOS / Linux / WSL2 都可常驻。</li>
+            </ul>
+          </div>
+
+          <div class="card rounded-[2rem] p-6 sm:p-8">
+            <h3 class="text-xl font-bold text-slate-950">系统服务模型</h3>
+            <ul class="mt-5 space-y-3 text-sm leading-7 text-slate-700">
+              <li>macOS：LaunchAgent（<span class="font-mono text-[13px]">ai.openclaw.gateway</span>）</li>
+              <li>Linux / WSL2：systemd user service</li>
+              <li>远程接入：优先 Tailscale / VPN，次选 SSH tunnel</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-7xl px-6 py-8 sm:px-8 lg:px-10 lg:py-16">
+      <div data-anim class="card rounded-[2rem] p-6 sm:p-8 lg:p-10">
+        <span class="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">What OpenClaw really is</span>
+        <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">一句话总结</h2>
+        <p class="mt-5 max-w-4xl text-lg leading-8 text-slate-700">
+          OpenClaw 本体更像一个 <span class="font-semibold text-slate-950">多入口、多设备、多渠道共享的 agent control plane</span>：Gateway 在中心，聊天应用只是外部 surface，客户端只是操作入口，节点是设备能力执行体，插件 SDK 则把渠道和 runtime 扩展正式化。
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mx-auto max-w-7xl px-6 pb-16 pt-6 text-sm text-slate-500 sm:px-8 lg:px-10">
+    内容依据本地已安装 OpenClaw 包整理：README、docs/concepts/architecture.md、docs/channels/index.md、docs/platforms/index.md、package.json exports 与 dist 目录结构。
+  </footer>
+
+  <script>
+    (function () {
+      const els = document.querySelectorAll('[data-anim]');
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add('show');
+        });
+      }, { threshold: 0.12 });
+      els.forEach((el) => io.observe(el));
+    })();
+  </script>
+</body>
+</html>
