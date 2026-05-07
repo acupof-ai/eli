@@ -26,6 +26,7 @@ impl LLM {
             max_tokens,
             tape,
             cancellation,
+            session_id,
             ..
         } = req;
 
@@ -81,6 +82,7 @@ impl LLM {
                 max_tokens,
                 None,
                 Default::default(),
+                session_id,
             )
             .await?;
 

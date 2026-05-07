@@ -645,6 +645,7 @@ impl ChatClient {
                 false,
                 None,
                 kwargs,
+                None,
                 |response, _prov, _mdl, _attempt| {
                     let (payload, transport) = Self::unwrap_response(&response);
                     let text = Self::extract_text(payload, Some(transport));
@@ -695,6 +696,7 @@ impl ChatClient {
                 false,
                 None,
                 kwargs,
+                None,
                 |response, _prov, _mdl, _attempt| {
                     let (payload, transport) = Self::unwrap_response(&response);
                     let calls = Self::extract_tool_calls(payload, Some(transport));
@@ -741,6 +743,7 @@ impl ChatClient {
                 max_tokens,
                 None,
                 kwargs,
+                None,
             )
             .await
             .map_err(|e| ErrorPayload::new(e.kind, e.message))?;
@@ -804,6 +807,7 @@ impl ChatClient {
                 max_tokens,
                 None,
                 kwargs,
+                None,
             )
             .await
             .map_err(|e| ErrorPayload::new(e.kind, e.message))?;

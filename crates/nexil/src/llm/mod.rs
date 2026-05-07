@@ -80,6 +80,12 @@ pub struct ChatRequest<'a> {
     pub context_window: Option<usize>,
     /// Maximum tool-calling iterations. Defaults to 250 when `None`.
     pub max_tool_iterations: Option<usize>,
+    /// Opaque routing hint forwarded to the upstream provider. The OpenAI
+    /// adapter inserts this as the top-level `session_id` field; the
+    /// Anthropic adapter maps it to `metadata.user_id`. Other adapters drop
+    /// it silently. `None` keeps the request body byte-identical to the
+    /// pre-`session_id` shape.
+    pub session_id: Option<&'a str>,
 }
 
 // ---------------------------------------------------------------------------
@@ -317,6 +323,7 @@ impl LLM {
             messages,
             max_tokens,
             tape,
+            session_id,
             ..
         } = req;
 
@@ -350,6 +357,7 @@ impl LLM {
                     false,
                     None,
                     Default::default(),
+                    session_id,
                     |resp: TransportResponse, _prov: &str, _model: &str, _attempt: u32| {
                         Ok(resp.payload)
                     },

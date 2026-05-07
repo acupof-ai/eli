@@ -71,6 +71,10 @@ impl OpenAIAdapter {
         for (key, value) in kwargs {
             body.entry(key).or_insert(value);
         }
+        if let Some(ref sid) = request.session_id {
+            body.entry("session_id".to_owned())
+                .or_insert_with(|| Value::String(sid.clone()));
+        }
         Value::Object(body)
     }
 
@@ -110,6 +114,10 @@ impl OpenAIAdapter {
         for (key, value) in final_kwargs {
             body.entry(key).or_insert(value);
         }
+        if let Some(ref sid) = request.session_id {
+            body.entry("session_id".to_owned())
+                .or_insert_with(|| Value::String(sid.clone()));
+        }
 
         if let Some(ref base) = request.api_base
             && base.contains("chatgpt.com")
@@ -120,5 +128,60 @@ impl OpenAIAdapter {
         }
 
         Value::Object(body)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    fn make_request(session_id: Option<String>) -> TransportCallRequest {
+        TransportCallRequest {
+            client: Arc::new(reqwest::Client::new()),
+            provider_name: "openai".to_owned(),
+            model_id: "gpt-4o".to_owned(),
+            api_base: Some("https://api.openai.com/v1".to_owned()),
+            messages_payload: vec![serde_json::json!({"role": "user", "content": "hi"})],
+            tools_payload: None,
+            max_tokens: Some(64),
+            stream: false,
+            reasoning_effort: None,
+            kwargs: serde_json::Map::new(),
+            is_anthropic_oauth: false,
+            session_id,
+        }
+    }
+
+    #[test]
+    fn test_openai_completion_body_includes_session_id_when_set() {
+        let req = make_request(Some("sess-42".to_owned()));
+        let body = OPENAI_ADAPTER.build_completion_body(&req);
+        assert_eq!(body["session_id"], Value::String("sess-42".to_owned()));
+    }
+
+    #[test]
+    fn test_openai_completion_body_omits_session_id_when_none() {
+        let req = make_request(None);
+        let body = OPENAI_ADAPTER.build_completion_body(&req);
+        assert!(body.get("session_id").is_none());
+    }
+
+    #[test]
+    fn test_openai_responses_body_includes_session_id_when_set() {
+        let req = make_request(Some("sess-42".to_owned()));
+        let body = OPENAI_ADAPTER.build_responses_body(&req);
+        assert_eq!(body["session_id"], Value::String("sess-42".to_owned()));
+    }
+
+    #[test]
+    fn test_openai_kwargs_session_id_takes_precedence() {
+        let mut req = make_request(Some("sess-42".to_owned()));
+        req.kwargs.insert(
+            "session_id".to_owned(),
+            Value::String("from-kwargs".to_owned()),
+        );
+        let body = OPENAI_ADAPTER.build_completion_body(&req);
+        assert_eq!(body["session_id"], Value::String("from-kwargs".to_owned()));
     }
 }

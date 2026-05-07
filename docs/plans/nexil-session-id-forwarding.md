@@ -1,6 +1,6 @@
 # Plan: Forward `session_id` through nexil to OpenAI-compatible inference servers
 
-**Owner:** ckl · **Date:** 2026-05-03 · **Status:** proposed
+**Owner:** ckl · **Date:** 2026-05-03 · **Status:** implemented 2026-05-07
 **Track:** B (G4 follow-through to agent-infer agent-workload-api §3.4 / §3.5)
 
 ## 1. Goal & acceptance gates

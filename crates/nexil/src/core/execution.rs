@@ -370,6 +370,7 @@ impl LLMCore {
         stream: bool,
         reasoning_effort: &Option<Value>,
         kwargs: &serde_json::Map<String, Value>,
+        session_id: Option<&str>,
         runtime: &ProviderRuntime<'_>,
     ) -> super::request_builder::TransportCallRequest {
         super::request_builder::TransportCallRequest {
@@ -384,6 +385,7 @@ impl LLMCore {
             reasoning_effort: reasoning_effort.clone(),
             kwargs: kwargs.clone(),
             is_anthropic_oauth: runtime.is_anthropic_oauth(),
+            session_id: session_id.map(|s| s.to_owned()),
         }
     }
 
@@ -503,6 +505,7 @@ impl LLMCore {
         stream: bool,
         reasoning_effort: &Option<Value>,
         kwargs: &serde_json::Map<String, Value>,
+        session_id: Option<&str>,
     ) -> Result<PreparedAttempt, ConduitError> {
         let runtime = candidate.runtime(self.api_format, &self.provider_registry);
         let transport = runtime.selected_transport(tools_payload.as_deref(), false, None)?;
@@ -518,6 +521,7 @@ impl LLMCore {
             stream,
             reasoning_effort,
             kwargs,
+            session_id,
             &runtime,
         );
         let url = Self::build_request_url(&resolved_api_base, transport);
@@ -581,6 +585,7 @@ impl LLMCore {
         stream: bool,
         reasoning_effort: Option<Value>,
         kwargs: serde_json::Map<String, Value>,
+        session_id: Option<&str>,
         on_response: F,
     ) -> Result<T, ConduitError>
     where
@@ -608,6 +613,7 @@ impl LLMCore {
                     stream,
                     &reasoning_effort,
                     &kwargs,
+                    session_id,
                 ) {
                     Ok(prepared) => prepared,
                     Err(e) => {
@@ -739,6 +745,7 @@ impl LLMCore {
         max_tokens: Option<u32>,
         reasoning_effort: Option<Value>,
         kwargs: serde_json::Map<String, Value>,
+        session_id: Option<&str>,
     ) -> Result<(reqwest::Response, TransportKind, String, String), ConduitError> {
         let candidates = self.model_candidates(model, provider)?;
         let mut last_error: Option<ConduitError> = None;
@@ -761,6 +768,7 @@ impl LLMCore {
                     true,
                     &reasoning_effort,
                     &kwargs,
+                    session_id,
                 ) {
                     Ok(prepared) => prepared,
                     Err(e) => {
@@ -1024,6 +1032,7 @@ mod tests {
             reasoning_effort: None,
             kwargs: serde_json::Map::new(),
             is_anthropic_oauth: false,
+            session_id: None,
         };
 
         let body = LLMCore::build_messages_body(&request).unwrap();

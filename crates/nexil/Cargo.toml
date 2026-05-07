@@ -1,6 +1,6 @@
 [package]
 name = "nexil"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 description = "Provider-agnostic LLM toolkit — streaming, tool calls, tape storage, OAuth"
 license = "Apache-2.0"

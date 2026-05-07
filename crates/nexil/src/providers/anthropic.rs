@@ -61,6 +61,13 @@ impl ProviderAdapter for AnthropicAdapter {
             body.entry(key.clone()).or_insert(value.clone());
         }
 
+        if let Some(ref sid) = request.session_id
+            && !request.is_anthropic_oauth
+            && !body.contains_key("metadata")
+        {
+            body.insert("metadata".to_owned(), serde_json::json!({ "user_id": sid }));
+        }
+
         Ok(Value::Object(body))
     }
 }
@@ -114,5 +121,72 @@ fn convert_to_anthropic_tool(tool: &Value) -> Value {
             "input_schema": function.get("parameters").cloned().unwrap_or(serde_json::json!({}))
         }),
         None => tool.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clients::parsing::TransportKind;
+    use std::sync::Arc;
+
+    fn make_request(session_id: Option<String>) -> TransportCallRequest {
+        TransportCallRequest {
+            client: Arc::new(reqwest::Client::new()),
+            provider_name: "anthropic".to_owned(),
+            model_id: "claude-3-5-sonnet".to_owned(),
+            api_base: Some("https://api.anthropic.com/v1".to_owned()),
+            messages_payload: vec![serde_json::json!({"role": "user", "content": "hi"})],
+            tools_payload: None,
+            max_tokens: Some(64),
+            stream: false,
+            reasoning_effort: None,
+            kwargs: serde_json::Map::new(),
+            is_anthropic_oauth: false,
+            session_id,
+        }
+    }
+
+    #[test]
+    fn test_anthropic_messages_body_maps_session_id_to_metadata_user_id() {
+        let req = make_request(Some("sess-42".to_owned()));
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&req, TransportKind::Messages)
+            .unwrap();
+        assert!(body.get("session_id").is_none());
+        assert_eq!(body["metadata"]["user_id"], "sess-42");
+    }
+
+    #[test]
+    fn test_anthropic_messages_body_omits_metadata_when_session_id_none() {
+        let req = make_request(None);
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&req, TransportKind::Messages)
+            .unwrap();
+        assert!(body.get("metadata").is_none());
+        assert!(body.get("session_id").is_none());
+    }
+
+    #[test]
+    fn test_anthropic_kwargs_metadata_takes_precedence_over_session_id() {
+        let mut req = make_request(Some("sess-42".to_owned()));
+        req.kwargs.insert(
+            "metadata".to_owned(),
+            serde_json::json!({"user_id": "from-kwargs"}),
+        );
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&req, TransportKind::Messages)
+            .unwrap();
+        assert_eq!(body["metadata"]["user_id"], "from-kwargs");
+    }
+
+    #[test]
+    fn test_anthropic_oauth_skips_session_id_metadata() {
+        let mut req = make_request(Some("sess-42".to_owned()));
+        req.is_anthropic_oauth = true;
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&req, TransportKind::Messages)
+            .unwrap();
+        assert!(body.get("metadata").is_none());
     }
 }

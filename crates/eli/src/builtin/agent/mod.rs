@@ -112,6 +112,7 @@ impl Agent {
             allowed_tools,
             &tool_state,
             &workspace,
+            session_id,
         )
         .await
     }

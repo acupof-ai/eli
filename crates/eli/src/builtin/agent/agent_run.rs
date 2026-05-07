@@ -545,6 +545,7 @@ pub(super) async fn agent_loop(
     allowed_tools: Option<&HashSet<String>>,
     tool_state: &HashMap<String, Value>,
     workspace: &Path,
+    session_id: &str,
 ) -> Result<String, ConduitError> {
     let mut llm = create_llm(settings, model, tapes.store().clone())?;
     let prompt_text = initial_prompt.strict_text();
@@ -576,6 +577,7 @@ pub(super) async fn agent_loop(
             settings,
             allowed_tools,
             tape_ctx_override.as_ref(),
+            session_id,
         ),
     )
     .await;

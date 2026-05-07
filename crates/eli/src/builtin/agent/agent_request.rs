@@ -259,6 +259,7 @@ pub(super) async fn run_tools_once(
     settings: &AgentSettings,
     allowed_tools: Option<&HashSet<String>>,
     tape_context: Option<&TapeContext>,
+    session_id: &str,
 ) -> Result<ToolAutoResult, ConduitError> {
     let has_filter = allowed_tools.is_some();
     let mut tools: Vec<Tool> = {
@@ -313,6 +314,7 @@ pub(super) async fn run_tools_once(
             tape_context,
             cancellation,
             context_window: Some(settings.context_window),
+            session_id: Some(session_id),
             ..Default::default()
         })
         .await?;

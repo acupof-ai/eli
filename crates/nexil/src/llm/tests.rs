@@ -2143,3 +2143,9 @@ async fn test_e2e_multiple_tool_rounds_in_memory_accumulates() {
     assert_eq!(in_memory[5]["role"], "tool");
     assert_eq!(in_memory[5]["content"], "result_1");
 }
+
+#[test]
+fn test_chat_request_default_has_no_session_id() {
+    let req: ChatRequest<'_> = ChatRequest::default();
+    assert!(req.session_id.is_none());
+}

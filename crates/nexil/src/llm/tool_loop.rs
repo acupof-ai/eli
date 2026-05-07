@@ -32,6 +32,7 @@ pub(super) struct RoundParams<'a> {
     pub max_tokens: Option<u32>,
     pub tools: &'a ToolSet,
     pub tool_context: Option<&'a ToolContext>,
+    pub session_id: Option<&'a str>,
 }
 
 /// Result of a single tool-calling round.
@@ -70,6 +71,7 @@ impl LLM {
             messages,
             max_tokens,
             tools,
+            session_id,
             ..
         } = req;
         let tools = tools.ok_or_else(|| {
@@ -93,6 +95,7 @@ impl LLM {
                     false,
                     None,
                     Default::default(),
+                    session_id,
                     |resp: TransportResponse, _prov: &str, _model: &str, _attempt: u32| {
                         Ok(resp.payload)
                     },
@@ -122,6 +125,7 @@ impl LLM {
             cancellation,
             context_window,
             max_tool_iterations,
+            session_id,
         } = req;
         let tools = tools.ok_or_else(|| {
             ConduitError::new(ErrorKind::InvalidInput, "run_tools requires tools")
@@ -154,6 +158,7 @@ impl LLM {
             max_tokens,
             tools,
             tool_context: context,
+            session_id,
         };
 
         let max_iterations: usize = max_tool_iterations.unwrap_or(250);
@@ -392,6 +397,7 @@ impl LLM {
                     false,
                     None,
                     Default::default(),
+                    params.session_id,
                     |resp: TransportResponse, _prov: &str, _model: &str, _attempt: u32| {
                         Ok(resp.payload)
                     },
@@ -433,6 +439,7 @@ impl LLM {
                             false,
                             None,
                             Default::default(),
+                            params.session_id,
                             |resp: TransportResponse, _prov: &str, _model: &str, _attempt: u32| {
                                 Ok(resp.payload)
                             },

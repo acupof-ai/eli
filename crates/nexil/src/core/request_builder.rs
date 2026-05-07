@@ -175,6 +175,10 @@ pub struct TransportCallRequest {
     pub reasoning_effort: Option<Value>,
     pub kwargs: serde_json::Map<String, Value>,
     pub is_anthropic_oauth: bool,
+    /// Routing hint forwarded to provider-aware adapters (OpenAI top-level
+    /// `session_id`, Anthropic `metadata.user_id`). Adapters that don't
+    /// recognise it drop it silently.
+    pub session_id: Option<String>,
 }
 
 impl LLMCore {
