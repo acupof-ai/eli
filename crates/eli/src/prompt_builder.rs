@@ -325,7 +325,12 @@ fn build_workspace_section(workspace: &Path) -> String {
 }
 
 fn build_runtime_section(workspace: &Path) -> String {
-    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ");
+    // Date-only (not second-precision) so the runtime section is stable
+    // across turns within a session. Seconds-precision broke ARLE's prefix
+    // cache hit-rate (M_e.10): every turn produced a different `Date:` line
+    // and therefore a different system prompt, so the inference server's
+    // prefix cache never matched after turn 1.
+    let now = chrono::Utc::now().format("%Y-%m-%d");
     let tz = chrono::Local::now().format("%Z");
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;

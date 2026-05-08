@@ -45,6 +45,26 @@ const DEFAULT_SESSION_TTL_SECS: u64 = 30 * 60;
 /// Interval between session cleanup sweeps.
 const SESSION_CLEANUP_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
+/// Cached system-prompt entry, gated on SOUL.md / rules.bundle.md mtime so
+/// intentional edits invalidate but spurious per-turn drift (timestamps,
+/// HashSet iter order, transient FS read failures) doesn't.
+#[derive(Clone)]
+struct SysPromptCacheEntry {
+    prompt: Arc<str>,
+    soul_mtime_ns: Option<i128>,
+    rules_bundle_mtime_ns: Option<i128>,
+}
+
+/// Best-effort mtime in nanoseconds since UNIX_EPOCH; `None` if the file
+/// is absent or stat fails.
+fn mtime_ns(path: &std::path::Path) -> Option<i128> {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_nanos() as i128)
+}
+
 /// Default hook implementations for basic runtime operations.
 pub struct BuiltinImpl {
     agents: parking_lot::RwLock<HashMap<String, Arc<Mutex<Agent>>>>,
@@ -56,6 +76,10 @@ pub struct BuiltinImpl {
     /// Channels for outbound dispatch (populated by gateway; empty in CLI mode).
     channels: parking_lot::RwLock<HashMap<String, Arc<dyn Channel>>>,
     session_ttl: Duration,
+    /// M_e.10 — Per-session cache of the full system prompt. Pinned at first
+    /// turn; mtime gate on SOUL.md + rules.bundle.md handles intentional
+    /// edits. Evicted alongside agents/last_active in `sweep_stale_sessions`.
+    sys_prompt_cache: parking_lot::RwLock<HashMap<String, SysPromptCacheEntry>>,
 }
 
 #[allow(clippy::new_without_default)]
@@ -81,6 +105,7 @@ impl BuiltinImpl {
             tape_service: std::sync::OnceLock::new(),
             channels: parking_lot::RwLock::new(HashMap::new()),
             session_ttl,
+            sys_prompt_cache: parking_lot::RwLock::new(HashMap::new()),
         }
     }
 
@@ -154,10 +179,12 @@ impl BuiltinImpl {
 
         let mut agents = self.agents.write();
         let mut active = self.last_active.write();
+        let mut sys_cache = self.sys_prompt_cache.write();
 
         for key in &evictable {
             agents.remove(key);
             active.remove(key);
+            sys_cache.remove(key);
         }
 
         info!(
@@ -649,7 +676,62 @@ impl EliHookSpec for BuiltinImpl {
     }
 
     fn build_system_prompt(&self, prompt_text: &str, state: &State) -> Option<String> {
-        Some(Agent::new().system_prompt(prompt_text, state, None))
+        // M_e.10 prefix-cache fix: cache the full system prompt per session
+        // so the inference server's prefix cache hits across turns. Without
+        // this the prompt re-derives every turn and drifts on (a) Runtime
+        // section timestamps, (b) HashSet iter order in skills discovery,
+        // (c) eli's own auto-evolution writes to rules.bundle.md, and (d)
+        // transient SOUL.md read failures from external tooling. Mtime
+        // gates on SOUL.md + rules.bundle.md let intentional edits invalidate.
+        let session_id = state.get("session_id").and_then(Value::as_str)?;
+
+        let workspace = state
+            .get(RUNTIME_WORKSPACE_KEY)
+            .and_then(|v| v.as_str())
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let soul_path = workspace.join(".agents/SOUL.md");
+        let rules_bundle_path = workspace.join(".agents/evolution/rules.bundle.md");
+        let soul_mtime = mtime_ns(&soul_path);
+        let rules_mtime = mtime_ns(&rules_bundle_path);
+
+        // Hot path: cache hit on matching mtimes.
+        if let Some(entry) = self.sys_prompt_cache.read().get(session_id).cloned()
+            && entry.soul_mtime_ns == soul_mtime
+            && entry.rules_bundle_mtime_ns == rules_mtime
+        {
+            return Some(entry.prompt.to_string());
+        }
+
+        // Cache miss or invalidated: rebuild.
+        let built = Agent::new().system_prompt(prompt_text, state, None);
+
+        // Defensive: if a SOUL.md path exists on disk but the build returned
+        // the fallback default, this turn hit a transient read failure. Don't
+        // pin — let the next turn recover with the real content.
+        let soul_exists =
+            soul_path.is_file() || self.home.join("SOUL.md").is_file();
+        let is_fallback =
+            built.starts_with("You are Eli, a helpful AI coding assistant. Put the answer");
+        if soul_exists && is_fallback {
+            tracing::warn!(
+                session_id = %session_id,
+                soul_path = %soul_path.display(),
+                "M_e.10 build_system_prompt: SOUL.md exists but build returned fallback string; not pinning (transient read failure?)"
+            );
+            return Some(built);
+        }
+
+        let arc: Arc<str> = Arc::from(built.as_str());
+        self.sys_prompt_cache.write().insert(
+            session_id.to_owned(),
+            SysPromptCacheEntry {
+                prompt: arc.clone(),
+                soul_mtime_ns: soul_mtime,
+                rules_bundle_mtime_ns: rules_mtime,
+            },
+        );
+        Some(arc.to_string())
     }
 
     fn wrap_tool(&self, tool: &nexil::Tool) -> nexil::ToolAction {
@@ -1133,6 +1215,7 @@ mod tests {
             tape_service: std::sync::OnceLock::new(),
             channels: parking_lot::RwLock::new(HashMap::new()),
             session_ttl: ttl,
+            sys_prompt_cache: parking_lot::RwLock::new(HashMap::new()),
         }
     }
 
