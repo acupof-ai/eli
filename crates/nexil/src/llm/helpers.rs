@@ -126,11 +126,15 @@ fn entry_to_messages(entry: &TapeEntry) -> Vec<Value> {
             .filter(|nc| !nc.is_empty())
             .map(|normalized_calls| {
                 let content = entry.payload.get("content").cloned().unwrap_or(Value::Null);
-                vec![serde_json::json!({
+                let mut message = serde_json::json!({
                     "role": "assistant",
                     "content": content,
                     "tool_calls": normalized_calls
-                })]
+                });
+                if let Some(reasoning) = entry.payload.get("reasoning_content") {
+                    message["reasoning_content"] = reasoning.clone();
+                }
+                vec![message]
             })
             .unwrap_or_default(),
         TapeEntryKind::ToolResult => entry

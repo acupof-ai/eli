@@ -121,13 +121,21 @@ impl TapeEntry {
     /// Create a tool_call entry, optionally preserving assistant text that
     /// accompanied the tool call.
     pub fn tool_call_with_content(calls: Vec<Value>, content: Option<String>, meta: Value) -> Self {
+        Self::tool_call_with_assistant_fields(calls, content, None, meta)
+    }
+
+    /// Create a tool_call entry while preserving provider-specific assistant
+    /// fields needed when the conversation is replayed.
+    pub fn tool_call_with_assistant_fields(
+        calls: Vec<Value>,
+        content: Option<String>,
+        reasoning_content: Option<String>,
+        meta: Value,
+    ) -> Self {
         let mut payload = Map::new();
         payload.insert("calls".into(), Value::Array(normalize_tool_calls(&calls)));
-        if let Some(text) = content
-            && !text.is_empty()
-        {
-            payload.insert("content".into(), Value::String(text));
-        }
+        insert_payload_string(&mut payload, "content", content);
+        insert_payload_string(&mut payload, "reasoning_content", reasoning_content);
         Self {
             id: 0,
             kind: TapeEntryKind::ToolCall,
@@ -206,6 +214,12 @@ impl TapeEntry {
             meta,
             date: utc_now(),
         }
+    }
+}
+
+fn insert_payload_string(payload: &mut Map<String, Value>, key: &str, value: Option<String>) {
+    if let Some(text) = value.filter(|text| !text.is_empty()) {
+        payload.insert(key.into(), Value::String(text));
     }
 }
 

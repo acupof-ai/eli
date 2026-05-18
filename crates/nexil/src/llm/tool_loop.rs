@@ -496,6 +496,10 @@ impl LLM {
         // Always maintain in_memory_msgs with full (unspilled) content so
         // the current run_tools invocation sees complete context.
         let assistant_msg = build_assistant_tool_call_message(response);
+        let assistant_reasoning = assistant_msg
+            .get("reasoning_content")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
         in_memory_msgs.push(assistant_msg);
         for (i, result) in execution.tool_results.iter().enumerate() {
             let call_id = execution
@@ -531,12 +535,13 @@ impl LLM {
                 .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty())
                 .map(str::to_owned);
-            self.async_tape
-                .append_entry(
-                    tape_name,
-                    &TapeEntry::tool_call_with_content(spilled_calls, assistant_text, meta.clone()),
-                )
-                .await?;
+            let entry = TapeEntry::tool_call_with_assistant_fields(
+                spilled_calls,
+                assistant_text,
+                assistant_reasoning,
+                meta.clone(),
+            );
+            self.async_tape.append_entry(tape_name, &entry).await?;
 
             let paired: Vec<Value> = execution
                 .tool_calls

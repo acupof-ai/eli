@@ -1,58 +1,58 @@
-# 2026-05-18 · DSV4 real-world agent benchmark snapshot
+# 2026-05-18 · DSv4 Eli E2E benchmark snapshot
 
 ## Context
-The DeepSeek V4 provider path is wired through Eli, and the test target is now a
-real API agent benchmark rather than short isolated capability prompts. The suite
-uses real DeepSeek API calls plus local runtime checks for handoff and subagent
-management.
+The benchmark target is Eli itself. DeepSeek V4 is only the configured backend
+model; all scored work now goes through Eli CLI, Eli profile resolution, Eli
+tape persistence, Eli tool execution, and Eli subagent plumbing.
 
 ## Suite
 - Cases: `tests/benchmarks/dsv4_hard_tail_cases.json`
 - Runner: `scripts/run_dsv4_capability_suite.py`
 - Snapshot: `tests/snapshots/dsv4_capability_latest.json`
+- Profile under test: `dsv4`
 - Model: `deepseek-v4-pro`
 - API base: `https://api.deepseek.com/beta`
 
-The suite keeps 10 hard-tail API cases, 100 API points, and adds 20 local runtime
-points. The prompts are synthetic and repo-safe, but shaped by real-world agent
-benchmarks: SWE-bench Verified / SWE-bench Live for issue resolution,
-AgentBench / AgencyBench for long-horizon planning and state tracking,
-MLAgentBench for paper and experiment reading, BFCL V4 / MCP-Bench for tool use,
-and PlanBench for structured planning.
+The runner creates an isolated `ELI_HOME`, writes a `dsv4` profile plus a
+DeepSeek auth entry copied from local credentials, builds the current Eli binary,
+and executes 10 hard-tail cases through `eli status` or `eli run`. The fixture
+`tests/fixtures/dsv4_e2e_tool_fixture.txt` proves real `fs.read` execution.
+
+## Coverage
+- Profile/config resolution for the `dsv4` alias.
+- Paper-reading and production-adoption planning.
+- Fixed-date/time planning with Asia/Shanghai persistence.
+- Gateway issue-resolution planning and Rust async bug analysis.
+- Tape handoff via internal command and model-driven tool call.
+- Multi-turn tape memory across one Eli session.
+- Model-driven `fs.read` tool execution.
+- Subagent tool execution through a fake `codex` CLI in an isolated `PATH`.
 
 ## Score
-Final live run:
-- API: `89/100`
-- Local runtime: `20/20`
-- Combined: `109/120`
-
-Capability split:
+Latest real Eli run:
+- Eli E2E total: `97/100`
+- Config resolution: `10/10`
 - Research planning: `10/10`
-- Time planning: `16/20`
-- Issue resolution: `19/20`
-- Code analysis: `9/10`
-- Memory handoff: `10/10`
+- Time planning: `10/10`
+- Issue resolution: `9/10`
+- Code analysis: `8/10`
+- Memory handoff: `20/20`
+- Tool execution: `20/20`
 - Subagent management: `10/10`
-- Tool use: `15/20`
 
-## Observations
-- Paper interpretation and adoption planning were strong: the model identified
-  cache-hit isolation, ablations, p95 latency, and production rollout concerns.
-- Local handoff and subagent management checks passed: the cargo-level
-  auto-handoff grace test and subagent tracker management test both scored full.
-- The fixed-time tool call exposed a real weakness: it scheduled the correct
-  local wall time but omitted the `+08:00` offset and used an empty recurrence
-  field instead of `none`.
-- The repo investigation tool case exposed another real weakness: it called
-  `repo_search` repeatedly but did not call `read_file`, so it did not complete
-  the required inspect-after-search workflow.
-- Handoff plus subagent tool actions were mostly correct, but the handoff summary
-  did not preserve the exact DeepSeek beta endpoint string.
+The first Eli E2E attempt exposed a real DSv4 integration bug: after a tool call,
+DeepSeek rejected the next request with `reasoning_content` missing from the
+thinking-mode assistant message. The fix preserves `reasoning_content` in tape
+tool-call entries and restores it when Eli rebuilds context.
+
+The remaining misses in the latest snapshot were model-behavior misses, not Eli
+runtime failures: the issue-plan answer did not explicitly mention
+dirty-worktree safety, and the async-code answer missed the small-function
+rubric wording.
 
 ## Commands
 ```bash
-scripts/run_dsv4_capability_suite.py
-cargo run -p eli --quiet -- run 'Return exactly OK and no other text.' --session-id dsv4-smoke-$(date +%s)
+scripts/run_dsv4_capability_suite.py --keep-eli-home
 python -m py_compile scripts/run_dsv4_capability_suite.py
 python -m pytest tests/test_dsv4_capability_suite.py
 cargo fmt --all -- --check
@@ -60,5 +60,6 @@ cargo clippy --workspace -- -D warnings
 cargo test --workspace
 ```
 
-The Eli CLI smoke returned `OK` through the active `deepseek:deepseek-v4-pro`
-profile.
+## Notes
+This replaces the previous API-only capability score. If a future score mentions
+this suite, it should report `scores.eli_e2e_total`, not `api_total`.

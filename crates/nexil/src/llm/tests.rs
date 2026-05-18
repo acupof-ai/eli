@@ -314,6 +314,26 @@ fn test_build_full_context_from_entries_preserves_tool_call_content() {
     assert_eq!(messages[0]["tool_calls"][0]["id"], "call_123");
 }
 
+#[test]
+fn test_build_full_context_from_entries_preserves_reasoning_content() {
+    let entries = vec![TapeEntry::tool_call_with_assistant_fields(
+        vec![json!({
+            "id": "call_123",
+            "type": "function",
+            "function": {"name": "fs_read", "arguments": "{}"}
+        })],
+        None,
+        Some("Need to read the file.".to_owned()),
+        json!({}),
+    )];
+
+    let messages = build_full_context_from_entries(&entries);
+
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0]["reasoning_content"], "Need to read the file.");
+    assert_eq!(messages[0]["tool_calls"][0]["function"]["name"], "fs_read");
+}
+
 #[tokio::test]
 async fn test_prepare_messages_with_tape_persists_initial_prompt_and_system_prompt() {
     let llm = LLM::builder()

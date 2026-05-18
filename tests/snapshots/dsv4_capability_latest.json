@@ -1,12 +1,13 @@
 {
-  "suite": "dsv4-agent-realworld-benchmark",
-  "version": 2,
+  "suite": "dsv4-eli-e2e-benchmark",
+  "version": 3,
   "model": "deepseek-v4-pro",
+  "provider": "dsv4",
   "api_base": "https://api.deepseek.com/beta",
-  "run_at": "2026-05-18T11:41:22.163509+00:00",
+  "run_at": "2026-05-18T14:08:27.201082+00:00",
   "selection_policy": {
     "name": "mainstream-realworld-hard-tail-10pct",
-    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then execute them through Eli instead of calling the model API directly.",
     "sources": [
       "SWE-bench Verified",
       "SWE-bench Live",
@@ -19,35 +20,30 @@
     ]
   },
   "scores": {
-    "api_total": {
-      "score": 89,
+    "eli_e2e_total": {
+      "score": 97,
       "max": 100,
-      "percent": 89.0
-    },
-    "local_runtime": {
-      "score": 20,
-      "max": 20,
-      "percent": 100.0
-    },
-    "combined": {
-      "score": 109,
-      "max": 120,
-      "percent": 90.8
+      "percent": 97.0
     },
     "by_capability": {
       "code_analysis": {
+        "score": 8,
+        "max": 10,
+        "percent": 80.0
+      },
+      "config_resolution": {
+        "score": 10,
+        "max": 10,
+        "percent": 100.0
+      },
+      "issue_resolution": {
         "score": 9,
         "max": 10,
         "percent": 90.0
       },
-      "issue_resolution": {
-        "score": 19,
-        "max": 20,
-        "percent": 95.0
-      },
       "memory_handoff": {
-        "score": 10,
-        "max": 10,
+        "score": 20,
+        "max": 20,
         "percent": 100.0
       },
       "research_planning": {
@@ -61,579 +57,780 @@
         "percent": 100.0
       },
       "time_planning": {
-        "score": 16,
-        "max": 20,
-        "percent": 80.0
+        "score": 10,
+        "max": 10,
+        "percent": 100.0
       },
-      "tool_use": {
-        "score": 15,
+      "tool_execution": {
+        "score": 20,
         "max": 20,
-        "percent": 75.0
+        "percent": 100.0
       }
     }
   },
+  "run_environment": {
+    "workspace": "/Users/bytedance/code/eli",
+    "eli_home": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home",
+    "eli_entrypoint": [
+      "/Users/bytedance/code/eli/target/debug/eli"
+    ],
+    "temp_eli_home": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-dsv4-e2e-oew36bsg/.eli"
+  },
   "cases": [
     {
-      "id": "research_paper_deep_reading_plan",
-      "capability": "research_planning",
+      "id": "eli_deepseek_profile_resolution",
+      "capability": "config_resolution",
+      "driver": "eli_cli",
       "score": 10,
       "max_points": 10,
       "passed": true,
       "details": [
         {
-          "kind": "json_keys",
+          "kind": "returncode",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "stdout_contains_all",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "stdout_contains_all",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
+          "kind": "stdout_contains_all",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\"thesis\": \"Prefix-stable Agent Memory (PAM) reduces latency by keeping system prompts immutable, storing volatile observations in append-only memory capsules, and using a verifier to decide when to compress old capsules.\", \"evidence\": \"Evaluation shows 18% lower p95 latency on 32k-token support traces.\", \"limitations\": \"Only tests two models; does not isolate cache hit rate from prompt length reduction.\", \"follow_up_plan\": [\n  \"Reproduce the 18% p95 latency improvement using your own production traces and environment.\",\n  \"Isolate the contribution of KV-cache hits by measuring prompt prefix reuse across requests with and without PAM.\",\n  \"Expand model evaluation to at least 5 diverse models (including your production models) to verify generalizability.\",\n  \"Benchmark the verifier’s compre",
-      "reasoning_chars": 2421,
-      "tool_calls": []
-    },
-    {
-      "id": "time_fixed_reminder_tool_call",
-      "capability": "time_planning",
-      "score": 6,
-      "max_points": 10,
-      "passed": false,
-      "details": [
-        {
-          "kind": "tool_count_at_least",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "tool_name",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_equals",
-          "points": 3,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "tool_arg_equals",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_equals",
-          "points": 1,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "tool_args_contain_text",
+          "kind": "stdout_contains_all",
           "points": 2,
           "earned": 2,
           "passed": true
         }
       ],
-      "content_preview": "",
-      "reasoning_chars": 545,
-      "tool_calls": [
+      "session_id": null,
+      "runs": [
         {
-          "name": "schedule_task",
-          "arguments": {
-            "title": "Review the PAM paper adoption plan with ckl",
-            "run_at": "2026-05-22T09:30:00",
-            "timezone": "Asia/Shanghai",
-            "recurrence": "",
-            "notes": "PAM paper adoption plan review with ckl"
-          }
-        }
-      ]
-    },
-    {
-      "id": "issue_gateway_subagent_completion_plan",
-      "capability": "issue_resolution",
-      "score": 9,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 0,
-          "passed": false
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "status"
+          ],
+          "returncode": 0,
+          "stdout_tail": "Eli configuration status\n========================\n\nActive profile:\n  dsv4 (provider: dsv4, model: deepseek-v4-pro)\n\nProfiles:\n  dsv4 * (provider: dsv4, model: deepseek-v4-pro, endpoint: https://api.deepseek.com/beta)\n\nStored credentials:\n  deepseek: [REDACTED]\n  openai: (codex oauth token)\n\nEnvironment overrides:\n  ARK_API_KEY=[REDACTED]\n\nConfig file: /var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-dsv4-e2e-oew36bsg/.eli/config.toml\n",
+          "stderr_tail": ""
         }
       ],
-      "content_preview": "{\n  \"reproduction\": \"1. Start a gateway-mode agent server. 2. Initiate a parent turn that spawns a subagent but returns its own response before the subagent finishes (e.g., by making the subagent sleep or wait). 3. Observe the chat where the parent's response appears; note the chat_id. 4. After the subagent completes, check the arrival of its completion message. In the current bug, the subagent's output is delivered to a system/default chat (e.g., chat_id 'default') instead of the original chat_id. 5. The existing test 'test_subagent_gateway_completion' (likely in the test suite) can be run to reproduce in isolation; it should be failing because assertions expect the message in the parent's chat but it appears in the default chat.\",\n  \"root_cause_hypothesis\": \"When the subagent is created,",
-      "reasoning_chars": 4637,
-      "tool_calls": []
+      "stdout_tail": "Eli configuration status\n========================\n\nActive profile:\n  dsv4 (provider: dsv4, model: deepseek-v4-pro)\n\nProfiles:\n  dsv4 * (provider: dsv4, model: deepseek-v4-pro, endpoint: https://api.deepseek.com/beta)\n\nStored credentials:\n  deepseek: [REDACTED]\n  openai: (codex oauth token)\n\nEnvironment overrides:\n  ARK_API_KEY=[REDACTED]\n\nConfig file: /var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-dsv4-e2e-oew36bsg/.eli/config.toml\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": null,
+        "entry_count": 0,
+        "events": [],
+        "agent_run_statuses": [],
+        "tool_calls": [],
+        "anchors": []
+      }
     },
     {
-      "id": "code_async_handoff_race_analysis",
-      "capability": "code_analysis",
-      "score": 9,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 0,
-          "passed": false
-        }
-      ],
-      "content_preview": "{\n  \"root_cause\": \"The shutdown logic calls abort_all() then immediately drops the JoinSet. abort_all() only sends a cancellation signal; it does not wait for the tasks to actually stop. Dropping the JoinSet detaches the task handles, allowing the tasks to continue running in the background after cleanup returns. This leads to flaky tests because completion messages may still be written after the test expects everything to be stopped. To keep function bodies small, separate shutdown into a signal phase and a drain/wait phase using small helper functions.\",\n  \"minimal_patch\": \"After calling abort_all(), drain the JoinSet by awaiting join_next() until it returns None. This ensures every task has actually terminated before returning.\\n\\nself.workers.abort_all();\\nwhile let Some(result) = self",
-      "reasoning_chars": 9658,
-      "tool_calls": []
-    },
-    {
-      "id": "memory_handoff_context_preservation",
+      "id": "eli_tape_handoff_command",
       "capability": "memory_handoff",
+      "driver": "eli_run",
       "score": 10,
       "max_points": 10,
       "passed": true,
       "details": [
         {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_all",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_all",
+          "kind": "returncode",
           "points": 1,
           "earned": 1,
           "passed": true
         },
         {
-          "kind": "contains_all",
+          "kind": "stdout_contains_all",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "tape_anchor_name",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\"must_preserve\": [\"Live service on port 7860 PID 85165 must not be killed\", \"DSV4 base URL: https://api.deepseek.com/beta\", \"Untracked sidecar/.agents must stay uncommitted\", \"Latest score snapshot path: tests/snapshots/dsv4_capability_latest.json\"], \"can_drop\": [\"Transient conversation history\", \"Intermediate reasoning chains\", \"Temporary tool outputs and cached calculations\"], \"handoff_trigger\": \"Initiating context compaction to free tokens; handoff critical state before memory reset.\", \"validation\": \"Verify all must_preserve items are stored in the handoff blob and that the service on port 7860 (PID 85165) is still alive post-handoff.\"}",
-      "reasoning_chars": 1964,
-      "tool_calls": []
-    },
-    {
-      "id": "subagent_parallel_management_plan",
-      "capability": "subagent_management",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\n  \"delegation_plan\": {\n    \"phases\": [\n      {\n        \"id\": \"phase1_exploration\",\n        \"agent\": \"explorer\",\n        \"description\": \"Inspect provider configuration: locate all configuration files (YAML, JSON, .env, etc.), parse them, identify each provider, extract DSML endpoint, authentication details (masked), and any relevant settings.\",\n        \"inputs\": [],\n        \"outputs\": [\"provider_config_report.json\"],\n        \"dependency\": \"none\"\n      },\n      {\n        \"id\": \"phase2_test_implementation\",\n        \"agent\": \"worker\",\n        \"description\": \"Implement DSML parser tests using the provider config report. Generate test cases (e.g., pytest/unittest) that validate the DSML parsing logic by mocking provider endpoints based on the extracted configurations.\",\n        \"inputs\": [\"pro",
-      "reasoning_chars": 10171,
-      "tool_calls": []
-    },
-    {
-      "id": "tool_issue_repo_investigation",
-      "capability": "tool_use",
-      "score": 6,
-      "max_points": 10,
-      "passed": false,
-      "details": [
-        {
-          "kind": "tool_count_at_least",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_name",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_name",
-          "points": 2,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "tool_args_contain_text",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_args_contain_text",
-          "points": 2,
-          "earned": 0,
-          "passed": false
-        }
-      ],
-      "content_preview": "",
-      "reasoning_chars": 264,
-      "tool_calls": [
-        {
-          "name": "repo_search",
-          "arguments": {
-            "query": "DSML"
-          }
-        },
-        {
-          "name": "repo_search",
-          "arguments": {
-            "query": "dsml"
-          }
-        },
-        {
-          "name": "repo_search",
-          "arguments": {
-            "query": "tool_call"
-          }
-        }
-      ]
-    },
-    {
-      "id": "tool_handoff_and_subagent_actions",
-      "capability": "tool_use",
-      "score": 9,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "tool_count_at_least",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_name",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_contains",
-          "points": 1,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "tool_arg_contains",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_args_contain_text",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "tool_args_contain_text",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        }
-      ],
-      "content_preview": "I'll create the tape handoff and spawn both subagents in parallel.",
-      "reasoning_chars": 774,
-      "tool_calls": [
-        {
-          "name": "tape_handoff",
-          "arguments": {
-            "name": "dsv4_context",
-            "summary": "DSV4 endpoint preserved. Snapshot path preserved. Constraint: sidecar/.agents directory remains untracked (not committed to version control)."
-          }
-        },
-        {
-          "name": "spawn_subagent",
-          "arguments": {
-            "role": "explorer",
-            "task": "Explore the codebase for provider configuration files. Look for any config files related to providers (YAML, JSON, TOML, or code-based configs). Search patterns like \"provider\" in config directories, environment files, and any provider registry or factory patterns. Report back the file paths, key structures, and how providers are configured and loaded.",
-            "ownership": "open"
-          }
-        },
-        {
-          "name": "spawn_subagent",
-          "arguments": {
-            "role": "worker",
-            "task": "Build DSML parser tests. The parser should handle DSML (Directory Services Markup Language) XML parsing. Create or locate the parser source, then write comprehensive tests covering: valid DSML documents, malformed XML, missing required attributes, namespace handling, batch request/response parsing, error response elements, and edge cases like empty documents or deeply nested structures. Write the tests and ensure they're runnable.",
-            "ownership": "open"
-          }
-        }
-      ]
-    },
-    {
-      "id": "planning_issue_to_patch_with_tests",
-      "capability": "issue_resolution",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\n  \"diagnosis\": \"When 'eli model list' is invoked for a profile using provider alias 'dsv4', the code passes the raw alias string directly to the API key retrieval function. The API key lookup expects a normalized provider identifier (e.g., 'DEEPSEEK' or the canonical configuration key), but 'dsv4' remains unnormalized, causing a key miss and subsequent failure. OpenAI‑compatible providers do not trigger this path because they likely use a different resolution that already normalizes the identifier, or the alias matches the stored key directly. The fix must normalize the provider alias to its canonical form before performing the API key lookup.\",\n  \"files\": [\n    \"src/eli/providers.py\",\n    \"src/eli/config.py\",\n    \"tests/test_providers.py\",\n    \"tests/test_model_list.py\"\n  ],\n  \"patch_st",
-      "reasoning_chars": 3110,
-      "tool_calls": []
-    },
-    {
-      "id": "time_planning_timezone_no_tool",
-      "capability": "time_planning",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_all",
+          "kind": "tape_anchor_state_contains",
           "points": 3,
           "earned": 3,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "tape_event",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_tape_handoff_command",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "/tape.handoff name=dsv4-e2e-command summary='DSV4 endpoint https://api.deepseek.com/beta; snapshot tests/snapshots/dsv4_capability_latest.json; leave sidecar/.agents uncommitted.'",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_tape_handoff_command"
+          ],
+          "returncode": 0,
+          "stdout_tail": "anchor added: dsv4-e2e-command (captured 0 entries since last anchor)\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "anchor added: dsv4-e2e-command (captured 0 entries since last anchor)\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__265a8ec51966e993.jsonl",
+        "entry_count": 3,
+        "events": [
+          "command"
+        ],
+        "agent_run_statuses": [],
+        "tool_calls": [],
+        "anchors": [
+          "session/start",
+          "dsv4-e2e-command"
+        ]
+      }
+    },
+    {
+      "id": "eli_research_paper_deep_reading",
+      "capability": "research_planning",
+      "driver": "eli_run",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_json_keys",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
           "points": 1,
           "earned": 1,
           "passed": true
         },
         {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "forbid_all",
-          "points": 1,
-          "earned": 1,
+          "kind": "tape_agent_run_ok",
+          "points": 2,
+          "earned": 2,
           "passed": true
         }
       ],
-      "content_preview": "{\n  \"assumptions\": \"Assumed 'next three business days' after Monday 2026-05-18 means Tuesday 2026-05-19, Wednesday 2026-05-20, and Thursday 2026-05-21. Handoff summaries are generated daily at 17:00 Pacific Daylight Time (PDT, UTC-7). Persisted records are datestamped in Asia/Shanghai local time (UTC+8), resulting in the timestamp being 08:00 the next calendar day.\",\n  \"schedule\": [\n    \"2026-05-20T08:00:00\",\n    \"2026-05-21T08:00:00\",\n    \"2026-05-22T08:00:00\"\n  ],\n  \"risks\": \"Misinterpretation of 'next three business days' could shift dates if inclusive of Monday or if requested after 17:00 PT. Time zone conversion assumes DST rules hold for 2026 (PDT in May). System must record local date-time without offset; any reuse in other zones must know it is Asia/Shanghai local.\",\n  \"validation\"",
-      "reasoning_chars": 8964,
-      "tool_calls": []
-    }
-  ],
-  "local_checks": [
-    {
-      "id": "local_handoff_overflow_grace",
-      "capability": "local_runtime",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "command": [
-        "cargo",
-        "test",
-        "-p",
-        "eli",
-        "test_injected_overflow_error_during_grace_advances_handoff"
+      "session_id": "dsv4-e2e-20260518140534-eli_research_paper_deep_reading",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Planning-only benchmark case. Do not call tools. You are Eli running inside a Rust agent repo. Read this systems-paper excerpt for ckl. Excerpt: Prefix-stable Agent Memory keeps system prompts immutable, moves volatile observations into append-only memory capsules, and runs a verifier before compressing old capsules. It claims 18% lower p95 latency on 32k-token support traces, but only tests two models and does not isolate cache hit rate from shorter prompts. Return strict JSON with keys thesis, evidence, limitations, follow_up_plan. Make the plan actionable for deciding whether Eli should adopt this design. No markdown.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_research_paper_deep_reading"
+          ],
+          "returncode": 0,
+          "stdout_tail": "l-clock ms per compression call, false-positive/false-negative rate on capsule retention decisions across 100 diverse traces. If verifier adds >5% p50 latency on short turns, the design is a net loss for interactive Eli sessions.\",\"Profile memory growth rate of append-only capsules under Eli's actual message velocity (bursts of 50+ tool calls). If uncompressed capsules exceed 64k tokens within 10 turns, the compression verifier becomes a hard dependency, not an optimization — a different risk profile.\",\"Run the full design on at least one model Eli actually uses (not just the paper's two). If the gain doesn't replicate, stop. If it does, gate adoption on the ablation confirming the capsule+verifier combo beats prefix-cache alone by a margin that justifies the implementation complexity.\"]}\n",
+          "stderr_tail": ""
+        }
       ],
-      "stdout_tail": "\nrunning 1 test\ntest builtin::agent::agent_run::tests::test_injected_overflow_error_during_grace_advances_handoff ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 450 filtered out; finished in 0.13s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n",
-      "stderr_tail": "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s\n     Running unittests src/lib.rs (target/debug/deps/eli-14334b7d19afa5ca)\n     Running unittests src/main.rs (target/debug/deps/eli-52010128e130aa19)\n     Running tests/pipeline_integration.rs (target/debug/deps/pipeline_integration-710ea63b048f1645)\n     Running tests/skills_hygiene.rs (target/debug/deps/skills_hygiene-f39dee2942e69a29)\n     Running tests/taskboard_integration.rs (target/debug/deps/taskboard_integration-2178526de09265eb)\n"
+      "stdout_tail": "n planning, or tool-call heavy traces that dominate Eli's profile. 4. Append-only capsules grow unboundedly; compression quality under high message velocity is unmeasured. 5. No latency breakdown for the verifier itself — if verifier latency eats the compression savings on short turns, net effect could be negative for interactive agent loops.\",\"follow_up_plan\":[\"Ablation benchmark on 3 Eli-representative workloads (code-edit loop, multi-step research, tool-heavy automation): measure p50/p95 latency in four configurations — (a) baseline no prefix-cache, (b) prefix-cache only on immutable prompt, (c) capsule append-only without compression, (d) full Prefix-stable with verifier. This isolates cache hit rate from capsule design from verifier value.\",\"Measure verifier overhead in isolation: wall-clock ms per compression call, false-positive/false-negative rate on capsule retention decisions across 100 diverse traces. If verifier adds >5% p50 latency on short turns, the design is a net loss for interactive Eli sessions.\",\"Profile memory growth rate of append-only capsules under Eli's actual message velocity (bursts of 50+ tool calls). If uncompressed capsules exceed 64k tokens within 10 turns, the compression verifier becomes a hard dependency, not an optimization — a different risk profile.\",\"Run the full design on at least one model Eli actually uses (not just the paper's two). If the gain doesn't replicate, stop. If it does, gate adoption on the ablation confirming the capsule+verifier combo beats prefix-cache alone by a margin that justifies the implementation complexity.\"]}\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__56d2e6808970e6e4.jsonl",
+        "entry_count": 6,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
     },
     {
-      "id": "local_subagent_tracker_management",
-      "capability": "local_runtime",
+      "id": "eli_time_fixed_planning",
+      "capability": "time_planning",
+      "driver": "eli_run",
       "score": 10,
       "max_points": 10,
       "passed": true,
-      "command": [
-        "cargo",
-        "test",
-        "-p",
-        "eli",
-        "builtin::subagent::tests::tracker_tests"
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_forbid_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
       ],
-      "stdout_tail": "\nrunning 5 tests\ntest builtin::subagent::tests::tracker_tests::test_nonexistent_result_returns_none ... ok\ntest builtin::subagent::tests::tracker_tests::test_running_count ... ok\ntest builtin::subagent::tests::tracker_tests::test_register_and_list ... ok\ntest builtin::subagent::tests::tracker_tests::test_evict_completed ... ok\ntest builtin::subagent::tests::tracker_tests::test_complete_and_get_result ... ok\n\ntest result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 446 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n",
-      "stderr_tail": "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s\n     Running unittests src/lib.rs (target/debug/deps/eli-14334b7d19afa5ca)\n     Running unittests src/main.rs (target/debug/deps/eli-52010128e130aa19)\n     Running tests/pipeline_integration.rs (target/debug/deps/pipeline_integration-710ea63b048f1645)\n     Running tests/skills_hygiene.rs (target/debug/deps/skills_hygiene-f39dee2942e69a29)\n     Running tests/taskboard_integration.rs (target/debug/deps/taskboard_integration-2178526de09265eb)\n"
+      "session_id": "dsv4-e2e-20260518140534-eli_time_fixed_planning",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Planning-only benchmark case. Do not call tools. Today is Monday 2026-05-18. A teammate in San Francisco asks for a daily handoff summary at 17:00 Pacific time for the next three business days, but ckl wants all persisted records in Asia/Shanghai local time. Return strict JSON with keys assumptions, schedule, risks, validation. Use exact ISO-like local datetimes and avoid relative dates. No markdown.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_time_fixed_planning"
+          ],
+          "returncode": 0,
+          "stdout_tail": " unclear whether this is one record per handoff or multiple sub-records, and whether deduplication is needed across days\", \"Cross-midnight boundary means each persisted record lands on the next calendar day in Shanghai, which could be confusing without explicit date labeling\"], \"validation\": [\"Assert persisted timestamp for Monday handoff equals 2026-05-19T08:00:00+08:00\", \"Assert persisted timestamp for Tuesday handoff equals 2026-05-20T08:00:00+08:00\", \"Assert persisted timestamp for Wednesday handoff equals 2026-05-21T08:00:00+08:00\", \"Assert each persisted timestamp zone offset is +08:00, never -07:00 or Z\", \"Assert no persisted record lands on a weekend Shanghai date (Thursday 2026-05-21 is a weekday, passes)\", \"Confirm exactly three persisted records exist after the window closes\"]}\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": ", \"persisted_shanghai\": \"2026-05-19T08:00:00+08:00\"}, {\"day\": \"Tuesday\", \"date_pacific\": \"2026-05-19\", \"trigger_pacific\": \"2026-05-19T17:00:00-07:00\", \"persisted_shanghai\": \"2026-05-20T08:00:00+08:00\"}, {\"day\": \"Wednesday\", \"date_pacific\": \"2026-05-20\", \"trigger_pacific\": \"2026-05-20T17:00:00-07:00\", \"persisted_shanghai\": \"2026-05-21T08:00:00+08:00\"}], \"risks\": [\"PDT/PST boundary: November DST rollback would shift offset to UTC-8 and change persisted times to 09:00 CST — not applicable for May dates but worth documenting\", \"Clock skew between trigger system and persistence layer could produce off-by-seconds mismatches\", \"If handoff generation takes non-trivial wall time, the persisted timestamp may lag the nominal trigger by seconds to minutes\", \"Ambiguity around 'persisted records' scope: unclear whether this is one record per handoff or multiple sub-records, and whether deduplication is needed across days\", \"Cross-midnight boundary means each persisted record lands on the next calendar day in Shanghai, which could be confusing without explicit date labeling\"], \"validation\": [\"Assert persisted timestamp for Monday handoff equals 2026-05-19T08:00:00+08:00\", \"Assert persisted timestamp for Tuesday handoff equals 2026-05-20T08:00:00+08:00\", \"Assert persisted timestamp for Wednesday handoff equals 2026-05-21T08:00:00+08:00\", \"Assert each persisted timestamp zone offset is +08:00, never -07:00 or Z\", \"Assert no persisted record lands on a weekend Shanghai date (Thursday 2026-05-21 is a weekday, passes)\", \"Confirm exactly three persisted records exist after the window closes\"]}\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__ea306d89a58cc7cb.jsonl",
+        "entry_count": 6,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
+    },
+    {
+      "id": "eli_issue_gateway_subagent_plan",
+      "capability": "issue_resolution",
+      "driver": "eli_run",
+      "score": 9,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 1,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "tape_agent_run_ok",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_issue_gateway_subagent_plan",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Planning-only benchmark case. Do not call tools or inspect files. A GitHub issue says: In Eli gateway mode, a subagent finishes after the parent turn returns, but the completion is delivered to a default chat instead of the original chat_id. The repo has gateway inbound injection and tests named test_subagent_gateway_completion. Plan the fix. Return strict JSON with keys reproduction, root_cause_hypothesis, patch_plan, validation. Keep it safe for a dirty worktree and do not propose destructive git commands. No markdown.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_issue_gateway_subagent_plan"
+          ],
+          "returncode": 0,
+          "stdout_tail": " by subagent ID). 4. In the completion delivery handler, read the stored chat_id instead of the default. 5. Update test_subagent_gateway_completion assertions to verify the routed chat_id matches the original. 6. Run the full gateway test suite to catch regressions in other completion routing paths.\", \"validation\": \"1. Confirm test_subagent_gateway_completion fails before the patch. 2. Apply the fix. 3. Re-run test_subagent_gateway_completion — must pass. 4. Run all gateway-mode tests (grep for 'gateway' in test files) to ensure no routing regressions. 5. Manual smoke: inject a gateway message, trigger a slow subagent, verify the response lands in the original chat. 6. Check for any other call sites that spawn subagents in gateway context to ensure they also propagate chat_id correctly.\"}\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "it and falls back to a hardcoded default chat identifier. The most likely location is the gateway injection path where the subagent result is handed off to the message delivery layer — the chat_id from the initiating gateway request is lost across the async boundary because it's not threaded through the subagent's completion context.\", \"patch_plan\": \"1. Trace the subagent spawn site in the gateway inbound handler to identify how the completion callback is registered. 2. Trace the completion delivery path to find where chat_id is resolved (likely a default constant or a missing field). 3. Thread the original chat_id from the inbound request into the subagent's completion context (e.g. capture it in a closure, attach it to the subagent task metadata, or store it in a request-scoped map keyed by subagent ID). 4. In the completion delivery handler, read the stored chat_id instead of the default. 5. Update test_subagent_gateway_completion assertions to verify the routed chat_id matches the original. 6. Run the full gateway test suite to catch regressions in other completion routing paths.\", \"validation\": \"1. Confirm test_subagent_gateway_completion fails before the patch. 2. Apply the fix. 3. Re-run test_subagent_gateway_completion — must pass. 4. Run all gateway-mode tests (grep for 'gateway' in test files) to ensure no routing regressions. 5. Manual smoke: inject a gateway message, trigger a slow subagent, verify the response lands in the original chat. 6. Check for any other call sites that spawn subagents in gateway context to ensure they also propagate chat_id correctly.\"}\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__9b3cc9c9fce9eac1.jsonl",
+        "entry_count": 6,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
+    },
+    {
+      "id": "eli_code_async_handoff_analysis",
+      "capability": "code_analysis",
+      "driver": "eli_run",
+      "score": 8,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 0,
+          "passed": false
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_code_async_handoff_analysis",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Planning-only benchmark case. Do not call tools. Analyze this Rust async bug in Eli. A gateway owns JoinSet workers. On shutdown it calls abort_all(), then immediately drops the JoinSet. Sometimes child tasks keep writing completion messages after shutdown, and tests flake because cleanup returns before JoinHandle cancellation is observed. Return strict JSON with keys root_cause, minimal_patch, tests. Mention how to keep function bodies small. No markdown.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_code_async_handoff_analysis"
+          ],
+          "returncode": 0,
+          "stdout_tail": "ort_all() to signal cancellation, (2) loop over join_next().await, collecting results until None, (3) only then drop the JoinSet. This guarantees every child observed cancellation and terminated before cleanup returns. Wrap the drain loop in a helper like async fn drain_joinset(js: &mut JoinSet<T>) to keep the shutdown function body under 10 lines.\",\n  \"tests\": \"1. Spawn a worker that enters a tight non-yielding loop writing to a shared AtomicBool after the shutdown signal arrives; assert the AtomicBool is never true after shutdown() resolves. 2. Spawn a worker that sleeps inside a write and assert the write buffer is closed before shutdown() returns. 3. Stress-test: spawn 100 workers, race shutdown against completion writes, assert no messages leak after shutdown over 1000 iterations.\"\n}\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:07:49.967762Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=327\n{\n  \"root_cause\": \"JoinSet::abort_all() only enqueues cancellation signals; it does not wait for child tasks to observe them. Dropping the JoinSet immediately after abort_all() triggers its Drop impl, which polls outstanding tasks once, but does not block until all JoinHandles resolve. Tasks mid-write survive long enough to produce side effects after shutdown() returns, causing flaky tests.\",\n  \"minimal_patch\": \"In the gateway's shutdown method, replace the abort_all()-then-drop sequence with: (1) call abort_all() to signal cancellation, (2) loop over join_next().await, collecting results until None, (3) only then drop the JoinSet. This guarantees every child observed cancellation and terminated before cleanup returns. Wrap the drain loop in a helper like async fn drain_joinset(js: &mut JoinSet<T>) to keep the shutdown function body under 10 lines.\",\n  \"tests\": \"1. Spawn a worker that enters a tight non-yielding loop writing to a shared AtomicBool after the shutdown signal arrives; assert the AtomicBool is never true after shutdown() resolves. 2. Spawn a worker that sleeps inside a write and assert the write buffer is closed before shutdown() returns. 3. Stress-test: spawn 100 workers, race shutdown against completion writes, assert no messages leak after shutdown over 1000 iterations.\"\n}\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__99e3e79d1a488d3c.jsonl",
+        "entry_count": 6,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
+    },
+    {
+      "id": "eli_tape_multi_turn_memory",
+      "capability": "memory_handoff",
+      "driver": "eli_multi_turn",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tape_event_count_at_least",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_tape_multi_turn_memory",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Memory benchmark case. Do not call tools. Remember these exact Eli handoff facts for this session: live service port 7860 PID 85165 must not be killed; DSV4 base URL is https://api.deepseek.com/beta; untracked sidecar/.agents must stay uncommitted; snapshot path is tests/snapshots/dsv4_capability_latest.json. Reply READY.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_tape_multi_turn_memory"
+          ],
+          "returncode": 0,
+          "stdout_tail": "2026-05-18T14:07:50.024626Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:07:59.767803Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=61\nREADY. Four facts locked:\n\n1. **Port 7860 / PID 85165** — hands off, never kill.\n2. **DSV4 base** — `https://api.deepseek.com/beta`\n3. **sidecar/.agents** — untracked, never commit.\n4. **Snapshot** — `tests/snapshots/dsv4_capability_latest.json`\n",
+          "stderr_tail": ""
+        },
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Memory benchmark case. Do not call tools. Using this Eli session history, return strict JSON with keys must_preserve, can_drop, validation. Include every exact preserved fact. No markdown.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_tape_multi_turn_memory"
+          ],
+          "returncode": 0,
+          "stdout_tail": "usage, estimating input tokens from response char count estimated_tokens=180\n{\n  \"must_preserve\": [\n    {\"fact\": \"live service port 7860 PID 85165 must not be killed\", \"source\": \"user instruction\", \"risk\": \"service disruption\"},\n    {\"fact\": \"DSV4 base URL is https://api.deepseek.com/beta\", \"source\": \"user instruction\", \"risk\": \"API misconfiguration\"},\n    {\"fact\": \"untracked sidecar/.agents must stay uncommitted\", \"source\": \"user instruction\", \"risk\": \"repo contamination\"},\n    {\"fact\": \"snapshot path is tests/snapshots/dsv4_capability_latest.json\", \"source\": \"user instruction\", \"risk\": \"test data loss\"}\n  ],\n  \"can_drop\": [],\n  \"validation\": {\n    \"total_facts\": 4,\n    \"recalled\": 4,\n    \"accuracy\": 1.0,\n    \"note\": \"All four handoff facts faithfully recalled from preceding turn.\"\n  }\n}\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "-18T14:07:50.024626Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:07:59.767803Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=61\nREADY. Four facts locked:\n\n1. **Port 7860 / PID 85165** — hands off, never kill.\n2. **DSV4 base** — `https://api.deepseek.com/beta`\n3. **sidecar/.agents** — untracked, never commit.\n4. **Snapshot** — `tests/snapshots/dsv4_capability_latest.json`\n\n2026-05-18T14:07:59.804862Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:08:09.463185Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=180\n{\n  \"must_preserve\": [\n    {\"fact\": \"live service port 7860 PID 85165 must not be killed\", \"source\": \"user instruction\", \"risk\": \"service disruption\"},\n    {\"fact\": \"DSV4 base URL is https://api.deepseek.com/beta\", \"source\": \"user instruction\", \"risk\": \"API misconfiguration\"},\n    {\"fact\": \"untracked sidecar/.agents must stay uncommitted\", \"source\": \"user instruction\", \"risk\": \"repo contamination\"},\n    {\"fact\": \"snapshot path is tests/snapshots/dsv4_capability_latest.json\", \"source\": \"user instruction\", \"risk\": \"test data loss\"}\n  ],\n  \"can_drop\": [],\n  \"validation\": {\n    \"total_facts\": 4,\n    \"recalled\": 4,\n    \"accuracy\": 1.0,\n    \"note\": \"All four handoff facts faithfully recalled from preceding turn.\"\n  }\n}\n",
+      "stderr_tail": "\n",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__1dbf318623dac43c.jsonl",
+        "entry_count": 10,
+        "events": [
+          "agent.run.start",
+          "agent.run",
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok",
+          "ok"
+        ],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
+    },
+    {
+      "id": "eli_model_fs_read_tool_execution",
+      "capability": "tool_execution",
+      "driver": "eli_run",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tape_tool_name",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "tape_tool_result_contains",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tape_agent_run_ok",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_model_fs_read_tool_execution",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Use the fs.read tool to read tests/fixtures/dsv4_e2e_tool_fixture.txt, then answer with the sentinel value and one sentence about why tool evidence matters. Do not guess the sentinel.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_model_fs_read_tool_execution"
+          ],
+          "returncode": 0,
+          "stdout_tail": "2026-05-18T14:08:09.499018Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:08:18.086819Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=114\n**ELI_DSV4_E2E_SENTINEL**\n\nTool evidence matters because it proves the agent grounded its answer in actual file content rather than guessing — the whole point of an E2E test is verifying the tool pipeline works end-to-end.\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "2026-05-18T14:08:09.499018Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:08:18.086819Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=114\n**ELI_DSV4_E2E_SENTINEL**\n\nTool evidence matters because it proves the agent grounded its answer in actual file content rather than guessing — the whole point of an E2E test is verifying the tool pipeline works end-to-end.\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__112e967a342dace1.jsonl",
+        "entry_count": 8,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [
+          "fs_read"
+        ],
+        "anchors": [
+          "session/start"
+        ]
+      }
+    },
+    {
+      "id": "eli_model_tape_handoff_tool_execution",
+      "capability": "tool_execution",
+      "driver": "eli_run",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tape_tool_name",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "tape_anchor_name",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tape_anchor_state_contains",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_model_tape_handoff_tool_execution",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "Use the tape.handoff tool now. The handoff name must be dsv4-e2e-model. The summary must preserve exactly: DSV4 endpoint https://api.deepseek.com/beta; snapshot tests/snapshots/dsv4_capability_latest.json; sidecar/.agents remains untracked and uncommitted. After the tool succeeds, answer HANDOFF_RECORDED.",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_model_tape_handoff_tool_execution"
+          ],
+          "returncode": 0,
+          "stdout_tail": "2026-05-18T14:08:18.139933Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:08:26.694189Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=40\n锚点 **dsv4-e2e-model** 已创建，捕获了自上个锚点以来的 3 条记录。随时可以继续。\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "2026-05-18T14:08:18.139933Z  WARN ELI_FALLBACK_MODELS is not set — no fallback models configured; context overflow errors will not automatically retry on a smaller model\n2026-05-18T14:08:26.694189Z  WARN auto-handoff: provider did not return usage, estimating input tokens from response char count estimated_tokens=40\n锚点 **dsv4-e2e-model** 已创建，捕获了自上个锚点以来的 3 条记录。随时可以继续。\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__b13f76ed7136b435.jsonl",
+        "entry_count": 9,
+        "events": [
+          "agent.run.start",
+          "agent.run"
+        ],
+        "agent_run_statuses": [
+          "ok"
+        ],
+        "tool_calls": [
+          "tape_handoff"
+        ],
+        "anchors": [
+          "session/start",
+          "dsv4-e2e-model"
+        ]
+      }
+    },
+    {
+      "id": "eli_subagent_cli_tool_command",
+      "capability": "subagent_management",
+      "driver": "eli_run",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "returncode",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_all",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "tape_event",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "stdout_contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "session_id": "dsv4-e2e-20260518140534-eli_subagent_cli_tool_command",
+      "runs": [
+        {
+          "command": [
+            "/Users/bytedance/code/eli/target/debug/eli",
+            "run",
+            "/agent prompt='Return exactly SUBAGENT_OK provider config DSML parser ownership.' description='fake subagent' cli=codex",
+            "--session-id",
+            "dsv4-e2e-20260518140534-eli_subagent_cli_tool_command"
+          ],
+          "returncode": 0,
+          "stdout_tail": "sts/fixtures/\\ncrates/nexil/src/llm/helpers.rs                    |   8 +-\\n crates/nexil/src/llm/tests.rs                      |  20 +\\n crates/nexil/src/llm/tool_loop.rs                  |  17 +-\\n crates/nexil/src/tape/entries.rs                   |  16 +\\n .../2026-05-18-dsv4-hard-tail-capability-suite.md  |  78 +-\\n scripts/run_dsv4_capability_suite.py               | 636 ++++++++++------\\n tests/benchmarks/dsv4_hard_tail_cases.json         | 302 +++-----\\n tests/snapshots/dsv4_capability_latest.json        | 819 +++++++++++++--------\\n tests/test_dsv4_capability_suite.py                |  21 +-\\n 9 files changed, 1122 insertions(+), 795 deletions(-)\",\"content\":\"SUBAGENT_OK provider config DSML parser ownership\\n\",\"duration_ms\":421,\"engine\":\"codex\",\"exit_code\":0,\"status\":\"completed\"}\n",
+          "stderr_tail": ""
+        }
+      ],
+      "stdout_tail": "{\"changes\":\"working tree:\\nM crates/nexil/src/llm/helpers.rs\\n M crates/nexil/src/llm/tests.rs\\n M crates/nexil/src/llm/tool_loop.rs\\n M crates/nexil/src/tape/entries.rs\\n M docs/experience/wins/2026-05-18-dsv4-hard-tail-capability-suite.md\\n M scripts/run_dsv4_capability_suite.py\\n M tests/benchmarks/dsv4_hard_tail_cases.json\\n M tests/snapshots/dsv4_capability_latest.json\\n M tests/test_dsv4_capability_suite.py\\n?? .tmp/\\n?? sidecar/.agents/\\n?? tests/fixtures/\\ncrates/nexil/src/llm/helpers.rs                    |   8 +-\\n crates/nexil/src/llm/tests.rs                      |  20 +\\n crates/nexil/src/llm/tool_loop.rs                  |  17 +-\\n crates/nexil/src/tape/entries.rs                   |  16 +\\n .../2026-05-18-dsv4-hard-tail-capability-suite.md  |  78 +-\\n scripts/run_dsv4_capability_suite.py               | 636 ++++++++++------\\n tests/benchmarks/dsv4_hard_tail_cases.json         | 302 +++-----\\n tests/snapshots/dsv4_capability_latest.json        | 819 +++++++++++++--------\\n tests/test_dsv4_capability_suite.py                |  21 +-\\n 9 files changed, 1122 insertions(+), 795 deletions(-)\",\"content\":\"SUBAGENT_OK provider config DSML parser ownership\\n\",\"duration_ms\":421,\"engine\":\"codex\",\"exit_code\":0,\"status\":\"completed\"}\n",
+      "stderr_tail": "",
+      "tape": {
+        "path": "/Users/bytedance/code/eli/.tmp/dsv4-eli-e2e-home/tapes/23eabb7e303d72d6__7555d553c4566bac.jsonl",
+        "entry_count": 2,
+        "events": [
+          "command"
+        ],
+        "agent_run_statuses": [],
+        "tool_calls": [],
+        "anchors": [
+          "session/start"
+        ]
+      }
     }
   ]
 }

@@ -1,9 +1,9 @@
 {
-  "suite": "dsv4-agent-realworld-benchmark",
-  "version": 2,
+  "suite": "dsv4-eli-e2e-benchmark",
+  "version": 3,
   "selection_policy": {
     "name": "mainstream-realworld-hard-tail-10pct",
-    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then execute them through Eli instead of calling the model API directly.",
     "sources": [
       "SWE-bench Verified",
       "SWE-bench Live",
@@ -17,257 +17,161 @@
   },
   "cases": [
     {
-      "id": "research_paper_deep_reading_plan",
-      "capability": "research_planning",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["MLAgentBench", "AgencyBench", "PlanBench"],
-      "mode": "text_json",
-      "prompt": "You are reading a new systems paper excerpt for an engineering lead. Excerpt: The paper proposes Prefix-stable Agent Memory (PAM), claiming lower latency by keeping system prompts immutable, moving volatile observations into append-only memory capsules, and using a verifier to decide when to compress old capsules. Evaluation reports 18% lower p95 latency on 32k-token support traces, but only tests two models and does not isolate cache hit rate from shorter prompts. Return strict JSON with keys thesis, evidence, limitations, follow_up_plan. Make the plan actionable for deciding whether to adopt PAM in a production Rust agent runtime. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["thesis", "evidence", "limitations", "follow_up_plan"], "points": 2},
-        {"kind": "contains_any", "needles": ["cache hit", "prefix", "stable"], "points": 2},
-        {"kind": "contains_any", "needles": ["ablation", "isolate", "control"], "points": 2},
-        {"kind": "contains_any", "needles": ["p95", "latency", "tokens"], "points": 1},
-        {"kind": "contains_any", "needles": ["production", "rollout", "A/B", "canary"], "points": 2},
-        {"kind": "contains_any", "needles": ["two models", "limited models", "generalization"], "points": 1}
-      ]
-    },
-    {
-      "id": "time_fixed_reminder_tool_call",
-      "capability": "time_planning",
+      "id": "eli_deepseek_profile_resolution",
+      "capability": "config_resolution",
+      "driver": "eli_cli",
+      "args": ["status"],
       "max_points": 10,
       "threshold": 8,
-      "inspired_by": ["BFCL V4", "AgentBench"],
-      "mode": "tool_call",
-      "prompt": "Today is Monday 2026-05-18 in Asia/Shanghai. Schedule a one-time reminder for next Friday at 09:30 Asia/Shanghai to review the PAM paper adoption plan with ckl. Use the schedule_task tool and do not answer without calling it.",
-      "tools": [
-        {
-          "type": "function",
-          "function": {
-            "name": "schedule_task",
-            "description": "Create a one-time or recurring reminder.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "title": {"type": "string"},
-                "run_at": {"type": "string"},
-                "timezone": {"type": "string"},
-                "recurrence": {"type": "string"},
-                "notes": {"type": "string"}
-              },
-              "required": ["title", "run_at", "timezone", "recurrence"]
-            }
-          }
-        }
-      ],
       "rubric": [
-        {"kind": "tool_count_at_least", "count": 1, "points": 1},
-        {"kind": "tool_name", "name": "schedule_task", "points": 2},
-        {"kind": "tool_arg_equals", "arg": "run_at", "value": "2026-05-22T09:30:00+08:00", "points": 3},
-        {"kind": "tool_arg_equals", "arg": "timezone", "value": "Asia/Shanghai", "points": 1},
-        {"kind": "tool_arg_equals", "arg": "recurrence", "value": "none", "points": 1},
-        {"kind": "tool_args_contain_text", "needles": ["PAM", "ckl"], "points": 2}
+        {"kind": "returncode", "value": 0, "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["Active profile", "dsv4"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["provider: dsv4", "deepseek-v4-pro"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["https://api.deepseek.com/beta"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["Stored credentials", "deepseek"], "points": 2}
       ]
     },
     {
-      "id": "issue_gateway_subagent_completion_plan",
-      "capability": "issue_resolution",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["SWE-bench Verified", "SWE-bench Live"],
-      "mode": "text_json",
-      "prompt": "A GitHub issue says: In gateway mode, a subagent finishes after the parent turn returns, but the completion is delivered to a default chat instead of the original chat_id. The repo has gateway inbound injection and tests named test_subagent_gateway_completion. Plan the fix. Return strict JSON with keys reproduction, root_cause_hypothesis, patch_plan, validation. Keep it safe for a dirty worktree and do not propose destructive git commands. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["reproduction", "root_cause_hypothesis", "patch_plan", "validation"], "points": 2},
-        {"kind": "contains_any", "needles": ["chat_id", "original chat"], "points": 2},
-        {"kind": "contains_any", "needles": ["gateway", "inbound injector", "injector"], "points": 2},
-        {"kind": "contains_any", "needles": ["test_subagent_gateway_completion", "subagent_gateway"], "points": 1},
-        {"kind": "contains_any", "needles": ["dirty worktree", "git status", "do not reset", "no destructive"], "points": 2},
-        {"kind": "contains_any", "needles": ["cargo test", "pytest", "e2e"], "points": 1}
-      ]
-    },
-    {
-      "id": "code_async_handoff_race_analysis",
-      "capability": "code_analysis",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
-      "mode": "text_json",
-      "prompt": "Analyze this Rust async bug. A gateway owns JoinSet workers. On shutdown it calls abort_all(), then immediately drops the JoinSet. Sometimes child tasks keep writing completion messages after shutdown, and tests flake because cleanup returns before JoinHandle cancellation is observed. Return strict JSON with keys root_cause, minimal_patch, tests. Mention how to keep function bodies small. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["root_cause", "minimal_patch", "tests"], "points": 2},
-        {"kind": "contains_any", "needles": ["join_next", "drain", "await"], "points": 2},
-        {"kind": "contains_any", "needles": ["abort_all", "cancellation", "cancel"], "points": 2},
-        {"kind": "contains_any", "needles": ["timeout", "bounded", "grace"], "points": 1},
-        {"kind": "contains_any", "needles": ["test", "flake", "deterministic"], "points": 2},
-        {"kind": "contains_any", "needles": ["15 lines", "small function", "extract"], "points": 1}
-      ]
-    },
-    {
-      "id": "memory_handoff_context_preservation",
+      "id": "eli_tape_handoff_command",
       "capability": "memory_handoff",
+      "driver": "eli_run",
+      "prompt": "/tape.handoff name=dsv4-e2e-command summary='DSV4 endpoint https://api.deepseek.com/beta; snapshot tests/snapshots/dsv4_capability_latest.json; leave sidecar/.agents uncommitted.'",
       "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["AgencyBench", "AgentBench"],
-      "mode": "text_json",
-      "prompt": "Plan a local memory handoff for an agent that is about to compact context. Facts that must survive: live service on port 7860 PID 85165 must not be killed; DSV4 base URL is https://api.deepseek.com/beta; untracked sidecar/.agents must stay uncommitted; latest score snapshot path is tests/snapshots/dsv4_capability_latest.json. Return strict JSON with keys must_preserve, can_drop, handoff_trigger, validation. No markdown.",
+      "threshold": 8,
       "rubric": [
-        {"kind": "json_keys", "keys": ["must_preserve", "can_drop", "handoff_trigger", "validation"], "points": 2},
-        {"kind": "contains_all", "needles": ["7860", "85165"], "points": 2},
-        {"kind": "contains_all", "needles": ["https://api.deepseek.com/beta", "dsv4"], "points": 1},
-        {"kind": "contains_all", "needles": ["sidecar/.agents", "untracked"], "points": 2},
-        {"kind": "contains_any", "needles": ["anchor", "handoff", "tape"], "points": 2},
-        {"kind": "contains_any", "needles": ["snapshot", "validate", "tests/snapshots/dsv4_capability_latest.json"], "points": 1}
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["anchor added", "dsv4-e2e-command"], "points": 2},
+        {"kind": "tape_anchor_name", "name": "dsv4-e2e-command", "points": 2},
+        {"kind": "tape_anchor_state_contains", "needles": ["https://api.deepseek.com/beta", "tests/snapshots/dsv4_capability_latest.json", "sidecar/.agents"], "points": 3},
+        {"kind": "tape_event", "name": "command", "points": 2}
       ]
     },
     {
-      "id": "subagent_parallel_management_plan",
-      "capability": "subagent_management",
+      "id": "eli_research_paper_deep_reading",
+      "capability": "research_planning",
+      "driver": "eli_run",
+      "prompt": "Planning-only benchmark case. Do not call tools. You are Eli running inside a Rust agent repo. Read this systems-paper excerpt for ckl. Excerpt: Prefix-stable Agent Memory keeps system prompts immutable, moves volatile observations into append-only memory capsules, and runs a verifier before compressing old capsules. It claims 18% lower p95 latency on 32k-token support traces, but only tests two models and does not isolate cache hit rate from shorter prompts. Return strict JSON with keys thesis, evidence, limitations, follow_up_plan. Make the plan actionable for deciding whether Eli should adopt this design. No markdown.",
       "max_points": 10,
       "threshold": 7,
-      "inspired_by": ["AgentBench", "AgencyBench"],
-      "mode": "text_json",
-      "prompt": "You need to use subagents for a repo task: one explorer should inspect provider config, one worker should implement DSML parser tests, and the parent should integrate. Plan the management protocol. Return strict JSON with keys delegation_plan, ownership, integration, stop_rules. Include how to avoid duplicate work and when to wait or close agents. No markdown.",
       "rubric": [
-        {"kind": "json_keys", "keys": ["delegation_plan", "ownership", "integration", "stop_rules"], "points": 2},
-        {"kind": "contains_any", "needles": ["explorer", "worker"], "points": 2},
-        {"kind": "contains_any", "needles": ["ownership", "disjoint", "write set", "files"], "points": 2},
-        {"kind": "contains_any", "needles": ["duplicate", "overlap", "not redo"], "points": 1},
-        {"kind": "contains_any", "needles": ["wait", "blocked", "critical path"], "points": 2},
-        {"kind": "contains_any", "needles": ["close", "stop", "final message"], "points": 1}
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "keys": ["thesis", "evidence", "limitations", "follow_up_plan"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["cache hit", "prefix", "stable"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["ablation", "isolate", "control"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["p95", "latency", "production", "rollout"], "points": 1},
+        {"kind": "tape_agent_run_ok", "points": 2}
       ]
     },
     {
-      "id": "tool_issue_repo_investigation",
-      "capability": "tool_use",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["BFCL V4", "MCP-Bench", "SWE-bench Verified"],
-      "mode": "tool_call",
-      "prompt": "Investigate why DSML tool calls returned in chat completion content are not executing. Use repo_search and read_file before answering. Focus on parser and LLM helper paths.",
-      "tools": [
-        {
-          "type": "function",
-          "function": {
-            "name": "repo_search",
-            "description": "Search repository text.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "query": {"type": "string"},
-                "paths": {"type": "array", "items": {"type": "string"}}
-              },
-              "required": ["query"]
-            }
-          }
-        },
-        {
-          "type": "function",
-          "function": {
-            "name": "read_file",
-            "description": "Read a source file.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "path": {"type": "string"},
-                "reason": {"type": "string"}
-              },
-              "required": ["path"]
-            }
-          }
-        }
-      ],
-      "rubric": [
-        {"kind": "tool_count_at_least", "count": 2, "points": 2},
-        {"kind": "tool_name", "name": "repo_search", "points": 2},
-        {"kind": "tool_name", "name": "read_file", "points": 2},
-        {"kind": "tool_args_contain_text", "needles": ["DSML", "tool"], "points": 2},
-        {"kind": "tool_args_contain_text", "needles": ["tool_calls", "completion"], "points": 2}
-      ]
-    },
-    {
-      "id": "tool_handoff_and_subagent_actions",
-      "capability": "tool_use",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["BFCL V4", "AgentBench"],
-      "mode": "tool_call",
-      "prompt": "The context is near limit. First create a tape handoff preserving the DSV4 endpoint, snapshot path, and untracked sidecar/.agents constraint. Then spawn an explorer subagent for provider config and a worker subagent for DSML parser tests. Use the provided tools.",
-      "tools": [
-        {
-          "type": "function",
-          "function": {
-            "name": "tape_handoff",
-            "description": "Create a named memory handoff checkpoint.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "name": {"type": "string"},
-                "summary": {"type": "string"}
-              },
-              "required": ["name", "summary"]
-            }
-          }
-        },
-        {
-          "type": "function",
-          "function": {
-            "name": "spawn_subagent",
-            "description": "Spawn a scoped subagent.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "role": {"type": "string", "enum": ["explorer", "worker"]},
-                "task": {"type": "string"},
-                "ownership": {"type": "string"}
-              },
-              "required": ["role", "task"]
-            }
-          }
-        }
-      ],
-      "rubric": [
-        {"kind": "tool_count_at_least", "count": 3, "points": 2},
-        {"kind": "tool_name", "name": "tape_handoff", "points": 2},
-        {"kind": "tool_arg_contains", "arg": "summary", "needles": ["https://api.deepseek.com/beta"], "points": 1},
-        {"kind": "tool_arg_contains", "arg": "summary", "needles": ["tests/snapshots/dsv4_capability_latest.json", "sidecar/.agents"], "points": 2},
-        {"kind": "tool_args_contain_text", "needles": ["explorer", "provider config"], "points": 1},
-        {"kind": "tool_args_contain_text", "needles": ["worker", "DSML", "parser"], "points": 2}
-      ]
-    },
-    {
-      "id": "planning_issue_to_patch_with_tests",
-      "capability": "issue_resolution",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["SWE-bench Verified", "SWE-bench Live"],
-      "mode": "text_json",
-      "prompt": "A bug report says: eli model list works for OpenAI-compatible providers, but DeepSeek V4 fails because the active profile provider alias dsv4 is not normalized before API key lookup. Plan a patch and tests. Return strict JSON with keys diagnosis, files, patch_steps, verification. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["diagnosis", "files", "patch_steps", "verification"], "points": 2},
-        {"kind": "contains_any", "needles": ["normalized_provider_name", "normalize", "alias"], "points": 2},
-        {"kind": "contains_any", "needles": ["api key", "credential", "resolver"], "points": 2},
-        {"kind": "contains_any", "needles": ["dsv4", "deepseek"], "points": 1},
-        {"kind": "contains_any", "needles": ["agent_request", "model.rs", "config"], "points": 1},
-        {"kind": "contains_any", "needles": ["test", "cargo", "pytest"], "points": 2}
-      ]
-    },
-    {
-      "id": "time_planning_timezone_no_tool",
+      "id": "eli_time_fixed_planning",
       "capability": "time_planning",
+      "driver": "eli_run",
+      "prompt": "Planning-only benchmark case. Do not call tools. Today is Monday 2026-05-18. A teammate in San Francisco asks for a daily handoff summary at 17:00 Pacific time for the next three business days, but ckl wants all persisted records in Asia/Shanghai local time. Return strict JSON with keys assumptions, schedule, risks, validation. Use exact ISO-like local datetimes and avoid relative dates. No markdown.",
       "max_points": 10,
       "threshold": 7,
-      "inspired_by": ["AgentBench", "PlanBench"],
-      "mode": "text_json",
-      "prompt": "Today is Monday 2026-05-18. A teammate in San Francisco asks for a daily handoff summary at 17:00 Pacific time for the next three business days, but ckl wants all persisted records in Asia/Shanghai local time. Return strict JSON with keys assumptions, schedule, risks, validation. Use exact ISO-like local datetimes and avoid relative dates. No markdown.",
       "rubric": [
-        {"kind": "json_keys", "keys": ["assumptions", "schedule", "risks", "validation"], "points": 2},
-        {"kind": "contains_all", "needles": ["2026-05-19", "2026-05-20", "2026-05-21"], "points": 3},
-        {"kind": "contains_any", "needles": ["08:00", "Asia/Shanghai", "+08:00"], "points": 2},
-        {"kind": "contains_any", "needles": ["Pacific", "America/Los_Angeles", "PDT"], "points": 1},
-        {"kind": "contains_any", "needles": ["business", "weekday"], "points": 1},
-        {"kind": "forbid_all", "needles": ["tomorrow", "next day", "later"], "points": 1}
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "keys": ["assumptions", "schedule", "risks", "validation"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["2026-05-19", "2026-05-20", "2026-05-21"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["08:00", "Asia/Shanghai", "+08:00"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["Pacific", "America/Los_Angeles", "PDT"], "points": 1},
+        {"kind": "stdout_forbid_all", "needles": ["tomorrow", "next day", "later"], "points": 2}
+      ]
+    },
+    {
+      "id": "eli_issue_gateway_subagent_plan",
+      "capability": "issue_resolution",
+      "driver": "eli_run",
+      "prompt": "Planning-only benchmark case. Do not call tools or inspect files. A GitHub issue says: In Eli gateway mode, a subagent finishes after the parent turn returns, but the completion is delivered to a default chat instead of the original chat_id. The repo has gateway inbound injection and tests named test_subagent_gateway_completion. Plan the fix. Return strict JSON with keys reproduction, root_cause_hypothesis, patch_plan, validation. Keep it safe for a dirty worktree and do not propose destructive git commands. No markdown.",
+      "max_points": 10,
+      "threshold": 7,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "keys": ["reproduction", "root_cause_hypothesis", "patch_plan", "validation"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["chat_id", "original chat"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["gateway", "inbound injector", "injector"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["dirty worktree", "git status", "destructive"], "points": 1},
+        {"kind": "tape_agent_run_ok", "points": 2}
+      ]
+    },
+    {
+      "id": "eli_code_async_handoff_analysis",
+      "capability": "code_analysis",
+      "driver": "eli_run",
+      "prompt": "Planning-only benchmark case. Do not call tools. Analyze this Rust async bug in Eli. A gateway owns JoinSet workers. On shutdown it calls abort_all(), then immediately drops the JoinSet. Sometimes child tasks keep writing completion messages after shutdown, and tests flake because cleanup returns before JoinHandle cancellation is observed. Return strict JSON with keys root_cause, minimal_patch, tests. Mention how to keep function bodies small. No markdown.",
+      "max_points": 10,
+      "threshold": 7,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "keys": ["root_cause", "minimal_patch", "tests"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["join_next", "drain", "await"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["abort_all", "cancellation", "cancel"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["test", "flake", "deterministic"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["15 lines", "small function", "extract"], "points": 2}
+      ]
+    },
+    {
+      "id": "eli_tape_multi_turn_memory",
+      "capability": "memory_handoff",
+      "driver": "eli_multi_turn",
+      "turns": [
+        "Memory benchmark case. Do not call tools. Remember these exact Eli handoff facts for this session: live service port 7860 PID 85165 must not be killed; DSV4 base URL is https://api.deepseek.com/beta; untracked sidecar/.agents must stay uncommitted; snapshot path is tests/snapshots/dsv4_capability_latest.json. Reply READY.",
+        "Memory benchmark case. Do not call tools. Using this Eli session history, return strict JSON with keys must_preserve, can_drop, validation. Include every exact preserved fact. No markdown."
+      ],
+      "max_points": 10,
+      "threshold": 7,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "keys": ["must_preserve", "can_drop", "validation"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["7860", "85165"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["https://api.deepseek.com/beta", "sidecar/.agents"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["tests/snapshots/dsv4_capability_latest.json"], "points": 1},
+        {"kind": "tape_event_count_at_least", "name": "agent.run", "count": 2, "points": 2}
+      ]
+    },
+    {
+      "id": "eli_model_fs_read_tool_execution",
+      "capability": "tool_execution",
+      "driver": "eli_run",
+      "prompt": "Use the fs.read tool to read tests/fixtures/dsv4_e2e_tool_fixture.txt, then answer with the sentinel value and one sentence about why tool evidence matters. Do not guess the sentinel.",
+      "max_points": 10,
+      "threshold": 7,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "tape_tool_name", "name": "fs_read", "points": 3},
+        {"kind": "tape_tool_result_contains", "needles": ["ELI_DSV4_E2E_SENTINEL"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["ELI_DSV4_E2E_SENTINEL"], "points": 2},
+        {"kind": "tape_agent_run_ok", "points": 2}
+      ]
+    },
+    {
+      "id": "eli_model_tape_handoff_tool_execution",
+      "capability": "tool_execution",
+      "driver": "eli_run",
+      "prompt": "Use the tape.handoff tool now. The handoff name must be dsv4-e2e-model. The summary must preserve exactly: DSV4 endpoint https://api.deepseek.com/beta; snapshot tests/snapshots/dsv4_capability_latest.json; sidecar/.agents remains untracked and uncommitted. After the tool succeeds, answer HANDOFF_RECORDED.",
+      "max_points": 10,
+      "threshold": 7,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "tape_tool_name", "name": "tape_handoff", "points": 3},
+        {"kind": "tape_anchor_name", "name": "dsv4-e2e-model", "points": 2},
+        {"kind": "tape_anchor_state_contains", "needles": ["https://api.deepseek.com/beta", "tests/snapshots/dsv4_capability_latest.json", "sidecar/.agents"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["HANDOFF_RECORDED", "handoff"], "points": 2}
+      ]
+    },
+    {
+      "id": "eli_subagent_cli_tool_command",
+      "capability": "subagent_management",
+      "driver": "eli_run",
+      "prompt": "/agent prompt='Return exactly SUBAGENT_OK provider config DSML parser ownership.' description='fake subagent' cli=codex",
+      "max_points": 10,
+      "threshold": 8,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["completed", "codex"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["SUBAGENT_OK", "provider config", "DSML", "ownership"], "points": 3},
+        {"kind": "tape_event", "name": "command", "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["duration_ms", "changes"], "points": 2}
       ]
     }
   ]
