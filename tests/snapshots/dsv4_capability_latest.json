@@ -1,0 +1,488 @@
+{
+  "suite": "dsv4-hard-tail-capability",
+  "version": 1,
+  "model": "deepseek-v4-pro",
+  "api_base": "https://api.deepseek.com/beta",
+  "run_at": "2026-05-18T10:17:04.520361+00:00",
+  "selection_policy": {
+    "name": "mainstream-hard-tail-10pct",
+    "method": "Use hard-category patterns from mainstream coding, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "sources": [
+      "SWE-bench Verified",
+      "BigCodeBench-Hard",
+      "LiveCodeBench",
+      "AgentBench",
+      "PlanBench",
+      "BFCL V4"
+    ]
+  },
+  "scores": {
+    "total": {
+      "score": 91,
+      "max": 100,
+      "percent": 91.0
+    },
+    "by_capability": {
+      "code": {
+        "score": 38,
+        "max": 40,
+        "percent": 95.0
+      },
+      "planning": {
+        "score": 23,
+        "max": 30,
+        "percent": 76.7
+      },
+      "tool": {
+        "score": 30,
+        "max": 30,
+        "percent": 100.0
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "code_rust_borrow_safe_batch_mutation",
+      "capability": "code",
+      "score": 8,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "forbid_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\"diagnosis\": \"The current code directly loops over updates and immediately mutates account balances. If an invalid index (out of bounds) or a duplicate index is encountered partway through the batch, earlier accounts have already been mutated, violating the all-or-nothing contract. This leaves the system in an inconsistent state on error.\", \"patch\": \"// Validate all updates before any mutation\\nlet mut seen = std::collections::HashSet::new();\\nfor (idx, _) in &updates {\\n    if *idx >= accounts.len() {\\n        return Err(Error::InvalidIndex);\\n    }\\n    if !seen.insert(*idx) {\\n        return Err(Error::DuplicateIndex);\\n    }\\n}\\n// Apply updates\\nfor (idx, delta) in updates {\\n    accounts[*idx].balance += delta;\\n}\\nOk(())\", \"tests\": \"#[cfg(test)]\\nmod tests {\\n    use super::*;\\n\\n ",
+      "reasoning_chars": 10156,
+      "tool_calls": []
+    },
+    {
+      "id": "code_provider_colon_tag_regression",
+      "capability": "code",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "forbid_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\"root_cause\": \"The CLI applies a naive split on ':' to extract a provider prefix from any model string, causing local model identifiers containing colons (e.g. 'llama3.2:3b', 'qwen2.5:7b') to be misparsed as provider 'llama3.2' / 'qwen2.5' and model '3b' / '7b'.\", \"fix\": \"Only treat a colon as a provider delimiter when the substring before the first colon exactly matches a known provider key (e.g. 'openai', 'deepseek'). In all other cases, preserve the full string as the model name and use the default provider.\", \"tests\": [\"llama3.2:3b -> provider default, model 'llama3.2:3b'\", \"qwen2.5:7b -> provider default, model 'qwen2.5:7b'\", \"openai:gpt-5 -> provider 'openai', model 'gpt-5'\", \"deepseek:deepseek-v4-pro -> provider 'deepseek', model 'deepseek-v4-pro'\", \"gpt-4 -> provider default, mode",
+      "reasoning_chars": 3026,
+      "tool_calls": []
+    },
+    {
+      "id": "code_sql_builder_parameterization",
+      "capability": "code",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "forbid_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\n  \"diagnosis\": \"The original query builder concatenates user-supplied owner, status, and optional limit directly into SQL, e.g., \\\"SELECT * FROM items WHERE owner = '\\\" + owner + \\\"' AND status = '\\\" + status + \\\"'\\\" + (limit ? \\\" LIMIT \\\" + limit : \\\"\\\"). This introduces SQL injection vulnerabilities because malicious input can escape the string context and inject arbitrary SQL clauses. An attacker could bypass authentication, reveal/delete/modify data, or cause denial of service. No sanitization, escaping, or parameterization is applied, making any input dangerous.\",\n  \"safe_design\": \"Use parameterized queries (prepared statements) to separate SQL logic from data. Build the base query with placeholder markers (e.g., ? for SQLite, %s for PostgreSQL with parameter binding). For the optio",
+      "reasoning_chars": 6607,
+      "tool_calls": []
+    },
+    {
+      "id": "code_test_output_prediction",
+      "capability": "code",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_all",
+          "points": 8,
+          "earned": 8,
+          "passed": true
+        }
+      ],
+      "content_preview": "```json\n{\n  \"stdout_lines\": [\n    \"[3, 5, 9]|[1, 4, 1]\",\n    \"32\"\n  ]\n}\n```",
+      "reasoning_chars": 2156,
+      "tool_calls": []
+    },
+    {
+      "id": "plan_dirty_worktree_ci_push",
+      "capability": "planning",
+      "score": 4,
+      "max_points": 10,
+      "passed": false,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\n  \"steps\": [\n    \"git add -A\",\n    \"git commit -m \\\"WIP: save local changes\\\"\",\n    \"git pull origin main\",\n    \"# resolve any merge conflicts, then git add and git commit (merge commit is created automatically if needed)\",\n    \"git add <files to fix CI>\",\n    \"git commit -m \\\"Fix CI\\\"\",\n    \"git pull origin main\",\n    \"git push origin main\"\n  ],\n  \"risks\": [\n    \"Merge conflicts during pulls may be complex and require manual resolution\",\n    \"WIP commit exposes incomplete or untested user changes on the remote main branch\",\n    \"Remote main may advance again while fixing CI, causing an additional merge step\",\n    \"The CI fix might not fully resolve the red state if underlying issues are deeper\"\n  ]\n}",
+      "reasoning_chars": 9309,
+      "tool_calls": []
+    },
+    {
+      "id": "plan_kv_cache_aware_prompt_refactor",
+      "capability": "planning",
+      "score": 9,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 0,
+          "passed": false
+        }
+      ],
+      "content_preview": "{\n  \"plan\": [\n    \"Separate prompt construction into a fixed preamble and a mutable suffix. Define a canonical, deterministic serialization for the preamble that includes a stable system message (agent identity, core instructions) and optionally a set of static tool schemas that rarely change.\",\n    \"Introduce a 'preamble fingerprint' hash computed over the canonical string of the preamble. Use this hash as a cache lookup key for the tokenized representation of the preamble, allowing the runtime to reuse the exact token sequence across calls without re-tokenizing or altering the KV-cacheable prefix.\",\n    \"Place any frequently changing tool definitions (e.g., per-turn dynamic tools) after the conversation history or as a separate block appended after the stable preamble, so that the fixed ",
+      "reasoning_chars": 7832,
+      "tool_calls": []
+    },
+    {
+      "id": "plan_release_version_conflict",
+      "capability": "planning",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\n  \"preflight\": {\n    \"steps\": [\n      \"Checkout the release branch\",\n      \"Install dependencies and build the project\",\n      \"Run static analysis and linting\",\n      \"Fetch the latest published version from the package registry\",\n      \"Determine the target release version according to semver and verify it is higher than the latest\",\n      \"Run the complete test suite (unit, integration, end-to-end); do not skip any tests\"\n    ],\n    \"stop_conditions\": [\n      \"Any test fails\",\n      \"Linting or static analysis fails\",\n      \"Unable to retrieve the latest published version\",\n      \"Target version is not greater than the latest published version\"\n    ]\n  },\n  \"publish_loop\": {\n    \"max_retries\": 3,\n    \"steps\": [\n      \"Run the full test suite with the current version (never skip tests)",
+      "reasoning_chars": 3643,
+      "tool_calls": []
+    },
+    {
+      "id": "tool_parallel_weather_lookup",
+      "capability": "tool",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "tool_count_at_least",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_name",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_contains",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_contains",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_equals",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "content_preview": "",
+      "reasoning_chars": 182,
+      "tool_calls": [
+        {
+          "name": "weather_lookup",
+          "arguments": {
+            "city": "San Francisco",
+            "day": "tomorrow"
+          }
+        },
+        {
+          "name": "weather_lookup",
+          "arguments": {
+            "city": "New York",
+            "day": "tomorrow"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tool_nested_log_query",
+      "capability": "tool",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "tool_count_at_least",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tool_name",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_equals",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_equals",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_args_contain_text",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        }
+      ],
+      "content_preview": "",
+      "reasoning_chars": 444,
+      "tool_calls": [
+        {
+          "name": "query_logs",
+          "arguments": {
+            "service": "checkout",
+            "filters": {
+              "region": "us-west",
+              "timestamp": "2026-05-18T08:00:00Z",
+              "level": "500",
+              "status_code": "5xx"
+            },
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "tool_clarify_before_deploy",
+      "capability": "tool",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "no_tool_calls",
+          "points": 4,
+          "earned": 4,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 4,
+          "earned": 4,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "content_preview": "I'd be happy to deploy the latest build, but I need a few more details from you:\n\n- **Service** – Which service would you like to deploy?\n- **Environment** – Should this go to **staging** or **production**?\n- **Version** – What version identifier should I use (e.g., `latest`, a specific commit hash, or a version tag)?\n\nPlease provide these details and I'll trigger the deployment right away!",
+      "reasoning_chars": 376,
+      "tool_calls": []
+    }
+  ]
+}

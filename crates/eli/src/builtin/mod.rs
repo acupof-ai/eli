@@ -709,8 +709,7 @@ impl EliHookSpec for BuiltinImpl {
         // Defensive: if a SOUL.md path exists on disk but the build returned
         // the fallback default, this turn hit a transient read failure. Don't
         // pin — let the next turn recover with the real content.
-        let soul_exists =
-            soul_path.is_file() || self.home.join("SOUL.md").is_file();
+        let soul_exists = soul_path.is_file() || self.home.join("SOUL.md").is_file();
         let is_fallback =
             built.starts_with("You are Eli, a helpful AI coding assistant. Put the answer");
         if soul_exists && is_fallback {

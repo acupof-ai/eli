@@ -638,6 +638,21 @@ fn test_extract_tool_calls_completion_format() {
 }
 
 #[test]
+fn test_extract_tool_calls_dsml_completion_content() {
+    let response = json!({
+        "choices": [{
+            "message": {
+                "content": "<｜DSML｜tool_calls><｜DSML｜invoke name=\"tool1\"></｜DSML｜invoke></｜DSML｜tool_calls>"
+            }
+        }]
+    });
+
+    let calls = extract_tool_calls(&response).unwrap();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0]["function"]["name"], "tool1");
+}
+
+#[test]
 fn test_extract_tool_calls_responses_format() {
     let response = json!({
         "output": [
@@ -675,6 +690,14 @@ fn test_default_api_base_anthropic() {
 #[test]
 fn test_default_api_base_other() {
     assert_eq!(default_api_base("cohere"), "https://api.cohere.com/v1");
+}
+
+#[test]
+fn test_default_api_base_deepseek_alias() {
+    assert_eq!(
+        default_api_base("dsv4"),
+        crate::core::provider_policies::DEEPSEEK_OPENAI_BASE
+    );
 }
 
 // ----- LLMBuilder -----

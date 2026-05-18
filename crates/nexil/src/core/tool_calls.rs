@@ -4,6 +4,13 @@ use serde_json::{Map, Value};
 
 use crate::clients::parsing::common::expand_tool_calls;
 
+const DSML_TOOL_CALLS_OPEN: &str = "<｜DSML｜tool_calls>";
+const DSML_TOOL_CALLS_CLOSE: &str = "</｜DSML｜tool_calls>";
+const DSML_INVOKE_OPEN: &str = "<｜DSML｜invoke";
+const DSML_INVOKE_CLOSE: &str = "</｜DSML｜invoke>";
+const DSML_PARAMETER_OPEN: &str = "<｜DSML｜parameter";
+const DSML_PARAMETER_CLOSE: &str = "</｜DSML｜parameter>";
+
 pub(crate) fn normalize_tool_calls(calls: &[Value]) -> Vec<Value> {
     let normalized: Vec<Value> = calls
         .iter()
@@ -19,16 +26,67 @@ pub(crate) fn normalize_message_tool_calls(message: &Value) -> Value {
     let Some(obj) = message.as_object() else {
         return message.clone();
     };
-    let Some(raw_calls) = obj.get("tool_calls").and_then(|value| value.as_array()) else {
-        return message.clone();
-    };
-
-    let mut normalized = obj.clone();
-    normalized.insert(
-        "tool_calls".to_owned(),
-        Value::Array(normalize_tool_calls(raw_calls)),
+    if let Some(raw_calls) = obj.get("tool_calls").and_then(|value| value.as_array()) {
+        return message_with_tool_calls(obj, normalize_tool_calls(raw_calls));
+    }
+    let calls = parse_dsml_tool_calls(
+        obj.get("content")
+            .and_then(|value| value.as_str())
+            .unwrap_or(""),
     );
+    if calls.is_empty() {
+        return message.clone();
+    }
+    message_with_dsml_tool_calls(obj, calls)
+}
+
+pub(crate) fn parse_dsml_tool_calls(text: &str) -> Vec<Value> {
+    let Some(body) = extract_between(text, DSML_TOOL_CALLS_OPEN, DSML_TOOL_CALLS_CLOSE) else {
+        return Vec::new();
+    };
+    let calls: Vec<Value> = extract_blocks(body, DSML_INVOKE_OPEN, DSML_INVOKE_CLOSE)
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, block)| parse_dsml_invoke(block, index))
+        .collect();
+    normalize_tool_calls(&calls)
+}
+
+pub(crate) fn strip_dsml_tool_call_block(text: &str) -> String {
+    let Some(start) = text.find(DSML_TOOL_CALLS_OPEN) else {
+        return text.to_owned();
+    };
+    let tail = &text[start + DSML_TOOL_CALLS_OPEN.len()..];
+    let Some(end) = tail.find(DSML_TOOL_CALLS_CLOSE) else {
+        return text.to_owned();
+    };
+    let after = start + DSML_TOOL_CALLS_OPEN.len() + end + DSML_TOOL_CALLS_CLOSE.len();
+    format!("{}{}", &text[..start], &text[after..])
+}
+
+fn message_with_tool_calls(obj: &Map<String, Value>, calls: Vec<Value>) -> Value {
+    let mut normalized = obj.clone();
+    normalized.insert("tool_calls".to_owned(), Value::Array(calls));
     Value::Object(normalized)
+}
+
+fn message_with_dsml_tool_calls(obj: &Map<String, Value>, calls: Vec<Value>) -> Value {
+    let mut normalized = obj.clone();
+    normalized.insert("tool_calls".to_owned(), Value::Array(calls));
+    normalized.insert("content".to_owned(), dsml_message_content(obj));
+    Value::Object(normalized)
+}
+
+fn dsml_message_content(obj: &Map<String, Value>) -> Value {
+    let text = obj
+        .get("content")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    let stripped = strip_dsml_tool_call_block(text);
+    match stripped.trim() {
+        "" => Value::Null,
+        content => Value::String(content.to_owned()),
+    }
 }
 
 pub(crate) fn tool_call_id(call: &Value) -> Option<&str> {
@@ -92,6 +150,80 @@ fn json_field_to_string(value: &Value) -> String {
     }
 }
 
+fn extract_between<'a>(text: &'a str, open: &str, close: &str) -> Option<&'a str> {
+    let start = text.find(open)? + open.len();
+    let tail = &text[start..];
+    let end = tail.find(close)?;
+    Some(&tail[..end])
+}
+
+fn extract_blocks<'a>(mut text: &'a str, open: &str, close: &str) -> Vec<&'a str> {
+    let mut blocks = Vec::new();
+    while let Some(start) = text.find(open) {
+        let block_start = &text[start..];
+        let Some(end) = block_start.find(close) else {
+            break;
+        };
+        blocks.push(&block_start[..end + close.len()]);
+        text = &block_start[end + close.len()..];
+    }
+    blocks
+}
+
+fn parse_dsml_invoke(block: &str, index: usize) -> Option<Value> {
+    let tag = opening_tag(block)?;
+    let name = attr_value(tag, "name")?;
+    let params = parse_dsml_parameters(element_body(block, DSML_INVOKE_CLOSE)?);
+    Some(serde_json::json!({
+        "type": "function_call",
+        "call_id": format!("call_{}", index + 1),
+        "name": name,
+        "arguments": Value::Object(params),
+    }))
+}
+
+fn parse_dsml_parameters(body: &str) -> Map<String, Value> {
+    let mut params = Map::new();
+    for block in extract_blocks(body, DSML_PARAMETER_OPEN, DSML_PARAMETER_CLOSE) {
+        if let Some((name, value)) = parse_dsml_parameter(block) {
+            params.insert(name, value);
+        }
+    }
+    params
+}
+
+fn parse_dsml_parameter(block: &str) -> Option<(String, Value)> {
+    let tag = opening_tag(block)?;
+    let name = attr_value(tag, "name")?;
+    let string_attr = attr_value(tag, "string").unwrap_or_else(|| "true".to_owned());
+    let raw = element_body(block, DSML_PARAMETER_CLOSE)?;
+    Some((name, parse_dsml_parameter_value(raw, &string_attr)))
+}
+
+fn parse_dsml_parameter_value(raw: &str, string_attr: &str) -> Value {
+    if string_attr.eq_ignore_ascii_case("false") {
+        return serde_json::from_str(raw.trim()).unwrap_or_else(|_| Value::String(raw.to_owned()));
+    }
+    Value::String(raw.to_owned())
+}
+
+fn opening_tag(block: &str) -> Option<&str> {
+    block.find('>').map(|end| &block[..=end])
+}
+
+fn element_body<'a>(block: &'a str, close: &str) -> Option<&'a str> {
+    let start = block.find('>')? + 1;
+    let tail = &block[start..];
+    let end = tail.find(close)?;
+    Some(&tail[..end])
+}
+
+fn attr_value(tag: &str, name: &str) -> Option<String> {
+    let marker = format!(r#"{name}=""#);
+    let value = tag.split_once(&marker)?.1.split_once('"')?.0;
+    Some(value.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -147,6 +279,53 @@ mod tests {
         let normalized = normalize_message_tool_calls(&message);
 
         assert_eq!(normalized["tool_calls"][0]["id"], "call_1");
+        assert_eq!(normalized["tool_calls"][0]["function"]["name"], "echo");
+    }
+
+    #[test]
+    fn test_parse_dsml_tool_calls_extracts_v4_tags() {
+        let calls = parse_dsml_tool_calls(
+            r#"<｜DSML｜tool_calls>
+<｜DSML｜invoke name="get_weather">
+<｜DSML｜parameter name="location" string="true">杭州</｜DSML｜parameter>
+<｜DSML｜parameter name="days" string="false">3</｜DSML｜parameter>
+</｜DSML｜invoke>
+</｜DSML｜tool_calls>"#,
+        );
+
+        let args: Value =
+            serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+        assert_eq!(calls[0]["id"], "call_1");
+        assert_eq!(calls[0]["function"]["name"], "get_weather");
+        assert_eq!(args, json!({"location": "杭州", "days": 3}));
+    }
+
+    #[test]
+    fn test_parse_dsml_tool_calls_handles_multiple_invokes() {
+        let calls = parse_dsml_tool_calls(
+            r#"<｜DSML｜tool_calls>
+<｜DSML｜invoke name="first"></｜DSML｜invoke>
+<｜DSML｜invoke name="second"></｜DSML｜invoke>
+</｜DSML｜tool_calls>"#,
+        );
+
+        assert_eq!(calls.len(), 2);
+        assert_eq!(calls[0]["function"]["name"], "first");
+        assert_eq!(calls[1]["id"], "call_2");
+    }
+
+    #[test]
+    fn test_normalize_message_tool_calls_rewrites_dsml_content() {
+        let message = json!({
+            "role": "assistant",
+            "reasoning_content": "Need a tool.",
+            "content": "Checking\n<｜DSML｜tool_calls><｜DSML｜invoke name=\"echo\"></｜DSML｜invoke></｜DSML｜tool_calls>"
+        });
+
+        let normalized = normalize_message_tool_calls(&message);
+
+        assert_eq!(normalized["content"], "Checking");
+        assert_eq!(normalized["reasoning_content"], "Need a tool.");
         assert_eq!(normalized["tool_calls"][0]["function"]["name"], "echo");
     }
 }

@@ -121,6 +121,9 @@ impl<'a> ProviderRuntime<'a> {
             "openai" => "https://api.openai.com/v1",
             "openrouter" => "https://openrouter.ai/api/v1",
             "github-copilot" => "https://api.githubcopilot.com",
+            "deepseek" | "deepseek-v4" | "deepseek_v4" | "ds-v4" | "dsv4" => {
+                super::provider_policies::DEEPSEEK_OPENAI_BASE
+            }
             "volcano" => super::provider_policies::VOLCANO_CODING_OPENAI_BASE,
             _ => "https://api.openai.com/v1",
         }
@@ -202,6 +205,14 @@ mod tests {
         assert_eq!(
             runtime.resolved_api_base(),
             "https://chatgpt.com/backend-api/codex"
+        );
+    }
+
+    #[test]
+    fn test_default_api_base_deepseek_alias() {
+        assert_eq!(
+            ProviderRuntime::default_api_base("dsv4"),
+            super::super::provider_policies::DEEPSEEK_OPENAI_BASE
         );
     }
 

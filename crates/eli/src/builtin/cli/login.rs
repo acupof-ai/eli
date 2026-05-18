@@ -13,6 +13,7 @@ enum LoginTarget {
     GitHubCopilot,
     CodingPlan,
     Volcano,
+    DeepSeek,
     Local(Option<&'static str>),
 }
 
@@ -41,6 +42,7 @@ pub(crate) async fn login_command(
         LoginTarget::GitHubCopilot => login_github_copilot(browser, timeout).await,
         LoginTarget::CodingPlan => login_coding_plan().await,
         LoginTarget::Volcano => login_volcano().await,
+        LoginTarget::DeepSeek => login_deepseek().await,
         LoginTarget::Local(brand) => login_local(brand).await,
     }
 }
@@ -61,6 +63,9 @@ fn parse_named_login_target(provider: &str) -> Option<LoginTarget> {
         "github-copilot" | "copilot" => Some(LoginTarget::GitHubCopilot),
         "coding-plan" | "coding_plan" | "codingplan" => Some(LoginTarget::CodingPlan),
         "volcano" | "volcengine" | "ark" => Some(LoginTarget::Volcano),
+        "deepseek" | "deepseek-v4" | "deepseek_v4" | "ds-v4" | "dsv4" => {
+            Some(LoginTarget::DeepSeek)
+        }
         _ => None,
     }
 }
@@ -85,7 +90,7 @@ fn unsupported_provider(provider: &str) -> anyhow::Error {
     anyhow::anyhow!(
         "Unsupported auth provider: {provider}\n\
          Supported providers: openai, claude, github-copilot, coding-plan, \
-         volcano, local (or any of: agent-infer, ollama, vllm, lmstudio, llama-cpp)"
+         volcano, deepseek, local (or any of: agent-infer, ollama, vllm, lmstudio, llama-cpp)"
     )
 }
 
@@ -290,6 +295,76 @@ fn print_volcano_done(model: &str) {
     println!("Done. Active profile: volcano");
     println!("  Model:    {model}");
     println!("  Endpoint: {}", coding_plan::VOLCANO_OPENAI_BASE);
+    println!();
+    println!("Try: eli chat");
+}
+
+async fn login_deepseek() -> anyhow::Result<()> {
+    println!("DeepSeek V4 login");
+    println!(
+        "Endpoint: {}",
+        nexil::core::provider_policies::DEEPSEEK_OPENAI_BASE
+    );
+    let api_key = read_api_key("Enter your DeepSeek API key: ")?;
+    let model = pick_deepseek_model()?;
+    save_deepseek_profile(&api_key, &model)?;
+    print_deepseek_done(&model);
+    Ok(())
+}
+
+fn pick_deepseek_model() -> anyhow::Result<String> {
+    println!();
+    println!("Select model:");
+    print_deepseek_models();
+    let answer = read_optional_line("Enter number or model name (default 1): ")?;
+    resolve_deepseek_model_choice(answer.trim())
+}
+
+fn print_deepseek_models() {
+    for (idx, model) in deepseek_models().iter().enumerate() {
+        println!("  [{}] {}", idx + 1, model);
+    }
+}
+
+fn deepseek_models() -> &'static [&'static str] {
+    &["deepseek-v4-pro", "deepseek-v4-flash"]
+}
+
+fn resolve_deepseek_model_choice(choice: &str) -> anyhow::Result<String> {
+    if choice.is_empty() {
+        return Ok(deepseek_models()[0].to_owned());
+    }
+    if let Ok(index) = choice.parse::<usize>() {
+        return index
+            .checked_sub(1)
+            .and_then(|idx| deepseek_models().get(idx))
+            .map(|model| (*model).to_owned())
+            .ok_or_else(|| anyhow::anyhow!("model selection out of range: {index}"));
+    }
+    Ok(choice.to_owned())
+}
+
+fn save_deepseek_profile(api_key: &str, model: &str) -> anyhow::Result<()> {
+    let provider = "deepseek";
+    crate::builtin::config::save_api_key_entry(provider, api_key)?;
+    let model = format!("{provider}:{model}");
+    save_profile_with_overrides(
+        provider,
+        None,
+        &model,
+        Some(nexil::core::provider_policies::DEEPSEEK_OPENAI_BASE.to_owned()),
+        true,
+    )
+}
+
+fn print_deepseek_done(model: &str) {
+    println!();
+    println!("Done. Active profile: deepseek");
+    println!("  Model:    {model}");
+    println!(
+        "  Endpoint: {}",
+        nexil::core::provider_policies::DEEPSEEK_OPENAI_BASE
+    );
     println!();
     println!("Try: eli chat");
 }
@@ -595,6 +670,7 @@ mod tests {
             parse_login_target("volcengine").unwrap(),
             LoginTarget::Volcano
         );
+        assert_eq!(parse_login_target("dsv4").unwrap(), LoginTarget::DeepSeek);
     }
 
     #[test]
@@ -605,5 +681,18 @@ mod tests {
         );
         assert_eq!(resolve_volcano_model_choice("").unwrap(), "ark-code-latest");
         assert!(resolve_volcano_model_choice("99").is_err());
+    }
+
+    #[test]
+    fn resolves_deepseek_model_selection() {
+        assert_eq!(
+            resolve_deepseek_model_choice("2").unwrap(),
+            "deepseek-v4-flash"
+        );
+        assert_eq!(
+            resolve_deepseek_model_choice("").unwrap(),
+            "deepseek-v4-pro"
+        );
+        assert!(resolve_deepseek_model_choice("0").is_err());
     }
 }

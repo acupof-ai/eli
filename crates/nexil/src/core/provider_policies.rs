@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+pub const DEEPSEEK_OPENAI_BASE: &str = "https://api.deepseek.com/beta";
 pub const VOLCANO_CODING_OPENAI_BASE: &str = "https://ark.cn-beijing.volces.com/api/coding/v3";
 
 /// Provider-specific behavioural toggles.
@@ -38,6 +39,7 @@ fn provider_alias(provider_name: &str) -> String {
         // user-facing profile label.
         "local" | "agent-infer" | "agent_infer" | "agentinfer" | "ollama" | "vllm" | "lmstudio"
         | "llama-cpp" | "llamacpp" | "llama.cpp" => "local".to_owned(),
+        "deepseek" | "deepseek-v4" | "deepseek_v4" | "ds-v4" | "dsv4" => "deepseek".to_owned(),
         "volcano" | "volcengine" | "ark" => "volcano".to_owned(),
         other => other.to_owned(),
     }
@@ -57,7 +59,7 @@ pub fn normalized_provider_name(provider_name: &str) -> String {
 pub fn is_known_provider(name: &str) -> bool {
     matches!(
         provider_alias(name).as_str(),
-        "anthropic" | "openai" | "openrouter" | "github-copilot" | "local" | "volcano"
+        "anthropic" | "openai" | "openrouter" | "github-copilot" | "local" | "deepseek" | "volcano"
     )
 }
 
@@ -68,6 +70,7 @@ pub fn default_api_base(provider_name: &str) -> String {
         "openai" => "https://api.openai.com/v1".to_owned(),
         "openrouter" => "https://openrouter.ai/api/v1".to_owned(),
         "github-copilot" => "https://api.githubcopilot.com".to_owned(),
+        "deepseek" => DEEPSEEK_OPENAI_BASE.to_owned(),
         "volcano" => VOLCANO_CODING_OPENAI_BASE.to_owned(),
         // The first port across the canonical local-LLM defaults
         // (agent-infer/vllm:8000). Every saved profile is expected to carry
@@ -83,6 +86,7 @@ pub fn default_model_for_provider(provider_name: &str) -> &'static str {
         "openai" => "openai:gpt-5.4-mini",
         "anthropic" => "anthropic:claude-sonnet-4-6",
         "github-copilot" => "github-copilot:gpt-5.4-mini",
+        "deepseek" => "deepseek:deepseek-v4-pro",
         "volcano" => "volcano:ark-code-latest",
         // Local backends have no canonical model; the login flow queries
         // /v1/models and writes the real served model into the profile.
@@ -187,6 +191,8 @@ mod tests {
         assert_eq!(normalized_provider_name("llama-cpp"), "local");
         assert_eq!(normalized_provider_name("llamacpp"), "local");
         assert_eq!(normalized_provider_name("local"), "local");
+        assert_eq!(normalized_provider_name("dsv4"), "deepseek");
+        assert_eq!(normalized_provider_name("deepseek-v4"), "deepseek");
         assert_eq!(normalized_provider_name("volcengine"), "volcano");
         assert_eq!(normalized_provider_name("ark"), "volcano");
     }
@@ -201,6 +207,8 @@ mod tests {
         assert!(is_known_provider("copilot"));
         assert!(is_known_provider("openrouter"));
         assert!(is_known_provider("local"));
+        assert!(is_known_provider("deepseek"));
+        assert!(is_known_provider("dsv4"));
         assert!(is_known_provider("volcano"));
         assert!(is_known_provider("ark"));
         assert!(is_known_provider("ollama"));
@@ -220,6 +228,8 @@ mod tests {
         assert_eq!(default_api_base("agent-infer"), "http://127.0.0.1:8000/v1");
         assert_eq!(default_api_base("ollama"), "http://127.0.0.1:8000/v1");
         assert_eq!(default_api_base("vllm"), "http://127.0.0.1:8000/v1");
+        assert_eq!(default_api_base("deepseek"), DEEPSEEK_OPENAI_BASE);
+        assert_eq!(default_api_base("dsv4"), DEEPSEEK_OPENAI_BASE);
         assert_eq!(default_api_base("volcano"), VOLCANO_CODING_OPENAI_BASE);
     }
 
@@ -240,6 +250,10 @@ mod tests {
         assert_eq!(
             default_model_for_provider("volcengine"),
             "volcano:ark-code-latest"
+        );
+        assert_eq!(
+            default_model_for_provider("dsv4"),
+            "deepseek:deepseek-v4-pro"
         );
     }
 }

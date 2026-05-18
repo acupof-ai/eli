@@ -86,7 +86,9 @@ fn resolve_stored_api_key(
     Option<String>,
     Option<std::collections::HashMap<String, String>>,
 )> {
-    let provider = model_str.split(':').next().unwrap_or("");
+    let provider = nexil::core::provider_policies::normalized_provider_name(
+        model_str.split(':').next().unwrap_or(""),
+    );
     let key_map: HashMap<String, String> = provider_resolvers()
         .into_iter()
         .filter(|(name, _)| provider.is_empty() || provider == *name)
@@ -132,6 +134,10 @@ fn provider_resolvers() -> Vec<ProviderResolver> {
         (
             "volcano",
             Box::new(|| crate::builtin::config::load_api_key_entry("volcano")),
+        ),
+        (
+            "deepseek",
+            Box::new(|| crate::builtin::config::load_api_key_entry("deepseek")),
         ),
     ]
 }

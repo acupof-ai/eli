@@ -119,6 +119,7 @@ fn resolve_standard_env_key(provider: &str) -> Option<String> {
         "openai" => first_env(&["OPENAI_API_KEY"]),
         "openrouter" => first_env(&["OPENROUTER_API_KEY"]),
         "github-copilot" => first_env(&["GITHUB_TOKEN"]),
+        "deepseek" => first_env(&["DEEPSEEK_API_KEY"]),
         "volcano" => first_env(&["VOLCANO_API_KEY", "ARK_API_KEY"]),
         _ => None,
     }
@@ -133,6 +134,7 @@ fn first_env(names: &[&str]) -> Option<String> {
 fn resolve_from_config(provider: &str) -> Option<String> {
     match normalized_provider_name(provider).as_str() {
         "anthropic" => crate::builtin::config::load_anthropic_api_key(),
+        "deepseek" => crate::builtin::config::load_api_key_entry("deepseek"),
         "volcano" => crate::builtin::config::load_api_key_entry("volcano"),
         _ => None,
     }
@@ -151,6 +153,9 @@ fn resolve_via_oauth(provider: &str) -> anyhow::Result<String> {
         ),
         "openrouter" => anyhow::bail!(
             "No API key found for OpenRouter.\nSet OPENROUTER_API_KEY environment variable."
+        ),
+        "deepseek" => anyhow::bail!(
+            "No API key found for DeepSeek.\nRun `eli login deepseek` or set DEEPSEEK_API_KEY."
         ),
         "volcano" => anyhow::bail!(
             "No API key found for Volcano.\nRun `eli login volcano` or set ARK_API_KEY."
@@ -446,6 +451,7 @@ fn known_models(provider: &str) -> Vec<String> {
             "anthropic/claude-sonnet-4-20250514",
             "google/gemini-2.5-pro",
         ],
+        "deepseek" => &["deepseek-v4-pro", "deepseek-v4-flash"],
         "volcano" => return coding_plan::volcano_models(),
         _ => &[],
     };

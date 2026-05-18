@@ -4,7 +4,9 @@
 use serde_json::Value;
 
 use crate::core::errors::{ConduitError, ErrorKind};
-use crate::core::tool_calls::{normalize_message_tool_calls, normalize_tool_calls};
+use crate::core::tool_calls::{
+    normalize_message_tool_calls, normalize_tool_calls, parse_dsml_tool_calls,
+};
 use crate::tape::AnchorSelector;
 use crate::tape::entries::{TapeEntry, TapeEntryKind};
 
@@ -251,14 +253,8 @@ fn extract_responses_content(response: &Value) -> Option<String> {
 }
 
 pub(super) fn extract_tool_calls(response: &Value) -> Result<Vec<Value>, ConduitError> {
-    if let Some(calls) = response
-        .get("choices")
-        .and_then(|c| c.get(0))
-        .and_then(|c| c.get("message"))
-        .and_then(|m| m.get("tool_calls"))
-        .and_then(|tc| tc.as_array())
-    {
-        return Ok(normalize_tool_calls(calls));
+    if let Some(calls) = extract_completion_tool_calls(response) {
+        return Ok(calls);
     }
     if let Some(calls) = extract_typed_blocks(response.get("content"), "tool_use") {
         return Ok(normalize_tool_calls(&calls));
@@ -267,6 +263,22 @@ pub(super) fn extract_tool_calls(response: &Value) -> Result<Vec<Value>, Conduit
         return Ok(normalize_tool_calls(&calls));
     }
     Ok(Vec::new())
+}
+
+fn extract_completion_tool_calls(response: &Value) -> Option<Vec<Value>> {
+    let message = completion_message(response)?;
+    if let Some(calls) = message.get("tool_calls").and_then(|tc| tc.as_array()) {
+        return Some(normalize_tool_calls(calls));
+    }
+    let calls = parse_dsml_tool_calls(message.get("content")?.as_str()?);
+    (!calls.is_empty()).then_some(calls)
+}
+
+fn completion_message(response: &Value) -> Option<&Value> {
+    response
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
 }
 
 fn extract_typed_blocks(field: Option<&Value>, type_name: &str) -> Option<Vec<Value>> {

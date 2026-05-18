@@ -56,6 +56,7 @@ const MODEL_SPECS: &[(&str, Match, usize, usize)] = &[
     ("gemini-1.5", Match::Contains, 1_048_576, 8_192),
     ("gemini", Match::Contains, 128_000, 8_192),
     // --- DeepSeek -----------------------------------------------------------
+    ("deepseek-v4", Match::Contains, 1_000_000, 384_000),
     ("deepseek-reasoner", Match::Contains, 164_000, 65_536),
     ("deepseek-r1", Match::Contains, 164_000, 65_536),
     ("deepseek", Match::Contains, 128_000, 8_192),
@@ -210,6 +211,7 @@ mod tests {
     #[test]
     fn test_context_window_others() {
         assert_eq!(infer_context_window("deepseek:deepseek-chat"), 128_000);
+        assert_eq!(infer_context_window("deepseek:deepseek-v4-pro"), 1_000_000);
         assert_eq!(infer_context_window("deepseek:deepseek-reasoner"), 164_000);
         assert_eq!(infer_context_window("meta:llama-4-maverick"), 1_048_576);
         assert_eq!(infer_context_window("meta:llama-4-scout"), 10_000_000);
@@ -290,6 +292,10 @@ mod tests {
     fn test_max_output_others() {
         assert_eq!(infer_max_output_tokens("deepseek:deepseek-chat"), 8_192);
         assert_eq!(
+            infer_max_output_tokens("deepseek:deepseek-v4-flash"),
+            384_000
+        );
+        assert_eq!(
             infer_max_output_tokens("deepseek:deepseek-reasoner"),
             65_536
         );
@@ -331,6 +337,10 @@ mod tests {
         assert_eq!(
             infer_context_window("openrouter:deepseek/deepseek-r1"),
             164_000
+        );
+        assert_eq!(
+            infer_context_window("openrouter:deepseek/deepseek-v4-flash"),
+            1_000_000
         );
     }
 }

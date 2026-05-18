@@ -4,6 +4,7 @@ use serde_json::Value;
 
 use super::common::{expand_tool_calls, field, field_str};
 use super::types::{BaseTransportParser, ToolCallDelta};
+use crate::core::tool_calls::{parse_dsml_tool_calls, strip_dsml_tool_call_block};
 
 /// Parser for the OpenAI chat-completions response format.
 pub struct CompletionTransportParser;
@@ -114,16 +115,20 @@ impl BaseTransportParser for CompletionTransportParser {
             return s.to_owned();
         }
         first_choice_message(response)
-            .map(|m| field_str(m, "content").to_owned())
+            .map(|m| {
+                strip_dsml_tool_call_block(field_str(m, "content"))
+                    .trim()
+                    .to_owned()
+            })
             .unwrap_or_default()
     }
 
     fn extract_tool_calls(&self, response: &Value) -> Vec<Value> {
-        let tool_calls = first_choice_message(response)
-            .and_then(|m| field(m, "tool_calls"))
-            .and_then(|tc| tc.as_array());
-        let Some(tool_calls) = tool_calls else {
+        let Some(message) = first_choice_message(response) else {
             return Vec::new();
+        };
+        let Some(tool_calls) = field(message, "tool_calls").and_then(|tc| tc.as_array()) else {
+            return parse_dsml_tool_calls(field_str(message, "content"));
         };
         let calls = tool_calls
             .iter()
@@ -220,5 +225,22 @@ mod tests {
         let calls = parser.extract_tool_calls(&response);
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0]["function"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn test_extract_tool_calls_dsml_fallback() {
+        let parser = CompletionTransportParser;
+        let response = json!({
+            "choices": [{
+                "message": {
+                    "content": "<｜DSML｜tool_calls><｜DSML｜invoke name=\"echo\"></｜DSML｜invoke></｜DSML｜tool_calls>"
+                }
+            }]
+        });
+
+        let calls = parser.extract_tool_calls(&response);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0]["function"]["name"], "echo");
+        assert_eq!(parser.extract_text(&response), "");
     }
 }

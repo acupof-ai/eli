@@ -52,9 +52,9 @@ pub enum CliCommand {
         #[arg(long)]
         session_id: Option<String>,
     },
-    /// Authenticate with a provider (openai, claude, github-copilot, coding-plan).
+    /// Authenticate with a provider (openai, claude, github-copilot, coding-plan, deepseek).
     Login {
-        /// Authentication provider (openai, claude, github-copilot, coding-plan).
+        /// Authentication provider (openai, claude, github-copilot, coding-plan, deepseek).
         provider: String,
         /// Directory to store credentials.
         #[arg(long)]

@@ -1,0 +1,230 @@
+{
+  "suite": "dsv4-hard-tail-capability",
+  "version": 1,
+  "selection_policy": {
+    "name": "mainstream-hard-tail-10pct",
+    "method": "Use hard-category patterns from mainstream coding, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "sources": [
+      "SWE-bench Verified",
+      "BigCodeBench-Hard",
+      "LiveCodeBench",
+      "AgentBench",
+      "PlanBench",
+      "BFCL V4"
+    ]
+  },
+  "cases": [
+    {
+      "id": "code_rust_borrow_safe_batch_mutation",
+      "capability": "code",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
+      "mode": "text_json",
+      "prompt": "You are fixing a Rust 2024 production bug. Function body limit is 15 lines. A scheduler receives Vec<(usize, i64)> updates where each index points into accounts: Vec<Account>. Current code loops over updates and does accounts[idx].balance += delta, but duplicate indices cause partial mutation before validation, and invalid indices leave earlier balances changed. Return strict JSON with keys diagnosis, patch, tests. The patch must be minimal and explain how to make validation all-or-nothing before mutation. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["diagnosis", "patch", "tests"], "points": 2},
+        {"kind": "contains_any", "needles": ["all-or-nothing", "validate", "pre-validate", "validation"], "points": 2},
+        {"kind": "contains_any", "needles": ["HashMap", "BTreeMap", "aggregate", "coalesce", "dedup"], "points": 2},
+        {"kind": "contains_any", "needles": ["invalid index", "bounds", "out of range"], "points": 2},
+        {"kind": "contains_any", "needles": ["duplicate", "same index"], "points": 1},
+        {"kind": "forbid_all", "needles": ["unwrap()", "unsafe"], "points": 1}
+      ]
+    },
+    {
+      "id": "code_provider_colon_tag_regression",
+      "capability": "code",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
+      "mode": "text_json",
+      "prompt": "A CLI regression treats any model string containing ':' as provider:model. This breaks local model tags like llama3.2:3b and qwen2.5:7b. Return strict JSON with keys root_cause, fix, tests. The fix must preserve real provider prefixes such as openai:gpt-5 and deepseek:deepseek-v4-pro. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["root_cause", "fix", "tests"], "points": 2},
+        {"kind": "contains_any", "needles": ["known provider", "is_known_provider", "provider registry", "normalized_provider_name"], "points": 3},
+        {"kind": "contains_any", "needles": ["split_once", "prefix"], "points": 1},
+        {"kind": "contains_any", "needles": ["llama3.2:3b", "qwen2.5:7b"], "points": 2},
+        {"kind": "contains_any", "needles": ["deepseek", "openai"], "points": 1},
+        {"kind": "forbid_all", "needles": ["strip all colons", "replace(':', '')"], "points": 1}
+      ]
+    },
+    {
+      "id": "code_sql_builder_parameterization",
+      "capability": "code",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BigCodeBench-Hard", "SWE-bench Verified"],
+      "mode": "text_json",
+      "prompt": "Refactor this risky query builder: it concatenates user-supplied owner, status, and optional limit into SQL. Return strict JSON with keys diagnosis, safe_design, tests. The answer must preserve optional filters and ordering while avoiding SQL injection. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["diagnosis", "safe_design", "tests"], "points": 2},
+        {"kind": "contains_any", "needles": ["parameterized", "bind", "placeholder"], "points": 3},
+        {"kind": "contains_any", "needles": ["optional", "filters", "WHERE"], "points": 2},
+        {"kind": "contains_any", "needles": ["limit", "ORDER BY", "ordering"], "points": 1},
+        {"kind": "contains_any", "needles": ["injection", "SQL injection"], "points": 1},
+        {"kind": "forbid_all", "needles": ["format!(\"SELECT", "push_str(owner)", "string concatenation is fine"], "points": 1}
+      ]
+    },
+    {
+      "id": "code_test_output_prediction",
+      "capability": "code",
+      "max_points": 10,
+      "threshold": 8,
+      "inspired_by": ["LiveCodeBench"],
+      "mode": "text_json",
+      "prompt": "Predict the exact output of this Rust program. Return strict JSON with key stdout_lines only.\n\nfn main() {\n    let mut v = vec![3, 1, 4, 1, 5, 9];\n    let taken: Vec<_> = v.drain(1..4).rev().collect();\n    println!(\"{:?}|{:?}\", v, taken);\n    let sum: i32 = v.iter().zip(taken.iter()).map(|(a, b)| a * b).sum();\n    println!(\"{}\", sum);\n}",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["stdout_lines"], "points": 2},
+        {"kind": "contains_all", "needles": ["[3, 5, 9]|[1, 4, 1]", "32"], "points": 8}
+      ]
+    },
+    {
+      "id": "plan_dirty_worktree_ci_push",
+      "capability": "planning",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["AgentBench", "SWE-bench Verified"],
+      "mode": "text_json",
+      "prompt": "Plan a safe fix-and-push workflow. Context: repo is dirty, user changes may exist, CI is red, remote main may have advanced, and destructive git commands are forbidden. Return strict JSON with key steps as an ordered array of short command-oriented steps and key risks. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["steps", "risks"], "points": 2},
+        {"kind": "contains_any", "needles": ["git status", "inspect", "diff"], "points": 2},
+        {"kind": "contains_any", "needles": ["do not reset", "avoid reset", "no git reset"], "points": 2},
+        {"kind": "contains_any", "needles": ["pull --rebase", "rebase"], "points": 2},
+        {"kind": "contains_any", "needles": ["test", "clippy", "fmt"], "points": 1},
+        {"kind": "contains_any", "needles": ["push"], "points": 1}
+      ]
+    },
+    {
+      "id": "plan_kv_cache_aware_prompt_refactor",
+      "capability": "planning",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["PlanBench", "AgentBench"],
+      "mode": "text_json",
+      "prompt": "Plan a prompt/tool-schema refactor for an agent runtime. Constraint: preserve downstream LLM KV-cache efficiency by keeping stable prefixes stable. Return strict JSON with keys plan, cache_risks, validation. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["plan", "cache_risks", "validation"], "points": 2},
+        {"kind": "contains_any", "needles": ["stable prefix", "prefix stable", "append-only"], "points": 3},
+        {"kind": "contains_any", "needles": ["tool schema", "tool order", "tool grouping"], "points": 2},
+        {"kind": "contains_any", "needles": ["measure", "cache", "tokens"], "points": 2},
+        {"kind": "contains_any", "needles": ["rollback", "A/B", "snapshot"], "points": 1}
+      ]
+    },
+    {
+      "id": "plan_release_version_conflict",
+      "capability": "planning",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["AgentBench", "PlanBench"],
+      "mode": "text_json",
+      "prompt": "Plan a release when publish may fail because the version already exists. Rules: check latest published version first; if conflict occurs, bump patch and retry at most three times; do not skip tests. Return strict JSON with keys preflight, publish_loop, stop_conditions. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["preflight", "publish_loop", "stop_conditions"], "points": 2},
+        {"kind": "contains_any", "needles": ["latest published", "check latest", "cargo search", "registry"], "points": 3},
+        {"kind": "contains_any", "needles": ["patch", "bump"], "points": 2},
+        {"kind": "contains_any", "needles": ["three", "3"], "points": 1},
+        {"kind": "contains_any", "needles": ["test", "clippy", "fmt"], "points": 2}
+      ]
+    },
+    {
+      "id": "tool_parallel_weather_lookup",
+      "capability": "tool",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BFCL V4", "AgentBench"],
+      "mode": "tool_call",
+      "prompt": "Use the weather_lookup tool to compare tomorrow's forecast for San Francisco and New York. Call the tool for each city before answering.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "weather_lookup",
+            "description": "Fetch a forecast for one city.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "city": {"type": "string"},
+                "day": {"type": "string", "enum": ["today", "tomorrow"]}
+              },
+              "required": ["city", "day"]
+            }
+          }
+        }
+      ],
+      "rubric": [
+        {"kind": "tool_count_at_least", "count": 2, "points": 2},
+        {"kind": "tool_name", "name": "weather_lookup", "points": 2},
+        {"kind": "tool_arg_contains", "arg": "city", "needles": ["San Francisco"], "points": 2},
+        {"kind": "tool_arg_contains", "arg": "city", "needles": ["New York"], "points": 2},
+        {"kind": "tool_arg_equals", "arg": "day", "value": "tomorrow", "points": 2}
+      ]
+    },
+    {
+      "id": "tool_nested_log_query",
+      "capability": "tool",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BFCL V4"],
+      "mode": "tool_call",
+      "prompt": "Find the five most recent 500-level errors for service checkout in region us-west after 2026-05-18T08:00:00Z. Use the query_logs tool.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "query_logs",
+            "description": "Query structured service logs.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "service": {"type": "string"},
+                "filters": {"type": "object"},
+                "limit": {"type": "integer"}
+              },
+              "required": ["service", "filters", "limit"]
+            }
+          }
+        }
+      ],
+      "rubric": [
+        {"kind": "tool_count_at_least", "count": 1, "points": 1},
+        {"kind": "tool_name", "name": "query_logs", "points": 2},
+        {"kind": "tool_arg_equals", "arg": "service", "value": "checkout", "points": 2},
+        {"kind": "tool_arg_equals", "arg": "limit", "value": 5, "points": 2},
+        {"kind": "tool_args_contain_text", "needles": ["us-west", "500", "2026-05-18T08:00:00Z"], "points": 3}
+      ]
+    },
+    {
+      "id": "tool_clarify_before_deploy",
+      "capability": "tool",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BFCL V4", "AgentBench"],
+      "mode": "tool_call",
+      "prompt": "Deploy the latest build now.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "deploy_service",
+            "description": "Deploy a service to an explicit environment.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "service": {"type": "string"},
+                "environment": {"type": "string", "enum": ["staging", "production"]},
+                "version": {"type": "string"}
+              },
+              "required": ["service", "environment", "version"]
+            }
+          }
+        }
+      ],
+      "rubric": [
+        {"kind": "no_tool_calls", "points": 4},
+        {"kind": "contains_any", "needles": ["which service", "service", "environment", "staging", "production"], "points": 4},
+        {"kind": "contains_any", "needles": ["version", "latest build"], "points": 2}
+      ]
+    }
+  ]
+}

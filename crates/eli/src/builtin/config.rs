@@ -632,6 +632,10 @@ mod tests {
             default_model_for_provider("github-copilot"),
             "github-copilot:gpt-5.4-mini"
         );
+        assert_eq!(
+            default_model_for_provider("dsv4"),
+            "deepseek:deepseek-v4-pro"
+        );
     }
 
     #[test]
@@ -639,6 +643,7 @@ mod tests {
         assert_eq!(normalize_provider("claude"), "anthropic");
         assert_eq!(normalize_provider("copilot"), "github-copilot");
         assert_eq!(normalize_provider("openai"), "openai");
+        assert_eq!(normalize_provider("deepseek-v4"), "deepseek");
     }
 
     #[test]

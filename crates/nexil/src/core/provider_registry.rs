@@ -69,6 +69,13 @@ impl ProviderRegistry {
             ProviderConfig::new("https://api.githubcopilot.com", ApiFormat::Auto),
         );
         providers.insert(
+            "deepseek".to_owned(),
+            ProviderConfig::new(
+                super::provider_policies::DEEPSEEK_OPENAI_BASE,
+                ApiFormat::Completion,
+            ),
+        );
+        providers.insert(
             "volcano".to_owned(),
             ProviderConfig::new(
                 super::provider_policies::VOLCANO_CODING_OPENAI_BASE,
@@ -133,6 +140,8 @@ mod tests {
         assert!(reg.contains("openrouter"));
         assert!(reg.contains("github-copilot"));
         assert!(reg.contains("local"));
+        assert!(reg.contains("deepseek"));
+        assert!(reg.contains("dsv4"));
         assert!(reg.contains("volcano"));
         assert!(!reg.contains("custom-provider"));
     }
@@ -152,6 +161,17 @@ mod tests {
         assert_eq!(
             cfg.api_base,
             crate::core::provider_policies::VOLCANO_CODING_OPENAI_BASE
+        );
+        assert_eq!(cfg.api_format, ApiFormat::Completion);
+    }
+
+    #[test]
+    fn deepseek_provider_defaults_to_beta_chat_api() {
+        let reg = ProviderRegistry::new();
+        let cfg = reg.get("dsv4").expect("deepseek alias registered");
+        assert_eq!(
+            cfg.api_base,
+            crate::core::provider_policies::DEEPSEEK_OPENAI_BASE
         );
         assert_eq!(cfg.api_format, ApiFormat::Completion);
     }
