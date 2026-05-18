@@ -7,7 +7,7 @@ import argparse
 import json
 import os
 import re
-import sys
+import subprocess
 import urllib.error
 import urllib.request
 from collections import defaultdict
@@ -21,6 +21,24 @@ DEFAULT_CASES = ROOT / "tests/benchmarks/dsv4_hard_tail_cases.json"
 DEFAULT_SNAPSHOT = ROOT / "tests/snapshots/dsv4_capability_latest.json"
 DEFAULT_MODEL = "deepseek-v4-pro"
 DEFAULT_API_BASE = "https://api.deepseek.com/beta"
+LOCAL_CHECKS = [
+    {
+        "id": "local_handoff_overflow_grace",
+        "points": 10,
+        "command": [
+            "cargo",
+            "test",
+            "-p",
+            "eli",
+            "test_injected_overflow_error_during_grace_advances_handoff",
+        ],
+    },
+    {
+        "id": "local_subagent_tracker_management",
+        "points": 10,
+        "command": ["cargo", "test", "-p", "eli", "builtin::subagent::tests::tracker_tests"],
+    },
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,7 +48,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--api-base", default=DEFAULT_API_BASE)
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--local-timeout", type=int, default=180)
     parser.add_argument("--no-write-snapshot", action="store_true")
+    parser.add_argument("--skip-local-checks", action="store_true")
     parser.add_argument("--fail-on-case-threshold", action="store_true")
     return parser.parse_args()
 
@@ -70,6 +90,8 @@ def load_cases(path: Path) -> dict[str, Any]:
     cases = payload.get("cases", [])
     if len(cases) != 10:
         fail(f"expected exactly 10 cases, found {len(cases)}")
+    if sum(case.get("max_points", 0) for case in cases) != 100:
+        fail("api benchmark cases must sum to 100 points")
     return payload
 
 
@@ -224,7 +246,12 @@ def call_args(call: dict[str, Any]) -> dict[str, Any]:
     raw = (call.get("function") or {}).get("arguments") or call.get("arguments") or {}
     if isinstance(raw, dict):
         return raw
-    return json.loads(raw) if isinstance(raw, str) and raw else {}
+    if not isinstance(raw, str) or not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
 
 
 def arg_contains(call: dict[str, Any], arg: str, needles: list[str]) -> bool:
@@ -259,7 +286,7 @@ def summarize(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def score_block(block: dict[str, int]) -> dict[str, float | int]:
-    percent = round(block["score"] * 100 / block["max"], 1)
+    percent = round(block["score"] * 100 / block["max"], 1) if block["max"] else 0.0
     return {"score": block["score"], "max": block["max"], "percent": percent}
 
 
@@ -267,8 +294,11 @@ def build_snapshot(
     suite: dict[str, Any],
     args: argparse.Namespace,
     results: list[dict[str, Any]],
+    local_results: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    total = score_block(score_totals(results))
+    api_total = score_block(score_totals(results))
+    local_total = score_block(score_totals(local_results))
+    combined = score_block(combined_totals(api_total, local_total))
     return {
         "suite": suite["suite"],
         "version": suite["version"],
@@ -276,9 +306,15 @@ def build_snapshot(
         "api_base": args.api_base,
         "run_at": datetime.now(timezone.utc).isoformat(),
         "selection_policy": suite["selection_policy"],
-        "scores": {"total": total, "by_capability": summarize(results)},
+        "scores": {
+            "api_total": api_total,
+            "local_runtime": local_total,
+            "combined": combined,
+            "by_capability": summarize(results),
+        },
         "cases": results,
-}
+        "local_checks": local_results,
+    }
 
 
 def score_totals(results: list[dict[str, Any]]) -> dict[str, int]:
@@ -288,16 +324,25 @@ def score_totals(results: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
+def combined_totals(api: dict[str, Any], local: dict[str, Any]) -> dict[str, int]:
+    return {"score": api["score"] + local["score"], "max": api["max"] + local["max"]}
+
+
 def write_snapshot(path: Path, snapshot: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(snapshot, indent=2, ensure_ascii=False) + "\n")
 
 
 def print_summary(snapshot: dict[str, Any]) -> None:
-    total = snapshot["scores"]["total"]
-    print(f"TOTAL {total['score']}/{total['max']} = {total['percent']}%")
+    print_score("API", snapshot["scores"]["api_total"])
+    print_score("LOCAL", snapshot["scores"]["local_runtime"])
+    print_score("COMBINED", snapshot["scores"]["combined"])
     for name, block in snapshot["scores"]["by_capability"].items():
         print(f"{name.upper()} {block['score']}/{block['max']} = {block['percent']}%")
+
+
+def print_score(label: str, block: dict[str, Any]) -> None:
+    print(f"{label} {block['score']}/{block['max']} = {block['percent']}%")
 
 
 def run_cases(suite: dict[str, Any], args: argparse.Namespace, key: str) -> list[dict[str, Any]]:
@@ -310,12 +355,65 @@ def run_cases(suite: dict[str, Any], args: argparse.Namespace, key: str) -> list
     return results
 
 
+def run_local_checks(args: argparse.Namespace) -> list[dict[str, Any]]:
+    if args.skip_local_checks:
+        return [skipped_check(check) for check in LOCAL_CHECKS]
+    return [run_local_check(check, args.local_timeout) for check in LOCAL_CHECKS]
+
+
+def skipped_check(check: dict[str, Any]) -> dict[str, Any]:
+    skipped = {**check, "points": 0}
+    return local_result(skipped, 0, False, "skipped", "")
+
+
+def run_local_check(check: dict[str, Any], timeout: int) -> dict[str, Any]:
+    print(f"LOCAL {check['id']}", flush=True)
+    try:
+        proc = run_local_command(check, timeout)
+    except subprocess.TimeoutExpired as err:
+        return local_result(check, 0, False, err.stdout or "", err.stderr or "timeout")
+    result = local_result(check, check["points"], proc.returncode == 0, proc.stdout, proc.stderr)
+    print(f"{check['id']} {result['score']}/{result['max_points']}", flush=True)
+    return result
+
+
+def run_local_command(check: dict[str, Any], timeout: int) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        check["command"],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def local_result(
+    check: dict[str, Any],
+    earned: int,
+    passed: bool,
+    stdout: str,
+    stderr: str,
+) -> dict[str, Any]:
+    return {
+        "id": check["id"],
+        "capability": "local_runtime",
+        "score": earned if passed else 0,
+        "max_points": check["points"],
+        "passed": passed,
+        "command": check["command"],
+        "stdout_tail": stdout[-1200:],
+        "stderr_tail": stderr[-1200:],
+    }
+
+
 def main() -> int:
     args = parse_args()
     suite = load_cases(args.cases)
     key = load_api_key()
     results = run_cases(suite, args, key)
-    snapshot = build_snapshot(suite, args, results)
+    local_results = run_local_checks(args)
+    snapshot = build_snapshot(suite, args, results, local_results)
     if not args.no_write_snapshot:
         write_snapshot(args.snapshot, snapshot)
     print_summary(snapshot)

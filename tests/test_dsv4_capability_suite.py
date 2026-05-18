@@ -16,9 +16,22 @@ def load_json(path: Path):
 def test_dsv4_suite_has_ten_hard_tail_cases():
     payload = load_json(CASES)
     cases = payload["cases"]
-    assert payload["selection_policy"]["name"] == "mainstream-hard-tail-10pct"
+    assert payload["suite"] == "dsv4-agent-realworld-benchmark"
+    assert payload["selection_policy"]["name"] == "mainstream-realworld-hard-tail-10pct"
     assert len(cases) == 10
-    assert {case["capability"] for case in cases} == {"code", "planning", "tool"}
+    assert capabilities(cases) == {
+        "code_analysis",
+        "issue_resolution",
+        "memory_handoff",
+        "research_planning",
+        "subagent_management",
+        "time_planning",
+        "tool_use",
+    }
+
+
+def capabilities(cases):
+    return {case["capability"] for case in cases}
 
 
 def test_dsv4_suite_scores_to_one_hundred_points():
@@ -33,6 +46,9 @@ def test_dsv4_snapshot_matches_suite_shape_when_present():
         return
     snapshot = load_json(SNAPSHOT)
     case_ids = {case["id"] for case in load_json(CASES)["cases"]}
-    assert snapshot["suite"] == "dsv4-hard-tail-capability"
+    assert snapshot["suite"] == "dsv4-agent-realworld-benchmark"
     assert set(item["id"] for item in snapshot["cases"]) == case_ids
-    assert snapshot["scores"]["total"]["max"] == 100
+    assert snapshot["scores"]["api_total"]["max"] == 100
+    assert snapshot["scores"]["local_runtime"]["max"] == 20
+    assert snapshot["scores"]["combined"]["max"] == 120
+    assert {item["capability"] for item in snapshot["local_checks"]} == {"local_runtime"}

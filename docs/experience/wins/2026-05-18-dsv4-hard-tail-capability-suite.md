@@ -1,10 +1,10 @@
-# 2026-05-18 · DSV4 hard-tail capability E2E snapshot
+# 2026-05-18 · DSV4 real-world agent benchmark snapshot
 
 ## Context
-The DeepSeek V4 provider path now exists in Eli, so the next check was not only
-wire compatibility. The user asked for an end-to-end score across code,
-planning, and tool-calling ability, using the hardest tail of mainstream
-benchmarks as the shape of the local test collection.
+The DeepSeek V4 provider path is wired through Eli, and the test target is now a
+real API agent benchmark rather than short isolated capability prompts. The suite
+uses real DeepSeek API calls plus local runtime checks for handoff and subagent
+management.
 
 ## Suite
 - Cases: `tests/benchmarks/dsv4_hard_tail_cases.json`
@@ -13,29 +13,41 @@ benchmarks as the shape of the local test collection.
 - Model: `deepseek-v4-pro`
 - API base: `https://api.deepseek.com/beta`
 
-The suite uses 10 repo-safe synthetic cases rather than copying external
-benchmark items verbatim. It is shaped by:
-- SWE-bench Verified / BigCodeBench-Hard: production bug diagnosis and patch
-  quality.
-- LiveCodeBench: code execution and output prediction.
-- AgentBench / PlanBench: multi-step operational planning under constraints.
-- BFCL V4: function-calling, nested arguments, and safe no-call behavior.
+The suite keeps 10 hard-tail API cases, 100 API points, and adds 20 local runtime
+points. The prompts are synthetic and repo-safe, but shaped by real-world agent
+benchmarks: SWE-bench Verified / SWE-bench Live for issue resolution,
+AgentBench / AgencyBench for long-horizon planning and state tracking,
+MLAgentBench for paper and experiment reading, BFCL V4 / MCP-Bench for tool use,
+and PlanBench for structured planning.
 
 ## Score
 Final live run:
-- Total: `91/100`
-- Code: `38/40`
-- Planning: `23/30`
-- Tool calling: `30/30`
+- API: `89/100`
+- Local runtime: `20/20`
+- Combined: `109/120`
+
+Capability split:
+- Research planning: `10/10`
+- Time planning: `16/20`
+- Issue resolution: `19/20`
+- Code analysis: `9/10`
+- Memory handoff: `10/10`
+- Subagent management: `10/10`
+- Tool use: `15/20`
 
 ## Observations
-- Tool calling was clean: multi-call weather lookup, nested log query, and
-  clarify-before-deploy all scored full marks.
-- Code performance was strong, but the batch-mutation case still lost points
-  for not using the expected aggregate/coalesce strategy.
-- Planning exposed the real weakness: the dirty-worktree CI/push case scored
-  `4/10` because the model proposed unsafe workflow elements such as broad
-  staging/stashing instead of the stricter no-destructive, rebase-first path.
+- Paper interpretation and adoption planning were strong: the model identified
+  cache-hit isolation, ablations, p95 latency, and production rollout concerns.
+- Local handoff and subagent management checks passed: the cargo-level
+  auto-handoff grace test and subagent tracker management test both scored full.
+- The fixed-time tool call exposed a real weakness: it scheduled the correct
+  local wall time but omitted the `+08:00` offset and used an empty recurrence
+  field instead of `none`.
+- The repo investigation tool case exposed another real weakness: it called
+  `repo_search` repeatedly but did not call `read_file`, so it did not complete
+  the required inspect-after-search workflow.
+- Handoff plus subagent tool actions were mostly correct, but the handoff summary
+  did not preserve the exact DeepSeek beta endpoint string.
 
 ## Commands
 ```bash

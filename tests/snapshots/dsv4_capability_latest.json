@@ -1,97 +1,81 @@
 {
-  "suite": "dsv4-hard-tail-capability",
-  "version": 1,
+  "suite": "dsv4-agent-realworld-benchmark",
+  "version": 2,
   "model": "deepseek-v4-pro",
   "api_base": "https://api.deepseek.com/beta",
-  "run_at": "2026-05-18T10:17:04.520361+00:00",
+  "run_at": "2026-05-18T11:41:22.163509+00:00",
   "selection_policy": {
-    "name": "mainstream-hard-tail-10pct",
-    "method": "Use hard-category patterns from mainstream coding, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "name": "mainstream-realworld-hard-tail-10pct",
+    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
     "sources": [
       "SWE-bench Verified",
-      "BigCodeBench-Hard",
-      "LiveCodeBench",
+      "SWE-bench Live",
       "AgentBench",
+      "AgencyBench",
+      "MLAgentBench",
       "PlanBench",
-      "BFCL V4"
+      "BFCL V4",
+      "MCP-Bench"
     ]
   },
   "scores": {
-    "total": {
-      "score": 91,
+    "api_total": {
+      "score": 89,
       "max": 100,
-      "percent": 91.0
+      "percent": 89.0
+    },
+    "local_runtime": {
+      "score": 20,
+      "max": 20,
+      "percent": 100.0
+    },
+    "combined": {
+      "score": 109,
+      "max": 120,
+      "percent": 90.8
     },
     "by_capability": {
-      "code": {
-        "score": 38,
-        "max": 40,
+      "code_analysis": {
+        "score": 9,
+        "max": 10,
+        "percent": 90.0
+      },
+      "issue_resolution": {
+        "score": 19,
+        "max": 20,
         "percent": 95.0
       },
-      "planning": {
-        "score": 23,
-        "max": 30,
-        "percent": 76.7
-      },
-      "tool": {
-        "score": 30,
-        "max": 30,
+      "memory_handoff": {
+        "score": 10,
+        "max": 10,
         "percent": 100.0
+      },
+      "research_planning": {
+        "score": 10,
+        "max": 10,
+        "percent": 100.0
+      },
+      "subagent_management": {
+        "score": 10,
+        "max": 10,
+        "percent": 100.0
+      },
+      "time_planning": {
+        "score": 16,
+        "max": 20,
+        "percent": 80.0
+      },
+      "tool_use": {
+        "score": 15,
+        "max": 20,
+        "percent": 75.0
       }
     }
   },
   "cases": [
     {
-      "id": "code_rust_borrow_safe_batch_mutation",
-      "capability": "code",
-      "score": 8,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "forbid_all",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\"diagnosis\": \"The current code directly loops over updates and immediately mutates account balances. If an invalid index (out of bounds) or a duplicate index is encountered partway through the batch, earlier accounts have already been mutated, violating the all-or-nothing contract. This leaves the system in an inconsistent state on error.\", \"patch\": \"// Validate all updates before any mutation\\nlet mut seen = std::collections::HashSet::new();\\nfor (idx, _) in &updates {\\n    if *idx >= accounts.len() {\\n        return Err(Error::InvalidIndex);\\n    }\\n    if !seen.insert(*idx) {\\n        return Err(Error::DuplicateIndex);\\n    }\\n}\\n// Apply updates\\nfor (idx, delta) in updates {\\n    accounts[*idx].balance += delta;\\n}\\nOk(())\", \"tests\": \"#[cfg(test)]\\nmod tests {\\n    use super::*;\\n\\n ",
-      "reasoning_chars": 10156,
-      "tool_calls": []
-    },
-    {
-      "id": "code_provider_colon_tag_regression",
-      "capability": "code",
+      "id": "research_paper_deep_reading_plan",
+      "capability": "research_planning",
       "score": 10,
       "max_points": 10,
       "passed": true,
@@ -104,8 +88,14 @@
         },
         {
           "kind": "contains_any",
-          "points": 3,
-          "earned": 3,
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
           "passed": true
         },
         {
@@ -122,144 +112,77 @@
         },
         {
           "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "forbid_all",
           "points": 1,
           "earned": 1,
           "passed": true
         }
       ],
-      "content_preview": "{\"root_cause\": \"The CLI applies a naive split on ':' to extract a provider prefix from any model string, causing local model identifiers containing colons (e.g. 'llama3.2:3b', 'qwen2.5:7b') to be misparsed as provider 'llama3.2' / 'qwen2.5' and model '3b' / '7b'.\", \"fix\": \"Only treat a colon as a provider delimiter when the substring before the first colon exactly matches a known provider key (e.g. 'openai', 'deepseek'). In all other cases, preserve the full string as the model name and use the default provider.\", \"tests\": [\"llama3.2:3b -> provider default, model 'llama3.2:3b'\", \"qwen2.5:7b -> provider default, model 'qwen2.5:7b'\", \"openai:gpt-5 -> provider 'openai', model 'gpt-5'\", \"deepseek:deepseek-v4-pro -> provider 'deepseek', model 'deepseek-v4-pro'\", \"gpt-4 -> provider default, mode",
-      "reasoning_chars": 3026,
+      "content_preview": "{\"thesis\": \"Prefix-stable Agent Memory (PAM) reduces latency by keeping system prompts immutable, storing volatile observations in append-only memory capsules, and using a verifier to decide when to compress old capsules.\", \"evidence\": \"Evaluation shows 18% lower p95 latency on 32k-token support traces.\", \"limitations\": \"Only tests two models; does not isolate cache hit rate from prompt length reduction.\", \"follow_up_plan\": [\n  \"Reproduce the 18% p95 latency improvement using your own production traces and environment.\",\n  \"Isolate the contribution of KV-cache hits by measuring prompt prefix reuse across requests with and without PAM.\",\n  \"Expand model evaluation to at least 5 diverse models (including your production models) to verify generalizability.\",\n  \"Benchmark the verifier’s compre",
+      "reasoning_chars": 2421,
       "tool_calls": []
     },
     {
-      "id": "code_sql_builder_parameterization",
-      "capability": "code",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 3,
-          "earned": 3,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "contains_any",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
-          "kind": "forbid_all",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        }
-      ],
-      "content_preview": "{\n  \"diagnosis\": \"The original query builder concatenates user-supplied owner, status, and optional limit directly into SQL, e.g., \\\"SELECT * FROM items WHERE owner = '\\\" + owner + \\\"' AND status = '\\\" + status + \\\"'\\\" + (limit ? \\\" LIMIT \\\" + limit : \\\"\\\"). This introduces SQL injection vulnerabilities because malicious input can escape the string context and inject arbitrary SQL clauses. An attacker could bypass authentication, reveal/delete/modify data, or cause denial of service. No sanitization, escaping, or parameterization is applied, making any input dangerous.\",\n  \"safe_design\": \"Use parameterized queries (prepared statements) to separate SQL logic from data. Build the base query with placeholder markers (e.g., ? for SQLite, %s for PostgreSQL with parameter binding). For the optio",
-      "reasoning_chars": 6607,
-      "tool_calls": []
-    },
-    {
-      "id": "code_test_output_prediction",
-      "capability": "code",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "json_keys",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "contains_all",
-          "points": 8,
-          "earned": 8,
-          "passed": true
-        }
-      ],
-      "content_preview": "```json\n{\n  \"stdout_lines\": [\n    \"[3, 5, 9]|[1, 4, 1]\",\n    \"32\"\n  ]\n}\n```",
-      "reasoning_chars": 2156,
-      "tool_calls": []
-    },
-    {
-      "id": "plan_dirty_worktree_ci_push",
-      "capability": "planning",
-      "score": 4,
+      "id": "time_fixed_reminder_tool_call",
+      "capability": "time_planning",
+      "score": 6,
       "max_points": 10,
       "passed": false,
       "details": [
         {
-          "kind": "json_keys",
+          "kind": "tool_count_at_least",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tool_name",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
-          "kind": "contains_any",
-          "points": 2,
+          "kind": "tool_arg_equals",
+          "points": 3,
           "earned": 0,
           "passed": false
         },
         {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "contains_any",
-          "points": 2,
-          "earned": 0,
-          "passed": false
-        },
-        {
-          "kind": "contains_any",
+          "kind": "tool_arg_equals",
           "points": 1,
           "earned": 1,
           "passed": true
         },
         {
-          "kind": "contains_any",
+          "kind": "tool_arg_equals",
           "points": 1,
-          "earned": 1,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "tool_args_contain_text",
+          "points": 2,
+          "earned": 2,
           "passed": true
         }
       ],
-      "content_preview": "{\n  \"steps\": [\n    \"git add -A\",\n    \"git commit -m \\\"WIP: save local changes\\\"\",\n    \"git pull origin main\",\n    \"# resolve any merge conflicts, then git add and git commit (merge commit is created automatically if needed)\",\n    \"git add <files to fix CI>\",\n    \"git commit -m \\\"Fix CI\\\"\",\n    \"git pull origin main\",\n    \"git push origin main\"\n  ],\n  \"risks\": [\n    \"Merge conflicts during pulls may be complex and require manual resolution\",\n    \"WIP commit exposes incomplete or untested user changes on the remote main branch\",\n    \"Remote main may advance again while fixing CI, causing an additional merge step\",\n    \"The CI fix might not fully resolve the red state if underlying issues are deeper\"\n  ]\n}",
-      "reasoning_chars": 9309,
-      "tool_calls": []
+      "content_preview": "",
+      "reasoning_chars": 545,
+      "tool_calls": [
+        {
+          "name": "schedule_task",
+          "arguments": {
+            "title": "Review the PAM paper adoption plan with ckl",
+            "run_at": "2026-05-22T09:30:00",
+            "timezone": "Asia/Shanghai",
+            "recurrence": "",
+            "notes": "PAM paper adoption plan review with ckl"
+          }
+        }
+      ]
     },
     {
-      "id": "plan_kv_cache_aware_prompt_refactor",
-      "capability": "planning",
+      "id": "issue_gateway_subagent_completion_plan",
+      "capability": "issue_resolution",
       "score": 9,
       "max_points": 10,
       "passed": true,
@@ -272,14 +195,20 @@
         },
         {
           "kind": "contains_any",
-          "points": 3,
-          "earned": 3,
+          "points": 2,
+          "earned": 2,
           "passed": true
         },
         {
           "kind": "contains_any",
           "points": 2,
           "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
           "passed": true
         },
         {
@@ -295,13 +224,109 @@
           "passed": false
         }
       ],
-      "content_preview": "{\n  \"plan\": [\n    \"Separate prompt construction into a fixed preamble and a mutable suffix. Define a canonical, deterministic serialization for the preamble that includes a stable system message (agent identity, core instructions) and optionally a set of static tool schemas that rarely change.\",\n    \"Introduce a 'preamble fingerprint' hash computed over the canonical string of the preamble. Use this hash as a cache lookup key for the tokenized representation of the preamble, allowing the runtime to reuse the exact token sequence across calls without re-tokenizing or altering the KV-cacheable prefix.\",\n    \"Place any frequently changing tool definitions (e.g., per-turn dynamic tools) after the conversation history or as a separate block appended after the stable preamble, so that the fixed ",
-      "reasoning_chars": 7832,
+      "content_preview": "{\n  \"reproduction\": \"1. Start a gateway-mode agent server. 2. Initiate a parent turn that spawns a subagent but returns its own response before the subagent finishes (e.g., by making the subagent sleep or wait). 3. Observe the chat where the parent's response appears; note the chat_id. 4. After the subagent completes, check the arrival of its completion message. In the current bug, the subagent's output is delivered to a system/default chat (e.g., chat_id 'default') instead of the original chat_id. 5. The existing test 'test_subagent_gateway_completion' (likely in the test suite) can be run to reproduce in isolation; it should be failing because assertions expect the message in the parent's chat but it appears in the default chat.\",\n  \"root_cause_hypothesis\": \"When the subagent is created,",
+      "reasoning_chars": 4637,
       "tool_calls": []
     },
     {
-      "id": "plan_release_version_conflict",
-      "capability": "planning",
+      "id": "code_async_handoff_race_analysis",
+      "capability": "code_analysis",
+      "score": 9,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 0,
+          "passed": false
+        }
+      ],
+      "content_preview": "{\n  \"root_cause\": \"The shutdown logic calls abort_all() then immediately drops the JoinSet. abort_all() only sends a cancellation signal; it does not wait for the tasks to actually stop. Dropping the JoinSet detaches the task handles, allowing the tasks to continue running in the background after cleanup returns. This leads to flaky tests because completion messages may still be written after the test expects everything to be stopped. To keep function bodies small, separate shutdown into a signal phase and a drain/wait phase using small helper functions.\",\n  \"minimal_patch\": \"After calling abort_all(), drain the JoinSet by awaiting join_next() until it returns None. This ensures every task has actually terminated before returning.\\n\\nself.workers.abort_all();\\nwhile let Some(result) = self",
+      "reasoning_chars": 9658,
+      "tool_calls": []
+    },
+    {
+      "id": "memory_handoff_context_preservation",
+      "capability": "memory_handoff",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_all",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\"must_preserve\": [\"Live service on port 7860 PID 85165 must not be killed\", \"DSV4 base URL: https://api.deepseek.com/beta\", \"Untracked sidecar/.agents must stay uncommitted\", \"Latest score snapshot path: tests/snapshots/dsv4_capability_latest.json\"], \"can_drop\": [\"Transient conversation history\", \"Intermediate reasoning chains\", \"Temporary tool outputs and cached calculations\"], \"handoff_trigger\": \"Initiating context compaction to free tokens; handoff critical state before memory reset.\", \"validation\": \"Verify all must_preserve items are stored in the handoff blob and that the service on port 7860 (PID 85165) is still alive post-handoff.\"}",
+      "reasoning_chars": 1964,
+      "tool_calls": []
+    },
+    {
+      "id": "subagent_parallel_management_plan",
+      "capability": "subagent_management",
       "score": 10,
       "max_points": 10,
       "passed": true,
@@ -314,8 +339,8 @@
         },
         {
           "kind": "contains_any",
-          "points": 3,
-          "earned": 3,
+          "points": 2,
+          "earned": 2,
           "passed": true
         },
         {
@@ -335,18 +360,24 @@
           "points": 2,
           "earned": 2,
           "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
         }
       ],
-      "content_preview": "{\n  \"preflight\": {\n    \"steps\": [\n      \"Checkout the release branch\",\n      \"Install dependencies and build the project\",\n      \"Run static analysis and linting\",\n      \"Fetch the latest published version from the package registry\",\n      \"Determine the target release version according to semver and verify it is higher than the latest\",\n      \"Run the complete test suite (unit, integration, end-to-end); do not skip any tests\"\n    ],\n    \"stop_conditions\": [\n      \"Any test fails\",\n      \"Linting or static analysis fails\",\n      \"Unable to retrieve the latest published version\",\n      \"Target version is not greater than the latest published version\"\n    ]\n  },\n  \"publish_loop\": {\n    \"max_retries\": 3,\n    \"steps\": [\n      \"Run the full test suite with the current version (never skip tests)",
-      "reasoning_chars": 3643,
+      "content_preview": "{\n  \"delegation_plan\": {\n    \"phases\": [\n      {\n        \"id\": \"phase1_exploration\",\n        \"agent\": \"explorer\",\n        \"description\": \"Inspect provider configuration: locate all configuration files (YAML, JSON, .env, etc.), parse them, identify each provider, extract DSML endpoint, authentication details (masked), and any relevant settings.\",\n        \"inputs\": [],\n        \"outputs\": [\"provider_config_report.json\"],\n        \"dependency\": \"none\"\n      },\n      {\n        \"id\": \"phase2_test_implementation\",\n        \"agent\": \"worker\",\n        \"description\": \"Implement DSML parser tests using the provider config report. Generate test cases (e.g., pytest/unittest) that validate the DSML parsing logic by mocking provider endpoints based on the extracted configurations.\",\n        \"inputs\": [\"pro",
+      "reasoning_chars": 10171,
       "tool_calls": []
     },
     {
-      "id": "tool_parallel_weather_lookup",
-      "capability": "tool",
-      "score": 10,
+      "id": "tool_issue_repo_investigation",
+      "capability": "tool_use",
+      "score": 6,
       "max_points": 10,
-      "passed": true,
+      "passed": false,
       "details": [
         {
           "kind": "tool_count_at_least",
@@ -361,116 +392,154 @@
           "passed": true
         },
         {
-          "kind": "tool_arg_contains",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_contains",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_equals",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        }
-      ],
-      "content_preview": "",
-      "reasoning_chars": 182,
-      "tool_calls": [
-        {
-          "name": "weather_lookup",
-          "arguments": {
-            "city": "San Francisco",
-            "day": "tomorrow"
-          }
-        },
-        {
-          "name": "weather_lookup",
-          "arguments": {
-            "city": "New York",
-            "day": "tomorrow"
-          }
-        }
-      ]
-    },
-    {
-      "id": "tool_nested_log_query",
-      "capability": "tool",
-      "score": 10,
-      "max_points": 10,
-      "passed": true,
-      "details": [
-        {
-          "kind": "tool_count_at_least",
-          "points": 1,
-          "earned": 1,
-          "passed": true
-        },
-        {
           "kind": "tool_name",
           "points": 2,
-          "earned": 2,
-          "passed": true
+          "earned": 0,
+          "passed": false
         },
         {
-          "kind": "tool_arg_equals",
-          "points": 2,
-          "earned": 2,
-          "passed": true
-        },
-        {
-          "kind": "tool_arg_equals",
+          "kind": "tool_args_contain_text",
           "points": 2,
           "earned": 2,
           "passed": true
         },
         {
           "kind": "tool_args_contain_text",
-          "points": 3,
-          "earned": 3,
-          "passed": true
+          "points": 2,
+          "earned": 0,
+          "passed": false
         }
       ],
       "content_preview": "",
-      "reasoning_chars": 444,
+      "reasoning_chars": 264,
       "tool_calls": [
         {
-          "name": "query_logs",
+          "name": "repo_search",
           "arguments": {
-            "service": "checkout",
-            "filters": {
-              "region": "us-west",
-              "timestamp": "2026-05-18T08:00:00Z",
-              "level": "500",
-              "status_code": "5xx"
-            },
-            "limit": 5
+            "query": "DSML"
+          }
+        },
+        {
+          "name": "repo_search",
+          "arguments": {
+            "query": "dsml"
+          }
+        },
+        {
+          "name": "repo_search",
+          "arguments": {
+            "query": "tool_call"
           }
         }
       ]
     },
     {
-      "id": "tool_clarify_before_deploy",
-      "capability": "tool",
+      "id": "tool_handoff_and_subagent_actions",
+      "capability": "tool_use",
+      "score": 9,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "tool_count_at_least",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_name",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_arg_contains",
+          "points": 1,
+          "earned": 0,
+          "passed": false
+        },
+        {
+          "kind": "tool_arg_contains",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "tool_args_contain_text",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "tool_args_contain_text",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        }
+      ],
+      "content_preview": "I'll create the tape handoff and spawn both subagents in parallel.",
+      "reasoning_chars": 774,
+      "tool_calls": [
+        {
+          "name": "tape_handoff",
+          "arguments": {
+            "name": "dsv4_context",
+            "summary": "DSV4 endpoint preserved. Snapshot path preserved. Constraint: sidecar/.agents directory remains untracked (not committed to version control)."
+          }
+        },
+        {
+          "name": "spawn_subagent",
+          "arguments": {
+            "role": "explorer",
+            "task": "Explore the codebase for provider configuration files. Look for any config files related to providers (YAML, JSON, TOML, or code-based configs). Search patterns like \"provider\" in config directories, environment files, and any provider registry or factory patterns. Report back the file paths, key structures, and how providers are configured and loaded.",
+            "ownership": "open"
+          }
+        },
+        {
+          "name": "spawn_subagent",
+          "arguments": {
+            "role": "worker",
+            "task": "Build DSML parser tests. The parser should handle DSML (Directory Services Markup Language) XML parsing. Create or locate the parser source, then write comprehensive tests covering: valid DSML documents, malformed XML, missing required attributes, namespace handling, batch request/response parsing, error response elements, and edge cases like empty documents or deeply nested structures. Write the tests and ensure they're runnable.",
+            "ownership": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "planning_issue_to_patch_with_tests",
+      "capability": "issue_resolution",
       "score": 10,
       "max_points": 10,
       "passed": true,
       "details": [
         {
-          "kind": "no_tool_calls",
-          "points": 4,
-          "earned": 4,
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
           "passed": true
         },
         {
           "kind": "contains_any",
-          "points": 4,
-          "earned": 4,
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
           "passed": true
         },
         {
@@ -480,9 +549,91 @@
           "passed": true
         }
       ],
-      "content_preview": "I'd be happy to deploy the latest build, but I need a few more details from you:\n\n- **Service** – Which service would you like to deploy?\n- **Environment** – Should this go to **staging** or **production**?\n- **Version** – What version identifier should I use (e.g., `latest`, a specific commit hash, or a version tag)?\n\nPlease provide these details and I'll trigger the deployment right away!",
-      "reasoning_chars": 376,
+      "content_preview": "{\n  \"diagnosis\": \"When 'eli model list' is invoked for a profile using provider alias 'dsv4', the code passes the raw alias string directly to the API key retrieval function. The API key lookup expects a normalized provider identifier (e.g., 'DEEPSEEK' or the canonical configuration key), but 'dsv4' remains unnormalized, causing a key miss and subsequent failure. OpenAI‑compatible providers do not trigger this path because they likely use a different resolution that already normalizes the identifier, or the alias matches the stored key directly. The fix must normalize the provider alias to its canonical form before performing the API key lookup.\",\n  \"files\": [\n    \"src/eli/providers.py\",\n    \"src/eli/config.py\",\n    \"tests/test_providers.py\",\n    \"tests/test_model_list.py\"\n  ],\n  \"patch_st",
+      "reasoning_chars": 3110,
       "tool_calls": []
+    },
+    {
+      "id": "time_planning_timezone_no_tool",
+      "capability": "time_planning",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "details": [
+        {
+          "kind": "json_keys",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_all",
+          "points": 3,
+          "earned": 3,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 2,
+          "earned": 2,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "contains_any",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        },
+        {
+          "kind": "forbid_all",
+          "points": 1,
+          "earned": 1,
+          "passed": true
+        }
+      ],
+      "content_preview": "{\n  \"assumptions\": \"Assumed 'next three business days' after Monday 2026-05-18 means Tuesday 2026-05-19, Wednesday 2026-05-20, and Thursday 2026-05-21. Handoff summaries are generated daily at 17:00 Pacific Daylight Time (PDT, UTC-7). Persisted records are datestamped in Asia/Shanghai local time (UTC+8), resulting in the timestamp being 08:00 the next calendar day.\",\n  \"schedule\": [\n    \"2026-05-20T08:00:00\",\n    \"2026-05-21T08:00:00\",\n    \"2026-05-22T08:00:00\"\n  ],\n  \"risks\": \"Misinterpretation of 'next three business days' could shift dates if inclusive of Monday or if requested after 17:00 PT. Time zone conversion assumes DST rules hold for 2026 (PDT in May). System must record local date-time without offset; any reuse in other zones must know it is Asia/Shanghai local.\",\n  \"validation\"",
+      "reasoning_chars": 8964,
+      "tool_calls": []
+    }
+  ],
+  "local_checks": [
+    {
+      "id": "local_handoff_overflow_grace",
+      "capability": "local_runtime",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "eli",
+        "test_injected_overflow_error_during_grace_advances_handoff"
+      ],
+      "stdout_tail": "\nrunning 1 test\ntest builtin::agent::agent_run::tests::test_injected_overflow_error_during_grace_advances_handoff ... ok\n\ntest result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 450 filtered out; finished in 0.13s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n",
+      "stderr_tail": "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s\n     Running unittests src/lib.rs (target/debug/deps/eli-14334b7d19afa5ca)\n     Running unittests src/main.rs (target/debug/deps/eli-52010128e130aa19)\n     Running tests/pipeline_integration.rs (target/debug/deps/pipeline_integration-710ea63b048f1645)\n     Running tests/skills_hygiene.rs (target/debug/deps/skills_hygiene-f39dee2942e69a29)\n     Running tests/taskboard_integration.rs (target/debug/deps/taskboard_integration-2178526de09265eb)\n"
+    },
+    {
+      "id": "local_subagent_tracker_management",
+      "capability": "local_runtime",
+      "score": 10,
+      "max_points": 10,
+      "passed": true,
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "eli",
+        "builtin::subagent::tests::tracker_tests"
+      ],
+      "stdout_tail": "\nrunning 5 tests\ntest builtin::subagent::tests::tracker_tests::test_nonexistent_result_returns_none ... ok\ntest builtin::subagent::tests::tracker_tests::test_running_count ... ok\ntest builtin::subagent::tests::tracker_tests::test_register_and_list ... ok\ntest builtin::subagent::tests::tracker_tests::test_evict_completed ... ok\ntest builtin::subagent::tests::tracker_tests::test_complete_and_get_result ... ok\n\ntest result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 446 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n\nrunning 0 tests\n\ntest result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s\n\n",
+      "stderr_tail": "    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s\n     Running unittests src/lib.rs (target/debug/deps/eli-14334b7d19afa5ca)\n     Running unittests src/main.rs (target/debug/deps/eli-52010128e130aa19)\n     Running tests/pipeline_integration.rs (target/debug/deps/pipeline_integration-710ea63b048f1645)\n     Running tests/skills_hygiene.rs (target/debug/deps/skills_hygiene-f39dee2942e69a29)\n     Running tests/taskboard_integration.rs (target/debug/deps/taskboard_integration-2178526de09265eb)\n"
     }
   ]
 }

@@ -1,229 +1,273 @@
 {
-  "suite": "dsv4-hard-tail-capability",
-  "version": 1,
+  "suite": "dsv4-agent-realworld-benchmark",
+  "version": 2,
   "selection_policy": {
-    "name": "mainstream-hard-tail-10pct",
-    "method": "Use hard-category patterns from mainstream coding, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
+    "name": "mainstream-realworld-hard-tail-10pct",
+    "method": "Use hard real-world agent patterns from mainstream issue-resolution, research, planning, and tool-use benchmarks, then synthesize repo-safe prompts rather than copying benchmark items verbatim.",
     "sources": [
       "SWE-bench Verified",
-      "BigCodeBench-Hard",
-      "LiveCodeBench",
+      "SWE-bench Live",
       "AgentBench",
+      "AgencyBench",
+      "MLAgentBench",
       "PlanBench",
-      "BFCL V4"
+      "BFCL V4",
+      "MCP-Bench"
     ]
   },
   "cases": [
     {
-      "id": "code_rust_borrow_safe_batch_mutation",
-      "capability": "code",
+      "id": "research_paper_deep_reading_plan",
+      "capability": "research_planning",
       "max_points": 10,
       "threshold": 7,
-      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
+      "inspired_by": ["MLAgentBench", "AgencyBench", "PlanBench"],
       "mode": "text_json",
-      "prompt": "You are fixing a Rust 2024 production bug. Function body limit is 15 lines. A scheduler receives Vec<(usize, i64)> updates where each index points into accounts: Vec<Account>. Current code loops over updates and does accounts[idx].balance += delta, but duplicate indices cause partial mutation before validation, and invalid indices leave earlier balances changed. Return strict JSON with keys diagnosis, patch, tests. The patch must be minimal and explain how to make validation all-or-nothing before mutation. No markdown.",
+      "prompt": "You are reading a new systems paper excerpt for an engineering lead. Excerpt: The paper proposes Prefix-stable Agent Memory (PAM), claiming lower latency by keeping system prompts immutable, moving volatile observations into append-only memory capsules, and using a verifier to decide when to compress old capsules. Evaluation reports 18% lower p95 latency on 32k-token support traces, but only tests two models and does not isolate cache hit rate from shorter prompts. Return strict JSON with keys thesis, evidence, limitations, follow_up_plan. Make the plan actionable for deciding whether to adopt PAM in a production Rust agent runtime. No markdown.",
       "rubric": [
-        {"kind": "json_keys", "keys": ["diagnosis", "patch", "tests"], "points": 2},
-        {"kind": "contains_any", "needles": ["all-or-nothing", "validate", "pre-validate", "validation"], "points": 2},
-        {"kind": "contains_any", "needles": ["HashMap", "BTreeMap", "aggregate", "coalesce", "dedup"], "points": 2},
-        {"kind": "contains_any", "needles": ["invalid index", "bounds", "out of range"], "points": 2},
-        {"kind": "contains_any", "needles": ["duplicate", "same index"], "points": 1},
-        {"kind": "forbid_all", "needles": ["unwrap()", "unsafe"], "points": 1}
+        {"kind": "json_keys", "keys": ["thesis", "evidence", "limitations", "follow_up_plan"], "points": 2},
+        {"kind": "contains_any", "needles": ["cache hit", "prefix", "stable"], "points": 2},
+        {"kind": "contains_any", "needles": ["ablation", "isolate", "control"], "points": 2},
+        {"kind": "contains_any", "needles": ["p95", "latency", "tokens"], "points": 1},
+        {"kind": "contains_any", "needles": ["production", "rollout", "A/B", "canary"], "points": 2},
+        {"kind": "contains_any", "needles": ["two models", "limited models", "generalization"], "points": 1}
       ]
     },
     {
-      "id": "code_provider_colon_tag_regression",
-      "capability": "code",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
-      "mode": "text_json",
-      "prompt": "A CLI regression treats any model string containing ':' as provider:model. This breaks local model tags like llama3.2:3b and qwen2.5:7b. Return strict JSON with keys root_cause, fix, tests. The fix must preserve real provider prefixes such as openai:gpt-5 and deepseek:deepseek-v4-pro. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["root_cause", "fix", "tests"], "points": 2},
-        {"kind": "contains_any", "needles": ["known provider", "is_known_provider", "provider registry", "normalized_provider_name"], "points": 3},
-        {"kind": "contains_any", "needles": ["split_once", "prefix"], "points": 1},
-        {"kind": "contains_any", "needles": ["llama3.2:3b", "qwen2.5:7b"], "points": 2},
-        {"kind": "contains_any", "needles": ["deepseek", "openai"], "points": 1},
-        {"kind": "forbid_all", "needles": ["strip all colons", "replace(':', '')"], "points": 1}
-      ]
-    },
-    {
-      "id": "code_sql_builder_parameterization",
-      "capability": "code",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["BigCodeBench-Hard", "SWE-bench Verified"],
-      "mode": "text_json",
-      "prompt": "Refactor this risky query builder: it concatenates user-supplied owner, status, and optional limit into SQL. Return strict JSON with keys diagnosis, safe_design, tests. The answer must preserve optional filters and ordering while avoiding SQL injection. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["diagnosis", "safe_design", "tests"], "points": 2},
-        {"kind": "contains_any", "needles": ["parameterized", "bind", "placeholder"], "points": 3},
-        {"kind": "contains_any", "needles": ["optional", "filters", "WHERE"], "points": 2},
-        {"kind": "contains_any", "needles": ["limit", "ORDER BY", "ordering"], "points": 1},
-        {"kind": "contains_any", "needles": ["injection", "SQL injection"], "points": 1},
-        {"kind": "forbid_all", "needles": ["format!(\"SELECT", "push_str(owner)", "string concatenation is fine"], "points": 1}
-      ]
-    },
-    {
-      "id": "code_test_output_prediction",
-      "capability": "code",
+      "id": "time_fixed_reminder_tool_call",
+      "capability": "time_planning",
       "max_points": 10,
       "threshold": 8,
-      "inspired_by": ["LiveCodeBench"],
-      "mode": "text_json",
-      "prompt": "Predict the exact output of this Rust program. Return strict JSON with key stdout_lines only.\n\nfn main() {\n    let mut v = vec![3, 1, 4, 1, 5, 9];\n    let taken: Vec<_> = v.drain(1..4).rev().collect();\n    println!(\"{:?}|{:?}\", v, taken);\n    let sum: i32 = v.iter().zip(taken.iter()).map(|(a, b)| a * b).sum();\n    println!(\"{}\", sum);\n}",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["stdout_lines"], "points": 2},
-        {"kind": "contains_all", "needles": ["[3, 5, 9]|[1, 4, 1]", "32"], "points": 8}
-      ]
-    },
-    {
-      "id": "plan_dirty_worktree_ci_push",
-      "capability": "planning",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["AgentBench", "SWE-bench Verified"],
-      "mode": "text_json",
-      "prompt": "Plan a safe fix-and-push workflow. Context: repo is dirty, user changes may exist, CI is red, remote main may have advanced, and destructive git commands are forbidden. Return strict JSON with key steps as an ordered array of short command-oriented steps and key risks. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["steps", "risks"], "points": 2},
-        {"kind": "contains_any", "needles": ["git status", "inspect", "diff"], "points": 2},
-        {"kind": "contains_any", "needles": ["do not reset", "avoid reset", "no git reset"], "points": 2},
-        {"kind": "contains_any", "needles": ["pull --rebase", "rebase"], "points": 2},
-        {"kind": "contains_any", "needles": ["test", "clippy", "fmt"], "points": 1},
-        {"kind": "contains_any", "needles": ["push"], "points": 1}
-      ]
-    },
-    {
-      "id": "plan_kv_cache_aware_prompt_refactor",
-      "capability": "planning",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["PlanBench", "AgentBench"],
-      "mode": "text_json",
-      "prompt": "Plan a prompt/tool-schema refactor for an agent runtime. Constraint: preserve downstream LLM KV-cache efficiency by keeping stable prefixes stable. Return strict JSON with keys plan, cache_risks, validation. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["plan", "cache_risks", "validation"], "points": 2},
-        {"kind": "contains_any", "needles": ["stable prefix", "prefix stable", "append-only"], "points": 3},
-        {"kind": "contains_any", "needles": ["tool schema", "tool order", "tool grouping"], "points": 2},
-        {"kind": "contains_any", "needles": ["measure", "cache", "tokens"], "points": 2},
-        {"kind": "contains_any", "needles": ["rollback", "A/B", "snapshot"], "points": 1}
-      ]
-    },
-    {
-      "id": "plan_release_version_conflict",
-      "capability": "planning",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["AgentBench", "PlanBench"],
-      "mode": "text_json",
-      "prompt": "Plan a release when publish may fail because the version already exists. Rules: check latest published version first; if conflict occurs, bump patch and retry at most three times; do not skip tests. Return strict JSON with keys preflight, publish_loop, stop_conditions. No markdown.",
-      "rubric": [
-        {"kind": "json_keys", "keys": ["preflight", "publish_loop", "stop_conditions"], "points": 2},
-        {"kind": "contains_any", "needles": ["latest published", "check latest", "cargo search", "registry"], "points": 3},
-        {"kind": "contains_any", "needles": ["patch", "bump"], "points": 2},
-        {"kind": "contains_any", "needles": ["three", "3"], "points": 1},
-        {"kind": "contains_any", "needles": ["test", "clippy", "fmt"], "points": 2}
-      ]
-    },
-    {
-      "id": "tool_parallel_weather_lookup",
-      "capability": "tool",
-      "max_points": 10,
-      "threshold": 7,
       "inspired_by": ["BFCL V4", "AgentBench"],
       "mode": "tool_call",
-      "prompt": "Use the weather_lookup tool to compare tomorrow's forecast for San Francisco and New York. Call the tool for each city before answering.",
+      "prompt": "Today is Monday 2026-05-18 in Asia/Shanghai. Schedule a one-time reminder for next Friday at 09:30 Asia/Shanghai to review the PAM paper adoption plan with ckl. Use the schedule_task tool and do not answer without calling it.",
       "tools": [
         {
           "type": "function",
           "function": {
-            "name": "weather_lookup",
-            "description": "Fetch a forecast for one city.",
+            "name": "schedule_task",
+            "description": "Create a one-time or recurring reminder.",
             "parameters": {
               "type": "object",
               "properties": {
-                "city": {"type": "string"},
-                "day": {"type": "string", "enum": ["today", "tomorrow"]}
+                "title": {"type": "string"},
+                "run_at": {"type": "string"},
+                "timezone": {"type": "string"},
+                "recurrence": {"type": "string"},
+                "notes": {"type": "string"}
               },
-              "required": ["city", "day"]
-            }
-          }
-        }
-      ],
-      "rubric": [
-        {"kind": "tool_count_at_least", "count": 2, "points": 2},
-        {"kind": "tool_name", "name": "weather_lookup", "points": 2},
-        {"kind": "tool_arg_contains", "arg": "city", "needles": ["San Francisco"], "points": 2},
-        {"kind": "tool_arg_contains", "arg": "city", "needles": ["New York"], "points": 2},
-        {"kind": "tool_arg_equals", "arg": "day", "value": "tomorrow", "points": 2}
-      ]
-    },
-    {
-      "id": "tool_nested_log_query",
-      "capability": "tool",
-      "max_points": 10,
-      "threshold": 7,
-      "inspired_by": ["BFCL V4"],
-      "mode": "tool_call",
-      "prompt": "Find the five most recent 500-level errors for service checkout in region us-west after 2026-05-18T08:00:00Z. Use the query_logs tool.",
-      "tools": [
-        {
-          "type": "function",
-          "function": {
-            "name": "query_logs",
-            "description": "Query structured service logs.",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "service": {"type": "string"},
-                "filters": {"type": "object"},
-                "limit": {"type": "integer"}
-              },
-              "required": ["service", "filters", "limit"]
+              "required": ["title", "run_at", "timezone", "recurrence"]
             }
           }
         }
       ],
       "rubric": [
         {"kind": "tool_count_at_least", "count": 1, "points": 1},
-        {"kind": "tool_name", "name": "query_logs", "points": 2},
-        {"kind": "tool_arg_equals", "arg": "service", "value": "checkout", "points": 2},
-        {"kind": "tool_arg_equals", "arg": "limit", "value": 5, "points": 2},
-        {"kind": "tool_args_contain_text", "needles": ["us-west", "500", "2026-05-18T08:00:00Z"], "points": 3}
+        {"kind": "tool_name", "name": "schedule_task", "points": 2},
+        {"kind": "tool_arg_equals", "arg": "run_at", "value": "2026-05-22T09:30:00+08:00", "points": 3},
+        {"kind": "tool_arg_equals", "arg": "timezone", "value": "Asia/Shanghai", "points": 1},
+        {"kind": "tool_arg_equals", "arg": "recurrence", "value": "none", "points": 1},
+        {"kind": "tool_args_contain_text", "needles": ["PAM", "ckl"], "points": 2}
       ]
     },
     {
-      "id": "tool_clarify_before_deploy",
-      "capability": "tool",
+      "id": "issue_gateway_subagent_completion_plan",
+      "capability": "issue_resolution",
       "max_points": 10,
       "threshold": 7,
-      "inspired_by": ["BFCL V4", "AgentBench"],
+      "inspired_by": ["SWE-bench Verified", "SWE-bench Live"],
+      "mode": "text_json",
+      "prompt": "A GitHub issue says: In gateway mode, a subagent finishes after the parent turn returns, but the completion is delivered to a default chat instead of the original chat_id. The repo has gateway inbound injection and tests named test_subagent_gateway_completion. Plan the fix. Return strict JSON with keys reproduction, root_cause_hypothesis, patch_plan, validation. Keep it safe for a dirty worktree and do not propose destructive git commands. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["reproduction", "root_cause_hypothesis", "patch_plan", "validation"], "points": 2},
+        {"kind": "contains_any", "needles": ["chat_id", "original chat"], "points": 2},
+        {"kind": "contains_any", "needles": ["gateway", "inbound injector", "injector"], "points": 2},
+        {"kind": "contains_any", "needles": ["test_subagent_gateway_completion", "subagent_gateway"], "points": 1},
+        {"kind": "contains_any", "needles": ["dirty worktree", "git status", "do not reset", "no destructive"], "points": 2},
+        {"kind": "contains_any", "needles": ["cargo test", "pytest", "e2e"], "points": 1}
+      ]
+    },
+    {
+      "id": "code_async_handoff_race_analysis",
+      "capability": "code_analysis",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["SWE-bench Verified", "BigCodeBench-Hard"],
+      "mode": "text_json",
+      "prompt": "Analyze this Rust async bug. A gateway owns JoinSet workers. On shutdown it calls abort_all(), then immediately drops the JoinSet. Sometimes child tasks keep writing completion messages after shutdown, and tests flake because cleanup returns before JoinHandle cancellation is observed. Return strict JSON with keys root_cause, minimal_patch, tests. Mention how to keep function bodies small. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["root_cause", "minimal_patch", "tests"], "points": 2},
+        {"kind": "contains_any", "needles": ["join_next", "drain", "await"], "points": 2},
+        {"kind": "contains_any", "needles": ["abort_all", "cancellation", "cancel"], "points": 2},
+        {"kind": "contains_any", "needles": ["timeout", "bounded", "grace"], "points": 1},
+        {"kind": "contains_any", "needles": ["test", "flake", "deterministic"], "points": 2},
+        {"kind": "contains_any", "needles": ["15 lines", "small function", "extract"], "points": 1}
+      ]
+    },
+    {
+      "id": "memory_handoff_context_preservation",
+      "capability": "memory_handoff",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["AgencyBench", "AgentBench"],
+      "mode": "text_json",
+      "prompt": "Plan a local memory handoff for an agent that is about to compact context. Facts that must survive: live service on port 7860 PID 85165 must not be killed; DSV4 base URL is https://api.deepseek.com/beta; untracked sidecar/.agents must stay uncommitted; latest score snapshot path is tests/snapshots/dsv4_capability_latest.json. Return strict JSON with keys must_preserve, can_drop, handoff_trigger, validation. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["must_preserve", "can_drop", "handoff_trigger", "validation"], "points": 2},
+        {"kind": "contains_all", "needles": ["7860", "85165"], "points": 2},
+        {"kind": "contains_all", "needles": ["https://api.deepseek.com/beta", "dsv4"], "points": 1},
+        {"kind": "contains_all", "needles": ["sidecar/.agents", "untracked"], "points": 2},
+        {"kind": "contains_any", "needles": ["anchor", "handoff", "tape"], "points": 2},
+        {"kind": "contains_any", "needles": ["snapshot", "validate", "tests/snapshots/dsv4_capability_latest.json"], "points": 1}
+      ]
+    },
+    {
+      "id": "subagent_parallel_management_plan",
+      "capability": "subagent_management",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["AgentBench", "AgencyBench"],
+      "mode": "text_json",
+      "prompt": "You need to use subagents for a repo task: one explorer should inspect provider config, one worker should implement DSML parser tests, and the parent should integrate. Plan the management protocol. Return strict JSON with keys delegation_plan, ownership, integration, stop_rules. Include how to avoid duplicate work and when to wait or close agents. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["delegation_plan", "ownership", "integration", "stop_rules"], "points": 2},
+        {"kind": "contains_any", "needles": ["explorer", "worker"], "points": 2},
+        {"kind": "contains_any", "needles": ["ownership", "disjoint", "write set", "files"], "points": 2},
+        {"kind": "contains_any", "needles": ["duplicate", "overlap", "not redo"], "points": 1},
+        {"kind": "contains_any", "needles": ["wait", "blocked", "critical path"], "points": 2},
+        {"kind": "contains_any", "needles": ["close", "stop", "final message"], "points": 1}
+      ]
+    },
+    {
+      "id": "tool_issue_repo_investigation",
+      "capability": "tool_use",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BFCL V4", "MCP-Bench", "SWE-bench Verified"],
       "mode": "tool_call",
-      "prompt": "Deploy the latest build now.",
+      "prompt": "Investigate why DSML tool calls returned in chat completion content are not executing. Use repo_search and read_file before answering. Focus on parser and LLM helper paths.",
       "tools": [
         {
           "type": "function",
           "function": {
-            "name": "deploy_service",
-            "description": "Deploy a service to an explicit environment.",
+            "name": "repo_search",
+            "description": "Search repository text.",
             "parameters": {
               "type": "object",
               "properties": {
-                "service": {"type": "string"},
-                "environment": {"type": "string", "enum": ["staging", "production"]},
-                "version": {"type": "string"}
+                "query": {"type": "string"},
+                "paths": {"type": "array", "items": {"type": "string"}}
               },
-              "required": ["service", "environment", "version"]
+              "required": ["query"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "description": "Read a source file.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "path": {"type": "string"},
+                "reason": {"type": "string"}
+              },
+              "required": ["path"]
             }
           }
         }
       ],
       "rubric": [
-        {"kind": "no_tool_calls", "points": 4},
-        {"kind": "contains_any", "needles": ["which service", "service", "environment", "staging", "production"], "points": 4},
-        {"kind": "contains_any", "needles": ["version", "latest build"], "points": 2}
+        {"kind": "tool_count_at_least", "count": 2, "points": 2},
+        {"kind": "tool_name", "name": "repo_search", "points": 2},
+        {"kind": "tool_name", "name": "read_file", "points": 2},
+        {"kind": "tool_args_contain_text", "needles": ["DSML", "tool"], "points": 2},
+        {"kind": "tool_args_contain_text", "needles": ["tool_calls", "completion"], "points": 2}
+      ]
+    },
+    {
+      "id": "tool_handoff_and_subagent_actions",
+      "capability": "tool_use",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["BFCL V4", "AgentBench"],
+      "mode": "tool_call",
+      "prompt": "The context is near limit. First create a tape handoff preserving the DSV4 endpoint, snapshot path, and untracked sidecar/.agents constraint. Then spawn an explorer subagent for provider config and a worker subagent for DSML parser tests. Use the provided tools.",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "tape_handoff",
+            "description": "Create a named memory handoff checkpoint.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "summary": {"type": "string"}
+              },
+              "required": ["name", "summary"]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "spawn_subagent",
+            "description": "Spawn a scoped subagent.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "role": {"type": "string", "enum": ["explorer", "worker"]},
+                "task": {"type": "string"},
+                "ownership": {"type": "string"}
+              },
+              "required": ["role", "task"]
+            }
+          }
+        }
+      ],
+      "rubric": [
+        {"kind": "tool_count_at_least", "count": 3, "points": 2},
+        {"kind": "tool_name", "name": "tape_handoff", "points": 2},
+        {"kind": "tool_arg_contains", "arg": "summary", "needles": ["https://api.deepseek.com/beta"], "points": 1},
+        {"kind": "tool_arg_contains", "arg": "summary", "needles": ["tests/snapshots/dsv4_capability_latest.json", "sidecar/.agents"], "points": 2},
+        {"kind": "tool_args_contain_text", "needles": ["explorer", "provider config"], "points": 1},
+        {"kind": "tool_args_contain_text", "needles": ["worker", "DSML", "parser"], "points": 2}
+      ]
+    },
+    {
+      "id": "planning_issue_to_patch_with_tests",
+      "capability": "issue_resolution",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["SWE-bench Verified", "SWE-bench Live"],
+      "mode": "text_json",
+      "prompt": "A bug report says: eli model list works for OpenAI-compatible providers, but DeepSeek V4 fails because the active profile provider alias dsv4 is not normalized before API key lookup. Plan a patch and tests. Return strict JSON with keys diagnosis, files, patch_steps, verification. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["diagnosis", "files", "patch_steps", "verification"], "points": 2},
+        {"kind": "contains_any", "needles": ["normalized_provider_name", "normalize", "alias"], "points": 2},
+        {"kind": "contains_any", "needles": ["api key", "credential", "resolver"], "points": 2},
+        {"kind": "contains_any", "needles": ["dsv4", "deepseek"], "points": 1},
+        {"kind": "contains_any", "needles": ["agent_request", "model.rs", "config"], "points": 1},
+        {"kind": "contains_any", "needles": ["test", "cargo", "pytest"], "points": 2}
+      ]
+    },
+    {
+      "id": "time_planning_timezone_no_tool",
+      "capability": "time_planning",
+      "max_points": 10,
+      "threshold": 7,
+      "inspired_by": ["AgentBench", "PlanBench"],
+      "mode": "text_json",
+      "prompt": "Today is Monday 2026-05-18. A teammate in San Francisco asks for a daily handoff summary at 17:00 Pacific time for the next three business days, but ckl wants all persisted records in Asia/Shanghai local time. Return strict JSON with keys assumptions, schedule, risks, validation. Use exact ISO-like local datetimes and avoid relative dates. No markdown.",
+      "rubric": [
+        {"kind": "json_keys", "keys": ["assumptions", "schedule", "risks", "validation"], "points": 2},
+        {"kind": "contains_all", "needles": ["2026-05-19", "2026-05-20", "2026-05-21"], "points": 3},
+        {"kind": "contains_any", "needles": ["08:00", "Asia/Shanghai", "+08:00"], "points": 2},
+        {"kind": "contains_any", "needles": ["Pacific", "America/Los_Angeles", "PDT"], "points": 1},
+        {"kind": "contains_any", "needles": ["business", "weekday"], "points": 1},
+        {"kind": "forbid_all", "needles": ["tomorrow", "next day", "later"], "points": 1}
       ]
     }
   ]
