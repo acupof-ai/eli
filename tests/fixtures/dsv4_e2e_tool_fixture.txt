@@ -1,5 +1,0 @@
-ELI_DSV4_E2E_SENTINEL
-
-This fixture is intentionally tiny. The DSv4 Eli E2E suite reads it through
-Eli's fs.read tool so the snapshot can prove the agent used local tool evidence
-instead of guessing.

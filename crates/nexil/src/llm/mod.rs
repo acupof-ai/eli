@@ -80,11 +80,9 @@ pub struct ChatRequest<'a> {
     pub context_window: Option<usize>,
     /// Maximum tool-calling iterations. Defaults to 250 when `None`.
     pub max_tool_iterations: Option<usize>,
-    /// Opaque routing hint forwarded to the upstream provider. The OpenAI
-    /// adapter inserts this as the top-level `session_id` field; the
-    /// Anthropic adapter maps it to `metadata.user_id`. Other adapters drop
-    /// it silently. `None` keeps the request body byte-identical to the
-    /// pre-`session_id` shape.
+    /// Opaque routing hint forwarded to provider-aware adapters. The Anthropic
+    /// adapter maps it to `metadata.user_id`; OpenAI keeps it local because the
+    /// public API rejects a top-level `session_id`.
     pub session_id: Option<&'a str>,
 }
 

@@ -218,6 +218,41 @@ That gives you local project override without inventing a new packaging format.
 
 Profiles live in `~/.eli/config.toml`.
 
+Example profiles:
+
+```toml
+active_profile = "deepseek"
+
+[profiles.deepseek]
+provider = "deepseek"
+model = "deepseek:deepseek-v4-pro"
+api_base = "https://api.deepseek.com/beta"
+
+[profiles.openai]
+provider = "openai"
+model = "openai:gpt-5.5"
+```
+
+OpenAI-family profiles, including `openai:gpt-5.5`, keep Eli's tape
+`session_id` local. The public OpenAI API rejects a top-level `session_id`,
+while local Eli sessions and provider-specific adapters still preserve the
+runtime session context.
+
+## Model A/B Benchmark
+
+Run the live hard-tail comparison suite through Eli:
+
+```bash
+scripts/run_model_comparison_suite.py --keep-eli-home
+```
+
+The default pair is DSv4 (`deepseek:deepseek-v4-pro` at
+`https://api.deepseek.com/beta`) versus GPT-5.5 (`openai:gpt-5.5`). The suite
+uses the same Eli CLI path for both models and scores planning, paper reading,
+fixed-time scheduling, issue triage, code analysis, multi-turn memory,
+tool-use replay, tape handoff, and subagent orchestration. Results are written
+to `tests/snapshots/model_comparison_latest.json`.
+
 ## Development
 
 Repository layout:

@@ -1,0 +1,5 @@
+ELI_MODEL_COMPARE_SENTINEL
+
+This fixture is intentionally tiny. The live A/B suite reads it through
+Eli's fs.read tool, then checks whether the next model turn can reuse tool
+evidence without re-reading or guessing.
