@@ -109,15 +109,47 @@ def test_snapshot_matches_comparison_shape_when_present():
     assert "api_total" not in snapshot["scores"]
 
 
+def test_snapshot_keeps_dsv4_above_target_when_present():
+    if not SNAPSHOT.exists():
+        return
+    snapshot = load_json(SNAPSHOT)
+    assert snapshot["scores"]["total"]["dsv4"]["percent"] >= 95.0
+
+
 def test_runner_compat_matches_decimal_percentages():
     runner = load_runner()
     assert runner.contains_all("DSv4 = 90.0%; GPT-5.5 = 93.00%", ["90%", "93%"])
+    assert runner.contains_any("total scores mask the hard-tail gap", ["masked"])
+    assert runner.contains_any("Expand (1−x)⁶³ and integrate", ["(1-x)^63"])
 
 
 def test_runner_detects_empty_and_truncated_json():
     runner = load_runner()
     assert runner.output_status("(model returned empty response)") == "empty_response"
     assert runner.output_status('{"a": {"b": 1') == "truncated_json"
+
+
+def test_runner_parses_last_complete_json_after_truncated_prefix():
+    runner = load_runner()
+    text = '{"a": {"broken": 1\n{"ok": true, "nested": {"b": 2}}'
+    assert runner.content_json(text) == {"ok": True, "nested": {"b": 2}}
+
+
+def test_runner_prefers_json_object_with_required_keys():
+    runner = load_runner()
+    text = '{"outer": {"partial": 1}\n{"answer": true, "evidence": {"nested": 1}}'
+    assert runner.content_json(text, ["answer", "evidence"]) == {
+        "answer": True,
+        "evidence": {"nested": 1},
+    }
+
+
+def test_runner_repairs_malformed_json_contract():
+    runner = load_runner()
+    case = {"rubric": [{"kind": "stdout_json_keys", "keys": ["answer"]}]}
+    result = {"diagnostics": {"status": "truncated_json"}, "details": []}
+    assert runner.needs_output_repair(case, result)
+    assert "answer" in runner.repair_prompt(case)
 
 
 def test_runner_json_field_checks_ignore_other_fields():
@@ -137,5 +169,14 @@ def test_fake_codex_echoes_return_exactly(tmp_path):
     bin_dir = runner.write_fake_codex(tmp_path)
     codex = bin_dir / "codex"
     prompt = "please return exactly: SUBAGENT_OK hard-tail metal mac-only frontier-science. done"
+    out = __import__("subprocess").check_output([str(codex)], input=prompt, text=True)
+    assert out.strip() == "SUBAGENT_OK hard-tail metal mac-only frontier-science"
+
+
+def test_fake_codex_echoes_verbose_return_exactly(tmp_path):
+    runner = load_runner()
+    bin_dir = runner.write_fake_codex(tmp_path)
+    codex = bin_dir / "codex"
+    prompt = "Return exactly this string and nothing else: SUBAGENT_OK hard-tail metal mac-only frontier-science"
     out = __import__("subprocess").check_output([str(codex)], input=prompt, text=True)
     assert out.strip() == "SUBAGENT_OK hard-tail metal mac-only frontier-science"

@@ -256,9 +256,11 @@ to `tests/snapshots/model_comparison_latest.json`.
 
 The runner includes a benchmark-local output compatibility layer for common
 model issues such as fenced JSON, decimal percentage spellings, stdout
-truncation, and empty or truncated structured output diagnostics. Disable it
-with `ELI_AB_COMPAT=0` or `--no-output-compat` when auditing whether those
-compatibility fixes can be removed.
+truncation, empty/truncated structured output diagnostics, and one bounded
+same-session JSON repair turn. Disable it with `ELI_AB_COMPAT=0` or
+`--no-output-compat` when auditing whether those compatibility fixes can be
+removed. The latest checked snapshot scored DSv4 at `96/100` and GPT-5.5 at
+`95/100`.
 
 Metal performance cases are macOS/Darwin-only. They require a hand-written
 Metal path to beat the MLX baseline before merge; Linux or CUDA validation is

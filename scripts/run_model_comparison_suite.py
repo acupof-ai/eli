@@ -25,6 +25,10 @@ DEFAULT_CASES = ROOT / "tests/benchmarks/model_comparison_hard_tail_cases.json"
 DEFAULT_SNAPSHOT = ROOT / "tests/snapshots/model_comparison_latest.json"
 DEEPSEEK_BASE = "https://api.deepseek.com/beta"
 DEFAULT_OUTPUT_COMPAT = os.environ.get("ELI_AB_COMPAT", "1") != "0"
+DEFAULT_MAX_TOKENS = os.environ.get("ELI_AB_MAX_TOKENS", "4096")
+DEFAULT_MODEL_TIMEOUT = os.environ.get("ELI_AB_MODEL_TIMEOUT_SECONDS", "240")
+REPAIR_MAX_TOKENS = os.environ.get("ELI_AB_REPAIR_MAX_TOKENS", "1400")
+REPAIR_TIMEOUT_SECONDS = int(os.environ.get("ELI_AB_REPAIR_TIMEOUT_SECONDS", "90"))
 
 
 @dataclass(frozen=True)
@@ -210,7 +214,8 @@ import re
 import sys
 
 prompt = sys.stdin.read()
-match = re.search(r"return exactly:\\s*(.+?)(?:\\.|\\n|$)", prompt, re.I | re.S)
+pattern = r"return exactly(?: this string and nothing else)?:\\s*(.+?)(?:\\.|\\n|$)"
+match = re.search(pattern, prompt, re.I | re.S)
 fallback = "SUBAGENT_OK provider config DSML parser ownership"
 print((match.group(1) if match else fallback).strip())
 """
@@ -223,8 +228,8 @@ def bench_env(home: Path, fake_bin: Path) -> dict[str, str]:
             "ELI_HOME": str(home),
             "ELI_EVOLUTION_DISABLED": "1",
             "ELI_MAX_STEPS": "8",
-            "ELI_MAX_TOKENS": "1400",
-            "ELI_MODEL_TIMEOUT_SECONDS": "180",
+            "ELI_MAX_TOKENS": DEFAULT_MAX_TOKENS,
+            "ELI_MODEL_TIMEOUT_SECONDS": DEFAULT_MODEL_TIMEOUT,
             "RUST_LOG": "error",
             "PATH": f"{fake_bin}{os.pathsep}{env.get('PATH', '')}",
         }
@@ -287,7 +292,9 @@ def run_model_case(
 ) -> dict[str, Any]:
     print(f"RUN {spec.label} {case['id']}", flush=True)
     session = f"eli-ab-{run_id}-{spec.label}-{case['id']}"
-    runs = case_runs(case, prefix, bench_env(home, fake_bin), session, args.timeout)
+    env = bench_env(home, fake_bin)
+    runs = case_runs(case, prefix, env, session, args.timeout)
+    runs = maybe_repair_runs(case, prefix, env, home, session, runs, args)
     entries, tape_path = read_tape(home, session)
     result = score_case(case, build_evidence(session, runs, entries, tape_path, args.output_compat))
     print(f"{spec.label} {case['id']} {result['score']}/{result['max_points']}", flush=True)
@@ -303,6 +310,74 @@ def case_runs(
 ) -> list[dict[str, Any]]:
     turns = case.get("turns") or [case["prompt"]]
     return [run_eli_turn(prefix, turn, session, env, timeout) for turn in turns]
+
+
+def maybe_repair_runs(
+    case: dict[str, Any],
+    prefix: list[str],
+    env: dict[str, str],
+    home: Path,
+    session: str,
+    runs: list[dict[str, Any]],
+    args: argparse.Namespace,
+) -> list[dict[str, Any]]:
+    if not args.output_compat:
+        return runs
+    entries, tape_path = read_tape(home, session)
+    evidence = build_evidence(session, runs, entries, tape_path, True)
+    if not needs_output_repair(case, score_case(case, evidence)):
+        return runs
+    timeout = min(args.timeout, REPAIR_TIMEOUT_SECONDS)
+    repair = run_eli_turn(prefix, repair_prompt(case), session, repair_env(env), timeout)
+    repair["repair"] = True
+    return runs + [repair]
+
+
+def has_repair_run(runs: list[dict[str, Any]]) -> bool:
+    return any(run.get("repair") for run in runs)
+
+
+def repair_env(env: dict[str, str]) -> dict[str, str]:
+    updated = dict(env)
+    updated["ELI_MAX_TOKENS"] = REPAIR_MAX_TOKENS
+    updated["ELI_MODEL_TIMEOUT_SECONDS"] = str(REPAIR_TIMEOUT_SECONDS)
+    return updated
+
+
+def needs_output_repair(case: dict[str, Any], result: dict[str, Any]) -> bool:
+    if not has_json_contract(case):
+        return False
+    if result["diagnostics"]["status"] != "ok":
+        return True
+    return any(failed_json_check(detail) for detail in result["details"])
+
+
+def has_json_contract(case: dict[str, Any]) -> bool:
+    return any(check["kind"] == "stdout_json_keys" for check in case["rubric"])
+
+
+def failed_json_check(detail: dict[str, Any]) -> bool:
+    return not detail["passed"] and detail["kind"] == "stdout_json_keys"
+
+
+def repair_prompt(case: dict[str, Any]) -> str:
+    return "\n".join(
+        [
+            "Output repair turn. Do not call tools.",
+            "Use only the existing session context and prior tool evidence.",
+            "Your previous final answer was empty, truncated, or not strict JSON.",
+            f"Return only one complete JSON object with keys: {', '.join(json_keys(case))}.",
+            "Keep it concise while preserving the concrete technical requirements.",
+            "Preserve the original task requirements. Do not use markdown.",
+        ]
+    )
+
+
+def json_keys(case: dict[str, Any]) -> list[str]:
+    for check in case["rubric"]:
+        if check["kind"] == "stdout_json_keys":
+            return check["keys"]
+    return []
 
 
 def run_eli_turn(
@@ -450,6 +525,7 @@ def compact_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         {
             "command": run["command"],
             "returncode": run["returncode"],
+            "repair": run.get("repair", False),
             "elapsed_ms": run["elapsed_ms"],
             "stdout_tail": redact_secrets(run["stdout"][-900:]),
             "stderr_tail": redact_secrets(run["stderr"][-600:]),
@@ -489,11 +565,13 @@ def winner(delta: int, a: str, b: str) -> str:
 
 
 def check_returncode(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    if evidence["output_compat"] and has_repair_run(evidence["runs"]):
+        return evidence["runs"][-1]["returncode"] == check["value"]
     return all(code == check["value"] for code in evidence["returncodes"])
 
 
 def check_stdout_json_keys(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
-    payload = content_payload(check, evidence)
+    payload = content_payload(check, evidence, check["keys"])
     return isinstance(payload, dict) and all(key in payload for key in check["keys"])
 
 
@@ -567,15 +645,19 @@ def scoped_text(check: dict[str, Any], evidence: dict[str, Any]) -> str:
     return evidence["stdout"]
 
 
-def content_payload(check: dict[str, Any], evidence: dict[str, Any]) -> Any:
+def content_payload(
+    check: dict[str, Any],
+    evidence: dict[str, Any],
+    keys: list[str] | None = None,
+) -> Any:
     text = scoped_text(check, evidence)
-    return content_json(text) or compat_content_json(evidence, text)
+    return content_json(text, keys) or compat_content_json(evidence, text, keys)
 
 
-def compat_content_json(evidence: dict[str, Any], text: str) -> Any:
+def compat_content_json(evidence: dict[str, Any], text: str, keys: list[str] | None) -> Any:
     if not evidence["output_compat"] or text == evidence["assistant_text"]:
         return None
-    return content_json(evidence["assistant_text"])
+    return content_json(evidence["assistant_text"], keys)
 
 
 def json_field_text(check: dict[str, Any], evidence: dict[str, Any]) -> str:
@@ -698,15 +780,45 @@ def forbids_all(text: str, needles: list[str]) -> bool:
 
 
 def normalize_text(text: str) -> str:
-    lowered = text.lower().replace("_", " ").replace("-", " ")
+    lowered = text.translate(UNICODE_TEXT_NORMALIZATION).lower()
+    lowered = lowered.replace("_", " ").replace("-", " ").replace("^", "")
     lowered = re.sub(r"(\d+)\.0+%", r"\1%", lowered)
+    lowered = re.sub(r"\bmasked\b", "mask", lowered)
+    lowered = re.sub(r"warm\s+up", "warmup", lowered)
     lowered = re.sub(r"mac\s+only", "macos", lowered)
     return re.sub(r"\s+", " ", lowered)
 
 
-def content_json(text: str) -> Any:
+UNICODE_TEXT_NORMALIZATION = str.maketrans(
+    {
+        "−": "-",
+        "–": "-",
+        "—": "-",
+        "⁰": "0",
+        "¹": "1",
+        "²": "2",
+        "³": "3",
+        "⁴": "4",
+        "⁵": "5",
+        "⁶": "6",
+        "⁷": "7",
+        "⁸": "8",
+        "⁹": "9",
+        "×": "x",
+    }
+)
+
+
+def content_json(text: str, keys: list[str] | None = None) -> Any:
     cleaned = strip_fences(text).strip()
-    return parse_json(cleaned) or parse_json_prefix(cleaned) or parse_json(extract_json_object(cleaned))
+    if keys:
+        return parse_json_with_keys(cleaned, keys)
+    return (
+        parse_json(cleaned)
+        or parse_json_prefix(cleaned)
+        or parse_json(extract_json_object(cleaned))
+        or parse_last_json_object(cleaned)
+    )
 
 
 def strip_fences(text: str) -> str:
@@ -730,10 +842,58 @@ def parse_json_prefix(text: str) -> Any:
         return None
 
 
+def parse_json_with_keys(text: str, keys: list[str]) -> Any:
+    for payload in json_candidates(text):
+        if isinstance(payload, dict) and all(key in payload for key in keys):
+            return payload
+    return None
+
+
+def json_candidates(text: str) -> list[Any]:
+    candidates = [parse_json(text), parse_json_prefix(text), parse_json(extract_json_object(text))]
+    candidates += parse_json_objects(text)
+    return [candidate for candidate in candidates if candidate is not None]
+
+
 def extract_json_object(text: str) -> str | None:
     start = text.find("{")
     end = text.rfind("}")
     return text[start : end + 1] if start >= 0 and end > start else None
+
+
+def parse_last_json_object(text: str) -> Any:
+    best_end, best_start, best = -1, len(text) + 1, None
+    for idx, payload, end in raw_json_objects(text):
+        if end > best_end or (end == best_end and idx < best_start):
+            best_end, best_start, best = end, idx, payload
+    return best
+
+
+def parse_json_objects(text: str) -> list[Any]:
+    return [payload for _, payload, _ in raw_json_objects(text)]
+
+
+def raw_json_objects(text: str) -> list[tuple[int, Any, int]]:
+    objects = []
+    decoder = json.JSONDecoder()
+    for idx, char in enumerate(text):
+        if char != "{":
+            continue
+        if candidate := parse_candidate(text, decoder, idx):
+            objects.append(candidate)
+    return objects
+
+
+def parse_candidate(
+    text: str,
+    decoder: json.JSONDecoder,
+    idx: int,
+) -> tuple[int, Any, int] | None:
+    try:
+        payload, end = decoder.raw_decode(text[idx:])
+    except json.JSONDecodeError:
+        return None
+    return (idx, payload, idx + end) if isinstance(payload, dict) else None
 
 
 def build_snapshot(

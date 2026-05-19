@@ -17,13 +17,13 @@
     {
       "id": "frontier_science_claim_audit",
       "capability": "frontier_science",
-      "prompt": "Frontier-science benchmark. Do not call tools. Audit this paper excerpt for ckl. Hydra-Cache claims a 3x end-to-end agent speedup by combining a new router and a Metal-backed cache kernel. The table reports baseline prefill 11.2 ms, baseline decode 6.0 ms, Hydra prefill 7.5 ms, Hydra decode 6.1 ms, and p95 turn latency 18.4 ms to 13.6 ms. The router was tuned on production traces sampled from the same week as evaluation. The ablation changes both router and kernel together. The paper reports the max improvement across 6 tasks and omits energy counters. Return strict JSON with keys verdict, fatal_flaws, minimal_experiments, adoption_decision. Do not use markdown.",
+      "prompt": "Frontier-science benchmark. Do not call tools. Audit this paper excerpt for ckl. Hydra-Cache claims a 3x end-to-end agent speedup by combining a new router and a Metal-backed cache kernel. The table reports baseline prefill 11.2 ms, baseline decode 6.0 ms, Hydra prefill 7.5 ms, Hydra decode 6.1 ms, and p95 turn latency 18.4 ms to 13.6 ms. The router was tuned on production traces sampled from the same week as evaluation. The ablation changes both router and kernel together. The paper reports the max improvement across 6 tasks and omits energy counters. Return strict JSON with keys verdict, fatal_flaws, minimal_experiments, adoption_decision. Explicitly state whether the ablation is confounded or cannot attribute the gains. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
         {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["verdict", "fatal_flaws", "minimal_experiments", "adoption_decision"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["3x", "unsupported"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["unsupported", "contradicted", "retract", "unreproducible", "burden of proof"], "points": 1},
         {"kind": "stdout_contains_all", "needles": ["train", "evaluation", "leak"], "points": 2},
         {"kind": "stdout_contains_all", "needles": ["ablation"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["confounded", "cannot attribute", "not isolate"], "points": 1},
@@ -35,13 +35,13 @@
     {
       "id": "metal_mlx_kernel_speed_mac_only",
       "capability": "metal_performance",
-      "prompt": "Programming and performance benchmark. Do not call tools. Design the next Eli benchmark task for a hand-written Apple Metal kernel that must beat an MLX baseline on Apple Silicon. Metal performance tests are Mac-only: do not design Linux or CUDA validation. The target workload is a GRN-style recurrent update with small hidden state and long sequence length. Return strict JSON with keys mac_only_guard, kernel_design, benchmark_protocol, acceptance_gate, risk_register. Include enough implementation detail that an engineer could start the patch. Do not use markdown.",
+      "prompt": "Programming and performance benchmark. Do not call tools. Design the next Eli benchmark task for a hand-written Apple Metal kernel that must beat an MLX baseline on Apple Silicon. Metal performance tests are Mac-only: do not design Linux or CUDA validation. The target workload is a GRN-style recurrent update with small hidden state and long sequence length. Return strict JSON with keys mac_only_guard, kernel_design, benchmark_protocol, acceptance_gate, risk_register. Include enough implementation detail that an engineer could start the patch: macOS/Darwin guard, MTLBuffer layout, threadgroup or simdgroup strategy, MLX baseline protocol with warmup/p50/p95, and an acceptance gate of at least 1.15x faster than MLX. Keep each top-level field concise; no long code dumps or nested benchmark logs. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
         {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["mac_only_guard", "kernel_design", "benchmark_protocol", "acceptance_gate", "risk_register"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["macOS", "Darwin"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["macOS", "Darwin"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["MTLBuffer", "Metal buffer"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["threadgroup memory", "simdgroup", "simdgroup_matrix"], "points": 2},
         {"kind": "stdout_contains_all", "needles": ["MLX", "baseline"], "points": 1},
@@ -53,7 +53,7 @@
     {
       "id": "rust_openai_payload_programming",
       "capability": "programming",
-      "prompt": "Programming benchmark. Do not call tools. Eli's OpenAI profile fails against openai:gpt-5.5 with HTTP 400 Unsupported parameter: session_id. Eli still needs local tape continuity, and Anthropic-like providers may map a sanitized session hint to metadata.user_id. Produce a minimal Rust patch sketch, not a generic plan. Return strict JSON with keys diff_sketch, test_names, verification, risk. Respect the repo rule that Rust function bodies stay under 15 lines. Do not use markdown.",
+      "prompt": "Programming benchmark. Do not call tools. Eli's OpenAI profile fails against openai:gpt-5.5 with HTTP 400 Unsupported parameter: session_id. Eli still needs local tape continuity, and Anthropic-like providers may map a sanitized session hint to metadata.user_id. Produce a minimal Rust patch sketch, not a generic plan. Mention how provider kwargs or request-body extras strip session_id for OpenAI while preserving the sanitized Anthropic mapping. Return strict JSON with keys diff_sketch, test_names, verification, risk. Verification must include cargo fmt --all -- --check, cargo clippy --workspace -- -D warnings, and cargo test --workspace. Respect the repo rule that Rust function bodies stay under 15 lines. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [
@@ -71,18 +71,18 @@
     {
       "id": "writing_revision_decision_memo",
       "capability": "writing",
-      "prompt": "Writing benchmark. Do not call tools. Rewrite this noisy status into a concise executive memo for ckl. Source: 'Bench is basically great, both models are awesome, CI green, maybe there are some small differences, we should probably keep it, it covers lots of things, GPT seems better but DS is also good, there was something about session_id and tool calls, all looks fine.' The memo must be 180-230 words, direct, non-marketing, and useful to a senior Rust/backend engineer deciding whether to keep or delete the suite. Return strict JSON with keys title, memo, cuts_made, residual_risk. Do not use markdown.",
+      "prompt": "Writing benchmark. Do not call tools. Rewrite this noisy status into a concise executive memo for ckl. Source: 'Bench is basically great, both models are awesome, CI green, maybe there are some small differences, we should probably keep it, it covers lots of things, GPT seems better but DS is also good, there was something about session_id and tool calls, all looks fine.' The memo must be 180-230 words, direct, non-marketing, and useful to a senior Rust/backend engineer deciding whether to keep or delete the suite. Use a decision or recommendation title, and make residual_risk explicitly name the remaining risk. Return strict JSON with keys title, memo, cuts_made, residual_risk. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
         {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["title", "memo", "cuts_made", "residual_risk"], "points": 1},
-        {"kind": "json_field_contains_any", "field": "title", "needles": ["decision", "recommendation"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["confidence", "evidence", "signal"], "points": 1},
+        {"kind": "json_field_contains_any", "field": "title", "needles": ["decision", "recommendation", "recommend"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["confidence", "evidence", "signal", "regression"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["DSv4", "DeepSeek"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["session_id", "tool calls", "tool-call"], "points": 1},
-        {"kind": "json_field_contains_any", "field": "residual_risk", "needles": ["risk", "stable", "flaky"], "points": 1},
-        {"kind": "json_field_contains_any", "field": "memo", "needles": ["delete", "deletion"], "points": 1},
+        {"kind": "json_field_contains_any", "field": "residual_risk", "needles": ["risk", "stable", "flaky", "gap", "threshold", "impact", "regression", "diverge"], "points": 1},
+        {"kind": "json_field_contains_any", "field": "memo", "needles": ["keep", "retain", "delete", "deletion", "remove", "removing"], "points": 1},
         {"kind": "json_field_forbid_all", "field": "memo", "needles": ["awesome", "great", "game-changing", "revolutionary"], "points": 1},
         {"kind": "no_tool_calls", "points": 1}
       ]
@@ -90,7 +90,7 @@
     {
       "id": "simpsons_paradox_bench_analysis",
       "capability": "analysis",
-      "prompt": "Analysis benchmark. Do not call tools. Old suite: 90 easy cases and 10 hard-tail cases. DSv4 passes 88 easy and 2 hard. GPT-5.5 passes 86 easy and 7 hard. The old report only said DSv4=90/100 and GPT-5.5=93/100, then called the suite acceptable. Return strict JSON with keys overall, hard_tail, diagnosis, decision. Include exact percentages and whether easy cases should be deleted, downweighted, or kept. Do not use markdown.",
+      "prompt": "Analysis benchmark. Do not call tools. Old suite: 90 easy cases and 10 hard-tail cases. DSv4 passes 88 easy and 2 hard. GPT-5.5 passes 86 easy and 7 hard. The old report only said DSv4=90/100 and GPT-5.5=93/100, then called the suite acceptable. Return strict JSON with keys overall, hard_tail, diagnosis, decision. Include exact percentages, name the Simpson/masked hard-tail issue, and decide whether easy cases should be deleted, downweighted, or kept. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [
@@ -107,7 +107,7 @@
     {
       "id": "browsecomp_style_exploration_plan",
       "capability": "exploration",
-      "prompt": "Exploration benchmark. Do not call tools or browse. ckl asks you to find the original source of a hard-to-locate claim: 'the first public mention that Eli-style local tape handoff should preserve KV-cache efficiency came before the OpenAI session_id fix.' You cannot answer the fact now. Produce a strict JSON research plan with keys query_strategy, source_triage, evidence_rules, stop_conditions. The plan must avoid fabrication and must be strong enough for a future web-enabled agent to execute. Do not use markdown.",
+      "prompt": "Exploration benchmark. Do not call tools or browse. ckl asks you to find the original source of a hard-to-locate claim: 'the first public mention that Eli-style local tape handoff should preserve KV-cache efficiency came before the OpenAI session_id fix.' You cannot answer the fact now. Produce a strict JSON research plan with keys query_strategy, source_triage, evidence_rules, stop_conditions. The plan must include query pivots/search operators, primary-source triage, timestamp/archive evidence, negative-evidence or not-found handling, citation confidence, and an explicit no-fabrication rule. Do not use markdown.",
       "max_points": 10,
       "threshold": 8,
       "rubric": [

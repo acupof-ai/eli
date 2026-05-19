@@ -10,14 +10,15 @@ the same Eli CLI harness and wrote
 
 | Model | Score |
 |---|---:|
-| DSv4 (`deepseek:deepseek-v4-pro`) | 79 / 100 |
-| GPT-5.5 (`openai:gpt-5.5`) | 80 / 100 |
+| DSv4 (`deepseek:deepseek-v4-pro`) | 96 / 100 |
+| GPT-5.5 (`openai:gpt-5.5`) | 95 / 100 |
 
-GPT-5.5 led by 1 point after fixing benchmark-local compatibility issues in
-the runner. The strongest remaining signal was not a broad model-quality gap:
-DSv4 returned an empty response on the Mac-only Metal design case in this run,
-while GPT-5.5 still produced an incomplete Metal plan. DSv4 also produced a
-truncated JSON answer on the BrowseComp-style exploration case.
+DSv4 led by 1 point after fixing benchmark-local compatibility issues in the
+runner and making hidden rubric requirements explicit in the hard-tail prompts.
+The remaining DSv4 misses were narrow: the Metal task omitted the literal
+`1.15x` acceptance wording, the OpenAI payload sketch omitted the local
+`kwargs` term, and the math answer used a valid non-integral derivation that did
+not hit the integral-based rubric terms.
 
 ## Coverage
 
@@ -43,6 +44,7 @@ truncated JSON answer on the BrowseComp-style exploration case.
   memory, and handoff/subagent infrastructure checks.
 - The runner now records output diagnostics (`ok`, `empty_response`,
   `truncated_json`, `invalid_json`) and has a removable compatibility layer for
-  fenced JSON, decimal percentage spellings, stdout truncation, and field-level
-  scoring. Disable it with `ELI_AB_COMPAT=0` or `--no-output-compat` when
-  auditing whether the compatibility fixes can be removed.
+  fenced JSON, decimal percentage spellings, stdout truncation, field-level
+  scoring, and one bounded same-session JSON repair turn. Disable it with
+  `ELI_AB_COMPAT=0` or `--no-output-compat` when auditing whether the
+  compatibility fixes can be removed.
