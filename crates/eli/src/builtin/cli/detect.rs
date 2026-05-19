@@ -196,6 +196,7 @@ mod tests {
 
     #[test]
     fn candidates_use_default_ports_without_env() {
+        let _guard = local_env_guard();
         clear_local_env();
         let candidates = local_candidates();
         assert_eq!(
