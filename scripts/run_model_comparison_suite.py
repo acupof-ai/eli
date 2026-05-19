@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CASES = ROOT / "tests/benchmarks/model_comparison_hard_tail_cases.json"
 DEFAULT_SNAPSHOT = ROOT / "tests/snapshots/model_comparison_latest.json"
 DEEPSEEK_BASE = "https://api.deepseek.com/beta"
+DEFAULT_OUTPUT_COMPAT = os.environ.get("ELI_AB_COMPAT", "1") != "0"
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=int, default=240)
     parser.add_argument("--build-timeout", type=int, default=180)
     parser.add_argument("--no-write-snapshot", action="store_true")
+    parser.add_argument("--no-output-compat", action="store_false", dest="output_compat")
+    parser.set_defaults(output_compat=DEFAULT_OUTPUT_COMPAT)
     return parser.parse_args()
 
 
@@ -196,9 +199,21 @@ def write_fake_codex(root: Path) -> Path:
     bin_dir = root / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
     path = bin_dir / "codex"
-    path.write_text("#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' 'SUBAGENT_OK provider config DSML parser ownership'\n")
+    path.write_text(fake_codex_script())
     path.chmod(0o755)
     return bin_dir
+
+
+def fake_codex_script() -> str:
+    return """#!/usr/bin/env python3
+import re
+import sys
+
+prompt = sys.stdin.read()
+match = re.search(r"return exactly:\\s*(.+?)(?:\\.|\\n|$)", prompt, re.I | re.S)
+fallback = "SUBAGENT_OK provider config DSML parser ownership"
+print((match.group(1) if match else fallback).strip())
+"""
 
 
 def bench_env(home: Path, fake_bin: Path) -> dict[str, str]:
@@ -230,8 +245,8 @@ def run_suite(args: argparse.Namespace, root: Path, run_id: str) -> dict[str, An
     prefix = eli_prefix(args)
     fake_bin = write_fake_codex(root)
     homes = prepare_homes(root, specs)
-    cases = run_cases(suite["cases"], specs, prefix, homes, fake_bin, run_id, args.timeout)
-    return build_snapshot(suite, specs, prefix, homes, cases)
+    cases = run_cases(suite["cases"], specs, prefix, homes, fake_bin, run_id, args)
+    return build_snapshot(suite, specs, prefix, homes, cases, args.output_compat)
 
 
 def run_cases(
@@ -241,9 +256,9 @@ def run_cases(
     homes: dict[str, Path],
     fake_bin: Path,
     run_id: str,
-    timeout: int,
+    args: argparse.Namespace,
 ) -> list[dict[str, Any]]:
-    return [run_case_pair(case, specs, prefix, homes, fake_bin, run_id, timeout) for case in cases]
+    return [run_case_pair(case, specs, prefix, homes, fake_bin, run_id, args) for case in cases]
 
 
 def run_case_pair(
@@ -253,11 +268,11 @@ def run_case_pair(
     homes: dict[str, Path],
     fake_bin: Path,
     run_id: str,
-    timeout: int,
+    args: argparse.Namespace,
 ) -> dict[str, Any]:
     results = {}
     for spec in specs:
-        results[spec.label] = run_model_case(case, spec, prefix, homes[spec.label], fake_bin, run_id, timeout)
+        results[spec.label] = run_model_case(case, spec, prefix, homes[spec.label], fake_bin, run_id, args)
     return compare_case(case, specs, results)
 
 
@@ -268,13 +283,13 @@ def run_model_case(
     home: Path,
     fake_bin: Path,
     run_id: str,
-    timeout: int,
+    args: argparse.Namespace,
 ) -> dict[str, Any]:
     print(f"RUN {spec.label} {case['id']}", flush=True)
     session = f"eli-ab-{run_id}-{spec.label}-{case['id']}"
-    runs = case_runs(case, prefix, bench_env(home, fake_bin), session, timeout)
+    runs = case_runs(case, prefix, bench_env(home, fake_bin), session, args.timeout)
     entries, tape_path = read_tape(home, session)
-    result = score_case(case, build_evidence(session, runs, entries, tape_path))
+    result = score_case(case, build_evidence(session, runs, entries, tape_path, args.output_compat))
     print(f"{spec.label} {case['id']} {result['score']}/{result['max_points']}", flush=True)
     return result
 
@@ -338,17 +353,36 @@ def build_evidence(
     runs: list[dict[str, Any]],
     entries: list[dict[str, Any]],
     tape_path: Path | None,
+    output_compat: bool,
 ) -> dict[str, Any]:
+    stdout = "\n".join(run["stdout"] for run in runs)
+    last_stdout = runs[-1]["stdout"] if runs else ""
+    assistant = assistant_text(entries)
     return {
         "session_id": session,
         "runs": runs,
         "returncodes": [run["returncode"] for run in runs],
-        "stdout": "\n".join(run["stdout"] for run in runs),
-        "last_stdout": runs[-1]["stdout"] if runs else "",
+        "stdout": stdout,
+        "last_stdout": last_stdout,
+        "assistant_text": assistant,
         "stderr": "\n".join(run["stderr"] for run in runs),
         "tape_entries": entries,
         "tape_path": str(tape_path) if tape_path else None,
+        "output_compat": output_compat,
     }
+
+
+def assistant_text(entries: list[dict[str, Any]]) -> str:
+    return "\n".join(message_content(entry) for entry in assistant_messages(entries))
+
+
+def assistant_messages(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [entry for entry in kind_entries(entries, "message") if entry["payload"].get("role") == "assistant"]
+
+
+def message_content(entry: dict[str, Any]) -> str:
+    content = entry["payload"].get("content", "")
+    return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
 
 def score_case(case: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
@@ -384,8 +418,31 @@ def result_payload(
         "runs": compact_runs(evidence["runs"]),
         "stdout_tail": redact_secrets(evidence["stdout"][-1800:]),
         "stderr_tail": redact_secrets(evidence["stderr"][-1200:]),
+        "diagnostics": output_diagnostics(evidence),
         "tape": tape_summary(evidence["tape_entries"], evidence["tape_path"]),
     }
+
+
+def output_diagnostics(evidence: dict[str, Any]) -> dict[str, Any]:
+    text = evidence["assistant_text"] or evidence["last_stdout"]
+    return {"status": output_status(text), "compat": evidence["output_compat"]}
+
+
+def output_status(text: str) -> str:
+    stripped = text.strip()
+    if not stripped or stripped == "(model returned empty response)":
+        return "empty_response"
+    if looks_like_json(stripped) and content_json(stripped) is None:
+        return "truncated_json" if likely_truncated_json(stripped) else "invalid_json"
+    return "ok"
+
+
+def looks_like_json(text: str) -> bool:
+    return text.startswith("{") or text.startswith("```")
+
+
+def likely_truncated_json(text: str) -> bool:
+    return text.count("{") > text.count("}") or text.count("[") > text.count("]")
 
 
 def compact_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -436,7 +493,7 @@ def check_returncode(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
 
 
 def check_stdout_json_keys(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
-    payload = content_json(scoped_text(check, evidence))
+    payload = content_payload(check, evidence)
     return isinstance(payload, dict) and all(key in payload for key in check["keys"])
 
 
@@ -449,8 +506,19 @@ def check_stdout_contains_any(check: dict[str, Any], evidence: dict[str, Any]) -
 
 
 def check_stdout_forbid_all(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
-    text = scoped_text(check, evidence).lower()
-    return all(needle.lower() not in text for needle in check["needles"])
+    return forbids_all(scoped_text(check, evidence), check["needles"])
+
+
+def check_json_field_contains_all(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    return contains_all(json_field_text(check, evidence), check["needles"])
+
+
+def check_json_field_contains_any(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    return contains_any(json_field_text(check, evidence), check["needles"])
+
+
+def check_json_field_forbid_all(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    return forbids_all(json_field_text(check, evidence), check["needles"])
 
 
 def check_no_tool_calls(_: dict[str, Any], evidence: dict[str, Any]) -> bool:
@@ -488,6 +556,8 @@ def check_event_count_at_least(check: dict[str, Any], evidence: dict[str, Any]) 
 
 def scoped_text(check: dict[str, Any], evidence: dict[str, Any]) -> str:
     scope = check.get("scope", "stdout")
+    if scope == "assistant":
+        return evidence["assistant_text"]
     if scope == "last_stdout":
         return evidence["last_stdout"]
     if scope == "stderr":
@@ -497,12 +567,39 @@ def scoped_text(check: dict[str, Any], evidence: dict[str, Any]) -> str:
     return evidence["stdout"]
 
 
+def content_payload(check: dict[str, Any], evidence: dict[str, Any]) -> Any:
+    text = scoped_text(check, evidence)
+    return content_json(text) or compat_content_json(evidence, text)
+
+
+def compat_content_json(evidence: dict[str, Any], text: str) -> Any:
+    if not evidence["output_compat"] or text == evidence["assistant_text"]:
+        return None
+    return content_json(evidence["assistant_text"])
+
+
+def json_field_text(check: dict[str, Any], evidence: dict[str, Any]) -> str:
+    payload = content_payload(check, evidence)
+    value = json_field(payload, check["field"]) if isinstance(payload, dict) else ""
+    return json.dumps(value, ensure_ascii=False) if isinstance(value, (dict, list)) else str(value)
+
+
+def json_field(payload: dict[str, Any], field: str) -> Any:
+    value: Any = payload
+    for part in field.split("."):
+        value = value.get(part) if isinstance(value, dict) else None
+    return value if value is not None else ""
+
+
 CHECKS = {
     "returncode": check_returncode,
     "stdout_json_keys": check_stdout_json_keys,
     "stdout_contains_all": check_stdout_contains_all,
     "stdout_contains_any": check_stdout_contains_any,
     "stdout_forbid_all": check_stdout_forbid_all,
+    "json_field_contains_all": check_json_field_contains_all,
+    "json_field_contains_any": check_json_field_contains_any,
+    "json_field_forbid_all": check_json_field_forbid_all,
     "no_tool_calls": check_no_tool_calls,
     "tool_name_at_least": check_tool_name_at_least,
     "tool_name_count": check_tool_name_count,
@@ -586,18 +683,30 @@ def normalize_tool_name(name: str) -> str:
 
 
 def contains_any(text: str, needles: list[str]) -> bool:
-    lowered = text.lower()
-    return any(needle.lower() in lowered for needle in needles)
+    normalized = normalize_text(text)
+    return any(normalize_text(needle) in normalized for needle in needles)
 
 
 def contains_all(text: str, needles: list[str]) -> bool:
-    lowered = text.lower()
-    return all(needle.lower() in lowered for needle in needles)
+    normalized = normalize_text(text)
+    return all(normalize_text(needle) in normalized for needle in needles)
+
+
+def forbids_all(text: str, needles: list[str]) -> bool:
+    normalized = normalize_text(text)
+    return all(normalize_text(needle) not in normalized for needle in needles)
+
+
+def normalize_text(text: str) -> str:
+    lowered = text.lower().replace("_", " ").replace("-", " ")
+    lowered = re.sub(r"(\d+)\.0+%", r"\1%", lowered)
+    lowered = re.sub(r"mac\s+only", "macos", lowered)
+    return re.sub(r"\s+", " ", lowered)
 
 
 def content_json(text: str) -> Any:
     cleaned = strip_fences(text).strip()
-    return parse_json(cleaned) or parse_json(extract_json_object(cleaned))
+    return parse_json(cleaned) or parse_json_prefix(cleaned) or parse_json(extract_json_object(cleaned))
 
 
 def strip_fences(text: str) -> str:
@@ -614,6 +723,13 @@ def parse_json(text: str | None) -> Any:
         return None
 
 
+def parse_json_prefix(text: str) -> Any:
+    try:
+        return json.JSONDecoder().raw_decode(text)[0]
+    except json.JSONDecodeError:
+        return None
+
+
 def extract_json_object(text: str) -> str | None:
     start = text.find("{")
     end = text.rfind("}")
@@ -626,6 +742,7 @@ def build_snapshot(
     prefix: list[str],
     homes: dict[str, Path],
     cases: list[dict[str, Any]],
+    output_compat: bool,
 ) -> dict[str, Any]:
     return {
         "suite": suite["suite"],
@@ -634,16 +751,17 @@ def build_snapshot(
         "selection_policy": suite["selection_policy"],
         "models": {spec.label: spec.public() for spec in specs},
         "scores": score_summary(cases, specs),
-        "run_environment": run_environment(prefix, homes),
+        "run_environment": run_environment(prefix, homes, output_compat),
         "cases": cases,
     }
 
 
-def run_environment(prefix: list[str], homes: dict[str, Path]) -> dict[str, Any]:
+def run_environment(prefix: list[str], homes: dict[str, Path], output_compat: bool) -> dict[str, Any]:
     return {
         "workspace": str(ROOT),
         "eli_entrypoint": prefix,
         "eli_homes": {label: str(path) for label, path in homes.items()},
+        "output_compat": output_compat,
     }
 
 

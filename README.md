@@ -254,6 +254,12 @@ reasoning, Mac-only Metal-vs-MLX performance work, multi-turn memory, tool
 evidence replay, tape handoff, and subagent orchestration. Results are written
 to `tests/snapshots/model_comparison_latest.json`.
 
+The runner includes a benchmark-local output compatibility layer for common
+model issues such as fenced JSON, decimal percentage spellings, stdout
+truncation, and empty or truncated structured output diagnostics. Disable it
+with `ELI_AB_COMPAT=0` or `--no-output-compat` when auditing whether those
+compatibility fixes can be removed.
+
 Metal performance cases are macOS/Darwin-only. They require a hand-written
 Metal path to beat the MLX baseline before merge; Linux or CUDA validation is
 not part of this benchmark.

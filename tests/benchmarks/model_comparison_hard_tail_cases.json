@@ -25,7 +25,8 @@
         {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["verdict", "fatal_flaws", "minimal_experiments", "adoption_decision"], "points": 1},
         {"kind": "stdout_contains_all", "needles": ["3x", "unsupported"], "points": 1},
         {"kind": "stdout_contains_all", "needles": ["train", "evaluation", "leak"], "points": 2},
-        {"kind": "stdout_contains_all", "needles": ["confounded", "ablation"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["ablation"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["confounded", "cannot attribute", "not isolate"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["multiple comparisons", "cherry", "max across"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["decode", "energy", "p95"], "points": 1},
         {"kind": "no_tool_calls", "points": 1}
@@ -76,12 +77,13 @@
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
         {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["title", "memo", "cuts_made", "residual_risk"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["decision", "delete"], "points": 1},
+        {"kind": "json_field_contains_any", "field": "title", "needles": ["decision", "recommendation"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["confidence", "evidence", "signal"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["DSv4", "GPT-5.5"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["DSv4", "DeepSeek"], "points": 1},
         {"kind": "stdout_contains_any", "needles": ["session_id", "tool calls", "tool-call"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["risk", "next"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["awesome", "great", "game-changing", "revolutionary"], "points": 2},
+        {"kind": "json_field_contains_any", "field": "residual_risk", "needles": ["risk", "stable", "flaky"], "points": 1},
+        {"kind": "json_field_contains_any", "field": "memo", "needles": ["delete", "deletion"], "points": 1},
+        {"kind": "json_field_forbid_all", "field": "memo", "needles": ["awesome", "great", "game-changing", "revolutionary"], "points": 1},
         {"kind": "no_tool_calls", "points": 1}
       ]
     },

@@ -10,13 +10,14 @@ the same Eli CLI harness and wrote
 
 | Model | Score |
 |---|---:|
-| DSv4 (`deepseek:deepseek-v4-pro`) | 69 / 100 |
-| GPT-5.5 (`openai:gpt-5.5`) | 74 / 100 |
+| DSv4 (`deepseek:deepseek-v4-pro`) | 79 / 100 |
+| GPT-5.5 (`openai:gpt-5.5`) | 80 / 100 |
 
-GPT-5.5 led by 5 points on the non-saturated hard-tail suite. The strongest
-separators were frontier-science audit, Rust patch sketching, writing a
-decision memo, and a mathematical sanity check. The Mac-only Metal-vs-MLX
-design case stayed hard for both models.
+GPT-5.5 led by 1 point after fixing benchmark-local compatibility issues in
+the runner. The strongest remaining signal was not a broad model-quality gap:
+DSv4 returned an empty response on the Mac-only Metal design case in this run,
+while GPT-5.5 still produced an incomplete Metal plan. DSv4 also produced a
+truncated JSON answer on the BrowseComp-style exploration case.
 
 ## Coverage
 
@@ -40,3 +41,8 @@ design case stayed hard for both models.
   design or require Linux/CUDA Metal tests.
 - Both models passed the core tool-call, next-turn replay, long multi-turn
   memory, and handoff/subagent infrastructure checks.
+- The runner now records output diagnostics (`ok`, `empty_response`,
+  `truncated_json`, `invalid_json`) and has a removable compatibility layer for
+  fenced JSON, decimal percentage spellings, stdout truncation, and field-level
+  scoring. Disable it with `ELI_AB_COMPAT=0` or `--no-output-compat` when
+  auditing whether the compatibility fixes can be removed.

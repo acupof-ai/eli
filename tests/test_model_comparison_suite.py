@@ -1,16 +1,27 @@
 """Schema checks for the Eli model comparison benchmark."""
 
 import json
+import importlib.util
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = ROOT / "tests/benchmarks/model_comparison_hard_tail_cases.json"
 SNAPSHOT = ROOT / "tests/snapshots/model_comparison_latest.json"
+RUNNER = ROOT / "scripts/run_model_comparison_suite.py"
 
 
 def load_json(path: Path):
     return json.loads(path.read_text())
+
+
+def load_runner():
+    spec = importlib.util.spec_from_file_location("model_comparison_runner", RUNNER)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_suite_has_ten_hard_tail_cases():
@@ -62,6 +73,13 @@ def test_suite_scores_to_one_hundred_points():
         assert sum(check["points"] for check in case["rubric"]) == case["max_points"]
 
 
+def test_suite_uses_known_check_kinds():
+    runner = load_runner()
+    cases = load_json(CASES)["cases"]
+    kinds = {check["kind"] for case in cases for check in case["rubric"]}
+    assert kinds <= set(runner.CHECKS)
+
+
 def test_hard_tail_cases_are_not_saturated_smoke_prompts():
     cases = load_json(CASES)["cases"]
     forbidden_ids = {
@@ -87,4 +105,37 @@ def test_snapshot_matches_comparison_shape_when_present():
     assert set(snapshot["models"]) == {"dsv4", "gpt55"}
     assert set(snapshot["scores"]["total"]) == {"dsv4", "gpt55"}
     assert snapshot["scores"]["total"]["dsv4"]["max"] == 100
+    assert snapshot["run_environment"].get("output_compat", True) is True
     assert "api_total" not in snapshot["scores"]
+
+
+def test_runner_compat_matches_decimal_percentages():
+    runner = load_runner()
+    assert runner.contains_all("DSv4 = 90.0%; GPT-5.5 = 93.00%", ["90%", "93%"])
+
+
+def test_runner_detects_empty_and_truncated_json():
+    runner = load_runner()
+    assert runner.output_status("(model returned empty response)") == "empty_response"
+    assert runner.output_status('{"a": {"b": 1') == "truncated_json"
+
+
+def test_runner_json_field_checks_ignore_other_fields():
+    runner = load_runner()
+    evidence = {
+        "stdout": '{"memo": "keep it", "cuts_made": "removed great"}',
+        "last_stdout": '{"memo": "keep it", "cuts_made": "removed great"}',
+        "assistant_text": "",
+        "output_compat": True,
+    }
+    check = {"field": "memo", "needles": ["great"]}
+    assert runner.check_json_field_forbid_all(check, evidence)
+
+
+def test_fake_codex_echoes_return_exactly(tmp_path):
+    runner = load_runner()
+    bin_dir = runner.write_fake_codex(tmp_path)
+    codex = bin_dir / "codex"
+    prompt = "please return exactly: SUBAGENT_OK hard-tail metal mac-only frontier-science. done"
+    out = __import__("subprocess").check_output([str(codex)], input=prompt, text=True)
+    assert out.strip() == "SUBAGENT_OK hard-tail metal mac-only frontier-science"
