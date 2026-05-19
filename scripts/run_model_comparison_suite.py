@@ -293,12 +293,36 @@ def run_model_case(
     print(f"RUN {spec.label} {case['id']}", flush=True)
     session = f"eli-ab-{run_id}-{spec.label}-{case['id']}"
     env = bench_env(home, fake_bin)
-    runs = case_runs(case, prefix, env, session, args.timeout)
-    runs = maybe_repair_runs(case, prefix, env, home, session, runs, args)
-    entries, tape_path = read_tape(home, session)
-    result = score_case(case, build_evidence(session, runs, entries, tape_path, args.output_compat))
+    raw_runs = case_runs(case, prefix, env, session, args.timeout)
+    result = raw_case_result(case, home, session, raw_runs)
+    runs = maybe_repair_runs(case, prefix, env, home, session, raw_runs, args)
+    result = with_compat_result(case, home, session, result, runs, args.output_compat)
     print(f"{spec.label} {case['id']} {result['score']}/{result['max_points']}", flush=True)
     return result
+
+
+def raw_case_result(case: dict[str, Any], home: Path, session: str, runs: list[dict[str, Any]]) -> dict[str, Any]:
+    entries, tape_path = read_tape(home, session)
+    evidence = build_evidence(session, runs, entries, tape_path, False)
+    return score_case(case, evidence)
+
+
+def with_compat_result(
+    case: dict[str, Any],
+    home: Path,
+    session: str,
+    raw: dict[str, Any],
+    runs: list[dict[str, Any]],
+    output_compat: bool,
+) -> dict[str, Any]:
+    entries, tape_path = read_tape(home, session)
+    compat = score_case(case, build_evidence(session, runs, entries, tape_path, output_compat))
+    raw["runs"] = compat["runs"]
+    raw["raw_score"] = raw["score"]
+    raw["compat_score"] = compat["score"]
+    raw["compat_passed"] = compat["passed"]
+    raw["compat_diagnostics"] = compat["diagnostics"]
+    return raw
 
 
 def case_runs(
@@ -599,6 +623,26 @@ def check_json_field_forbid_all(check: dict[str, Any], evidence: dict[str, Any])
     return forbids_all(json_field_text(check, evidence), check["needles"])
 
 
+def check_json_field_equals(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    return normalize_text(json_field_text(check, evidence)) == normalize_text(str(check["value"]))
+
+
+def check_json_field_number_between(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    value = first_number(json_field_text(check, evidence))
+    return value is not None and check["min"] <= value <= check["max"]
+
+
+def check_json_field_word_count_between(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    count = word_count(json_field_text(check, evidence))
+    return check["min"] <= count <= check["max"]
+
+
+def check_json_list_length_at_least(check: dict[str, Any], evidence: dict[str, Any]) -> bool:
+    payload = content_payload(check, evidence)
+    value = json_field(payload, check["field"]) if isinstance(payload, dict) else []
+    return isinstance(value, list) and len(value) >= check["count"]
+
+
 def check_no_tool_calls(_: dict[str, Any], evidence: dict[str, Any]) -> bool:
     return not tool_names(evidence["tape_entries"])
 
@@ -682,6 +726,10 @@ CHECKS = {
     "json_field_contains_all": check_json_field_contains_all,
     "json_field_contains_any": check_json_field_contains_any,
     "json_field_forbid_all": check_json_field_forbid_all,
+    "json_field_equals": check_json_field_equals,
+    "json_field_number_between": check_json_field_number_between,
+    "json_field_word_count_between": check_json_field_word_count_between,
+    "json_list_length_at_least": check_json_list_length_at_least,
     "no_tool_calls": check_no_tool_calls,
     "tool_name_at_least": check_tool_name_at_least,
     "tool_name_count": check_tool_name_count,
@@ -777,6 +825,15 @@ def contains_all(text: str, needles: list[str]) -> bool:
 def forbids_all(text: str, needles: list[str]) -> bool:
     normalized = normalize_text(text)
     return all(normalize_text(needle) not in normalized for needle in needles)
+
+
+def first_number(text: str) -> float | None:
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    return float(match.group(0)) if match else None
+
+
+def word_count(text: str) -> int:
+    return len(re.findall(r"\b[\w'-]+\b", text))
 
 
 def normalize_text(text: str) -> str:
@@ -922,14 +979,18 @@ def run_environment(prefix: list[str], homes: dict[str, Path], output_compat: bo
         "eli_entrypoint": prefix,
         "eli_homes": {label: str(path) for label, path in homes.items()},
         "output_compat": output_compat,
+        "reported_total": "raw_first_answer",
+        "repair_score": "compat_total_only",
     }
 
 
 def score_summary(cases: list[dict[str, Any]], specs: list[ModelSpec]) -> dict[str, Any]:
     labels = [spec.label for spec in specs]
     totals = {label: total_for(cases, label) for label in labels}
+    compat = {label: total_for_key(cases, label, "compat_score") for label in labels}
     return {
         "total": {label: score_block(totals[label]) for label in labels},
+        "compat_total": {label: score_block(compat[label]) for label in labels},
         "delta_a_minus_b": totals[labels[0]]["score"] - totals[labels[1]]["score"],
         "by_capability": capability_summary(cases, labels),
     }
@@ -938,6 +999,13 @@ def score_summary(cases: list[dict[str, Any]], specs: list[ModelSpec]) -> dict[s
 def total_for(cases: list[dict[str, Any]], label: str) -> dict[str, int]:
     return {
         "score": sum(case["results"][label]["score"] for case in cases),
+        "max": sum(case["results"][label]["max_points"] for case in cases),
+    }
+
+
+def total_for_key(cases: list[dict[str, Any]], label: str, key: str) -> dict[str, int]:
+    return {
+        "score": sum(case["results"][label].get(key, case["results"][label]["score"]) for case in cases),
         "max": sum(case["results"][label]["max_points"] for case in cases),
     }
 

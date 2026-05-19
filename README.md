@@ -251,16 +251,21 @@ The default pair is DSv4 (`deepseek:deepseek-v4-pro` at
 uses the same Eli CLI path for both models and keeps only hard-tail cases that
 stress planning, programming, writing, analysis, exploration, frontier-science
 reasoning, Mac-only Metal-vs-MLX performance work, multi-turn memory, tool
-evidence replay, tape handoff, and subagent orchestration. Results are written
-to `tests/snapshots/model_comparison_latest.json`.
+evidence replay, tape handoff, and subagent orchestration. The current cases
+avoid saturated keyword prompts; they use fixture evidence, numeric gates,
+strict timing constraints, stale subagent conflicts, and long multi-turn
+correction/redaction pressure. Results are written to
+`tests/snapshots/model_comparison_latest.json`.
 
 The runner includes a benchmark-local output compatibility layer for common
 model issues such as fenced JSON, decimal percentage spellings, stdout
 truncation, empty/truncated structured output diagnostics, and one bounded
 same-session JSON repair turn. Disable it with `ELI_AB_COMPAT=0` or
 `--no-output-compat` when auditing whether those compatibility fixes can be
-removed. The latest checked snapshot scored DSv4 at `96/100` and GPT-5.5 at
-`95/100`.
+removed. The reported `total` score uses the raw first answer; repair is
+recorded separately under `compat_total` so format fixes cannot inflate the
+ability score. The latest checked snapshot scored DSv4 at `72/100` and GPT-5.5
+at `81/100`; repair telemetry was `74/100` and `83/100`, respectively.
 
 Metal performance cases are macOS/Darwin-only. They require a hand-written
 Metal path to beat the MLX baseline before merge; Linux or CUDA validation is

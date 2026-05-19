@@ -1,0 +1,32 @@
+ELI_MODEL_COMPARE_REPO_SENTINEL
+
+Issue: `eli run --model openai:gpt-5.5 --session-id ab-123` fails before the
+first assistant token.
+
+Observed response:
+HTTP 400: Unsupported parameter: session_id
+
+Local invariant:
+The Eli tape session id is local runtime state. It must still select the same
+tape file and must not be removed from CLI/session handling.
+
+Provider-specific behavior:
+- OpenAI-compatible chat completions reject a top-level `session_id`.
+- Anthropic-compatible profiles still need a stable sanitized session hint in
+  `metadata.user_id`.
+- Local providers ignore the hint and should not receive a new compatibility
+  shim.
+
+Relevant files:
+- crates/nexil/src/providers/openai.rs builds the JSON request body.
+- crates/nexil/src/providers/anthropic.rs maps the session hint to metadata.
+- crates/nexil/src/provider_runtime.rs owns provider selection.
+
+Expected tests:
+- test_openai_request_omits_top_level_session_id
+- test_anthropic_keeps_metadata_user_id
+- test_local_tape_session_id_still_selects_same_tape
+
+Patch constraint:
+Do not add a second provider stack. Strip or omit only the OpenAI request-body
+extra; keep the local tape session and the Anthropic metadata mapping.

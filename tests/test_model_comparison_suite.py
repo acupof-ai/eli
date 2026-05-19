@@ -46,9 +46,9 @@ def expected_capabilities():
         "frontier_science",
         "memory_handoff",
         "metal_performance",
+        "planning",
         "programming",
         "subagent_management",
-        "tool_execution",
         "writing",
     }
 
@@ -83,6 +83,16 @@ def test_suite_uses_known_check_kinds():
 def test_hard_tail_cases_are_not_saturated_smoke_prompts():
     cases = load_json(CASES)["cases"]
     forbidden_ids = {
+        "frontier_science_claim_audit",
+        "metal_mlx_kernel_speed_mac_only",
+        "rust_openai_payload_programming",
+        "writing_revision_decision_memo",
+        "simpsons_paradox_bench_analysis",
+        "browsecomp_style_exploration_plan",
+        "frontier_math_sanity_check",
+        "tool_metal_fixture_triage",
+        "long_multiturn_conflict_retention",
+        "subagent_handoff_frontier_orchestration",
         "paper_cache_method_review",
         "fixed_time_dst_schedule",
         "issue_gateway_dirty_worktree",
@@ -100,20 +110,23 @@ def test_snapshot_matches_comparison_shape_when_present():
     snapshot = load_json(SNAPSHOT)
     case_ids = {case["id"] for case in load_json(CASES)["cases"]}
     assert snapshot["suite"] == "eli-model-comparison-hard-tail"
-    assert snapshot["version"] == 2
+    assert snapshot["version"] == 3
     assert set(item["id"] for item in snapshot["cases"]) == case_ids
     assert set(snapshot["models"]) == {"dsv4", "gpt55"}
     assert set(snapshot["scores"]["total"]) == {"dsv4", "gpt55"}
+    assert set(snapshot["scores"]["compat_total"]) == {"dsv4", "gpt55"}
     assert snapshot["scores"]["total"]["dsv4"]["max"] == 100
+    assert snapshot["run_environment"]["reported_total"] == "raw_first_answer"
     assert snapshot["run_environment"].get("output_compat", True) is True
     assert "api_total" not in snapshot["scores"]
 
 
-def test_snapshot_keeps_dsv4_above_target_when_present():
+def test_snapshot_is_not_saturated_when_present():
     if not SNAPSHOT.exists():
         return
     snapshot = load_json(SNAPSHOT)
-    assert snapshot["scores"]["total"]["dsv4"]["percent"] >= 95.0
+    totals = snapshot["scores"]["total"].values()
+    assert max(block["percent"] for block in totals) <= 90.0
 
 
 def test_runner_compat_matches_decimal_percentages():
@@ -162,6 +175,37 @@ def test_runner_json_field_checks_ignore_other_fields():
     }
     check = {"field": "memo", "needles": ["great"]}
     assert runner.check_json_field_forbid_all(check, evidence)
+
+
+def test_runner_json_number_and_word_count_checks():
+    runner = load_runner()
+    evidence = {
+        "stdout": '{"speed": "1.12x", "memo": "one two three four"}',
+        "last_stdout": '{"speed": "1.12x", "memo": "one two three four"}',
+        "assistant_text": "",
+        "output_compat": True,
+    }
+    number = {"field": "speed", "min": 1.11, "max": 1.13}
+    words = {"field": "memo", "min": 4, "max": 4}
+    assert runner.check_json_field_number_between(number, evidence)
+    assert runner.check_json_field_word_count_between(words, evidence)
+
+
+def test_runner_score_summary_reports_raw_and_compat_totals():
+    runner = load_runner()
+    cases = [
+        {
+            "capability": "x",
+            "results": {
+                "a": {"score": 3, "compat_score": 8, "max_points": 10},
+                "b": {"score": 4, "compat_score": 4, "max_points": 10},
+            },
+        }
+    ]
+    specs = [runner.ModelSpec("a", "p", "m", None), runner.ModelSpec("b", "p", "m", None)]
+    summary = runner.score_summary(cases, specs)
+    assert summary["total"]["a"]["score"] == 3
+    assert summary["compat_total"]["a"]["score"] == 8
 
 
 def test_fake_codex_echoes_return_exactly(tmp_path):
