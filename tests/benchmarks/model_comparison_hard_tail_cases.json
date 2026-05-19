@@ -1,186 +1,205 @@
 {
   "suite": "eli-model-comparison-hard-tail",
-  "version": 1,
+  "version": 2,
   "selection_policy": {
-    "name": "mainstream-realworld-hard-tail-10pct",
-    "method": "Use difficult Eli-facing slices inspired by real-world issue resolution, general assistant tool use, and multi-turn tool-agent benchmarks, then run both models through the same live Eli CLI harness.",
+    "name": "frontier-agent-hard-tail-10pct",
+    "method": "Drop saturated easy cases and keep only high-discrimination Eli-facing tasks across planning, programming, writing, analysis, exploration, frontier science, Mac-only Metal performance work, memory, tools, and subagent orchestration.",
     "sources": [
-      "SWE-bench: repository issue resolution with real code context",
-      "GAIA: real assistant tasks requiring reasoning and tool use",
-      "TAU-bench: multi-turn tool-use reliability under policies",
-      "BFCL-style strict function/tool adherence",
-      "PlanBench-style temporal and planning constraints"
+      "SWE-bench and SWE-Lancer: real software engineering issues and implementation constraints",
+      "GAIA and BrowseComp: hard assistant tasks requiring exploration discipline and source strategy",
+      "MLE-bench: end-to-end ML engineering and benchmark gating",
+      "WritingBench: instruction-following writing quality under task-specific rubrics",
+      "FrontierMath and Humanity's Last Exam: expert-level reasoning and frontier-science saturation pressure",
+      "TAU-bench and BFCL-style checks: multi-turn tool reliability and strict function adherence"
     ]
   },
   "cases": [
     {
-      "id": "paper_cache_method_review",
-      "capability": "research_planning",
-      "prompt": "Planning-only benchmark. Do not call tools. Read this paper excerpt for ckl: Prefix-Stable Agent Memory keeps system prompts immutable, moves volatile observations into append-only memory capsules, and runs a verifier before compressing old capsules. It claims 18% lower p95 latency on 32k-token support traces, but only tests two models and does not isolate KV-cache hit rate from shorter prompts. Return strict JSON with keys thesis, evidence, limitations, follow_up_plan. Make the plan actionable for deciding whether Eli should adopt the design. Do not use markdown.",
+      "id": "frontier_science_claim_audit",
+      "capability": "frontier_science",
+      "prompt": "Frontier-science benchmark. Do not call tools. Audit this paper excerpt for ckl. Hydra-Cache claims a 3x end-to-end agent speedup by combining a new router and a Metal-backed cache kernel. The table reports baseline prefill 11.2 ms, baseline decode 6.0 ms, Hydra prefill 7.5 ms, Hydra decode 6.1 ms, and p95 turn latency 18.4 ms to 13.6 ms. The router was tuned on production traces sampled from the same week as evaluation. The ablation changes both router and kernel together. The paper reports the max improvement across 6 tasks and omits energy counters. Return strict JSON with keys verdict, fatal_flaws, minimal_experiments, adoption_decision. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["thesis", "evidence", "limitations", "follow_up_plan"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["cache hit", "prefix-stable", "kv-cache"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["ablation", "control", "isolate"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["p95", "latency", "rollout"], "points": 1},
-        {"kind": "no_tool_calls", "points": 2}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["verdict", "fatal_flaws", "minimal_experiments", "adoption_decision"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["3x", "unsupported"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["train", "evaluation", "leak"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["confounded", "ablation"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["multiple comparisons", "cherry", "max across"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["decode", "energy", "p95"], "points": 1},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "fixed_time_dst_schedule",
-      "capability": "time_planning",
-      "prompt": "Planning-only benchmark. Do not call tools. Today is Friday 2026-03-06. A teammate in San Francisco needs a handoff summary at 17:30 America/Los_Angeles on the next three business days, including today. ckl wants persisted records in Asia/Shanghai local time. Return strict JSON with keys assumptions, schedule, risks, validation. Use exact local datetimes with offsets. Do not use relative dates or markdown.",
+      "id": "metal_mlx_kernel_speed_mac_only",
+      "capability": "metal_performance",
+      "prompt": "Programming and performance benchmark. Do not call tools. Design the next Eli benchmark task for a hand-written Apple Metal kernel that must beat an MLX baseline on Apple Silicon. Metal performance tests are Mac-only: do not design Linux or CUDA validation. The target workload is a GRN-style recurrent update with small hidden state and long sequence length. Return strict JSON with keys mac_only_guard, kernel_design, benchmark_protocol, acceptance_gate, risk_register. Include enough implementation detail that an engineer could start the patch. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["assumptions", "schedule", "risks", "validation"], "points": 2},
-        {"kind": "stdout_contains_all", "needles": ["2026-03-07T09:30:00+08:00", "2026-03-10T08:30:00+08:00", "2026-03-11T08:30:00+08:00"], "points": 3},
-        {"kind": "stdout_contains_any", "needles": ["PST", "PDT", "America/Los_Angeles"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["tomorrow", "next day", "later"], "points": 1},
-        {"kind": "no_tool_calls", "points": 2}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["mac_only_guard", "kernel_design", "benchmark_protocol", "acceptance_gate", "risk_register"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["macOS", "Darwin"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["MTLBuffer", "Metal buffer"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["threadgroup memory", "simdgroup", "simdgroup_matrix"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["MLX", "baseline"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["warmup", "p50", "p95"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": [">=1.15x", "1.15x", "15%"], "points": 1},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "issue_gateway_dirty_worktree",
-      "capability": "issue_resolution",
-      "prompt": "Planning-only benchmark. Do not call tools or inspect files. A GitHub issue says: In Eli gateway mode, a subagent finishes after the parent turn returns, but the completion is delivered to a default chat instead of the original chat_id. The repo has gateway inbound injection and tests named test_subagent_gateway_completion. Plan the fix. Return strict JSON with keys reproduction, root_cause_hypothesis, patch_plan, validation. Keep it safe for a dirty worktree and do not propose destructive git commands. Do not use markdown.",
+      "id": "rust_openai_payload_programming",
+      "capability": "programming",
+      "prompt": "Programming benchmark. Do not call tools. Eli's OpenAI profile fails against openai:gpt-5.5 with HTTP 400 Unsupported parameter: session_id. Eli still needs local tape continuity, and Anthropic-like providers may map a sanitized session hint to metadata.user_id. Produce a minimal Rust patch sketch, not a generic plan. Return strict JSON with keys diff_sketch, test_names, verification, risk. Respect the repo rule that Rust function bodies stay under 15 lines. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["reproduction", "root_cause_hypothesis", "patch_plan", "validation"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["chat_id", "original chat"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["gateway", "inbound injector", "injection"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["dirty worktree", "git status", "unrelated changes"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["git reset --hard", "git checkout --", "delete unrelated"], "points": 2}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["diff_sketch", "test_names", "verification", "risk"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["session_id", "OpenAI"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["filter", "remove", "omit", "strip"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["kwargs", "session_id"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["metadata.user_id", "Anthropic"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["cargo fmt --all -- --check", "cargo clippy --workspace -- -D warnings", "cargo test --workspace"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["15 lines", "under 15", "function bodies"], "points": 1},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "code_async_shutdown_patch",
-      "capability": "code_analysis",
-      "prompt": "Planning-only benchmark. Do not call tools. Analyze this Rust async bug in Eli: a gateway owns JoinSet workers. On shutdown it calls abort_all(), then immediately drops the JoinSet. Sometimes child tasks keep writing completion messages after shutdown, and tests flake because cleanup returns before JoinHandle cancellation is observed. Return strict JSON with keys root_cause, minimal_patch, tests. Mention how to keep function bodies under 15 lines. Do not use markdown.",
+      "id": "writing_revision_decision_memo",
+      "capability": "writing",
+      "prompt": "Writing benchmark. Do not call tools. Rewrite this noisy status into a concise executive memo for ckl. Source: 'Bench is basically great, both models are awesome, CI green, maybe there are some small differences, we should probably keep it, it covers lots of things, GPT seems better but DS is also good, there was something about session_id and tool calls, all looks fine.' The memo must be 180-230 words, direct, non-marketing, and useful to a senior Rust/backend engineer deciding whether to keep or delete the suite. Return strict JSON with keys title, memo, cuts_made, residual_risk. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["root_cause", "minimal_patch", "tests"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["join_next", "drain", "await"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["abort_all", "cancellation", "cancel"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["flake", "deterministic", "shutdown"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["15 lines", "under 15", "small function"], "points": 2}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["title", "memo", "cuts_made", "residual_risk"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["decision", "delete"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["confidence", "evidence", "signal"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["DSv4", "GPT-5.5"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["session_id", "tool calls", "tool-call"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["risk", "next"], "points": 1},
+        {"kind": "stdout_forbid_all", "needles": ["awesome", "great", "game-changing", "revolutionary"], "points": 2},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "provider_session_id_failure_triage",
-      "capability": "code_analysis",
-      "prompt": "Planning-only benchmark. Do not call tools. You see a real Eli smoke failure after switching to openai:gpt-5.5: HTTP 400 Bad Request: {\"detail\":\"Unsupported parameter: session_id\"}. Eli still needs local tape session continuity, and Anthropic may map a session hint to metadata.user_id. Return strict JSON with keys failure_mode, root_cause, patch, tests, risk. Do not expose API keys and do not use markdown.",
+      "id": "simpsons_paradox_bench_analysis",
+      "capability": "analysis",
+      "prompt": "Analysis benchmark. Do not call tools. Old suite: 90 easy cases and 10 hard-tail cases. DSv4 passes 88 easy and 2 hard. GPT-5.5 passes 86 easy and 7 hard. The old report only said DSv4=90/100 and GPT-5.5=93/100, then called the suite acceptable. Return strict JSON with keys overall, hard_tail, diagnosis, decision. Include exact percentages and whether easy cases should be deleted, downweighted, or kept. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["failure_mode", "root_cause", "patch", "tests", "risk"], "points": 2},
-        {"kind": "stdout_contains_all", "needles": ["session_id", "OpenAI"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["top-level", "request body", "adapter"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["local tape", "local session", "do not forward"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["print the key", "hardcode the key"], "points": 2}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["overall", "hard_tail", "diagnosis", "decision"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["90%", "93%"], "points": 2},
+        {"kind": "stdout_contains_all", "needles": ["20%", "70%"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["Simpson", "mix shift", "masked"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["delete", "downweight"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["easy", "hard"], "points": 1},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "multi_turn_state_retention",
-      "capability": "memory_handoff",
-      "turns": [
-        "Super multi-turn benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact B exactly: provider_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact C exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-C only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact D exactly: openai_model=openai:gpt-5.5. Reply ACK-D only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact E exactly: live_service=7860_PID_85165_do_not_kill. Reply ACK-E only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_must_not_commit. Reply ACK-F only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact G exactly: snapshot=tests/snapshots/model_comparison_latest.json. Reply ACK-G only.",
-        "Super multi-turn benchmark. Do not call tools. Store fact H exactly: checksum=ELI-AB-6742. Reply ACK-H only.",
-        "Using only this Eli session history, return strict JSON with keys preserved, checksum, validation. Include every exact fact A through H. Do not call tools and do not use markdown."
-      ],
+      "id": "browsecomp_style_exploration_plan",
+      "capability": "exploration",
+      "prompt": "Exploration benchmark. Do not call tools or browse. ckl asks you to find the original source of a hard-to-locate claim: 'the first public mention that Eli-style local tape handoff should preserve KV-cache efficiency came before the OpenAI session_id fix.' You cannot answer the fact now. Produce a strict JSON research plan with keys query_strategy, source_triage, evidence_rules, stop_conditions. The plan must avoid fabrication and must be strong enough for a future web-enabled agent to execute. Do not use markdown.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["preserved", "checksum", "validation"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["repo=/Users/bytedance/code/eli", "provider_pair=DSv4_vs_GPT-5.5", "ds_base=https://api.deepseek.com/beta", "openai_model=openai:gpt-5.5"], "points": 2},
-        {"kind": "stdout_contains_all", "needles": ["live_service=7860_PID_85165_do_not_kill", "untracked=sidecar/.agents_must_not_commit", "snapshot=tests/snapshots/model_comparison_latest.json", "checksum=ELI-AB-6742"], "points": 2},
-        {"kind": "event_count_at_least", "name": "agent.run", "count": 9, "points": 1},
-        {"kind": "no_tool_calls", "points": 2},
-        {"kind": "stdout_forbid_all", "scope": "last_stdout", "needles": ["I forgot", "cannot recall"], "points": 1}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["query_strategy", "source_triage", "evidence_rules", "stop_conditions"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["query pivot", "search operators", "site:"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["primary", "source"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["archive", "commit", "timestamp"], "points": 2},
+        {"kind": "stdout_contains_any", "needles": ["negative evidence", "not found", "unknown"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["do not fabricate", "no fabrication", "unknown rather than invent"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["citation", "confidence"], "points": 1},
+        {"kind": "no_tool_calls", "points": 1}
       ]
     },
     {
-      "id": "tool_read_next_round_recall",
+      "id": "frontier_math_sanity_check",
+      "capability": "frontier_science",
+      "prompt": "Frontier-reasoning benchmark. Do not call tools. A draft proof says S = sum_{k=0}^{63} (-1)^k * C(63,k)/(k+1) equals 0 because alternating binomial terms cancel. Audit the proof and return strict JSON with keys correct_value, derivation, flaw, confidence. Do not use markdown.",
+      "max_points": 10,
+      "threshold": 8,
+      "rubric": [
+        {"kind": "returncode", "value": 0, "points": 1},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["correct_value", "derivation", "flaw", "confidence"], "points": 1},
+        {"kind": "stdout_contains_all", "needles": ["1/64"], "points": 3},
+        {"kind": "stdout_contains_any", "needles": ["integral", "integrate"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["(1-x)^63", "1 - x", "beta"], "points": 1},
+        {"kind": "stdout_contains_any", "needles": ["denominator", "cancellation", "does not cancel"], "points": 2},
+        {"kind": "no_tool_calls", "points": 1}
+      ]
+    },
+    {
+      "id": "tool_metal_fixture_triage",
       "capability": "tool_execution",
       "turns": [
-        "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer READ_OK and the sentinel value. Do not guess and do not call any other tool.",
-        "Do not call any tools this turn. From the prior tool evidence, return strict JSON with keys sentinel, evidence, next_round. Include the exact sentinel value. Do not use markdown."
+        "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer FIXTURE_READ and the sentinel value. Do not guess and do not call any other tool.",
+        "Do not call tools this turn. From the prior tool evidence, return strict JSON with keys verdict, evidence, next_patch, mac_only. Decide whether the Metal draft can merge. Do not use markdown."
       ],
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "tool_name_at_least", "name": "fs.read", "count": 1, "points": 2},
-        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 1},
-        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_SENTINEL"], "points": 2},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["sentinel", "evidence", "next_round"], "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["ELI_MODEL_COMPARE_SENTINEL"], "points": 1},
-        {"kind": "event_count_at_least", "name": "agent.run", "count": 2, "points": 1},
+        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 2},
+        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_HARD_SENTINEL", "metal_ms=9.70", "mlx_ms=8.40"], "points": 2},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["verdict", "evidence", "next_patch", "mac_only"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["9.70", "8.40"], "points": 1},
+        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["slower", "regression", "do not merge", "fail"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["macOS", "1.15x"], "points": 1},
         {"kind": "forbid_tool_names", "names": ["bash", "agent", "tape.handoff"], "points": 1}
       ]
     },
     {
-      "id": "tool_handoff_once",
+      "id": "long_multiturn_conflict_retention",
       "capability": "memory_handoff",
-      "prompt": "Use the tape.handoff tool exactly once. The handoff name must be ab-handoff-check. The summary must preserve exactly: DSv4 endpoint https://api.deepseek.com/beta; GPT target openai:gpt-5.5; snapshot tests/snapshots/model_comparison_latest.json; sidecar/.agents remains untracked and uncommitted. After the tool succeeds, answer HANDOFF_RECORDED. Do not call other tools.",
+      "turns": [
+        "Memory stress benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
+        "Memory stress benchmark. Do not call tools. Store fact B exactly: default_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
+        "Memory stress benchmark. Do not call tools. Store fact C exactly: bench_action=keep_easy_cases. Reply ACK-C only.",
+        "Memory stress benchmark. Do not call tools. Store fact D exactly: metal_validation=macOS_only. Reply ACK-D only.",
+        "Memory stress benchmark. Do not call tools. Store fact E exactly: capability_axis=planning_programming_writing_analysis_exploration_frontier_science. Reply ACK-E only.",
+        "Memory stress benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_do_not_commit. Reply ACK-F only.",
+        "Memory stress benchmark. Do not call tools. Store fact G exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-G only.",
+        "Memory stress benchmark. Do not call tools. Correct fact C exactly to: bench_action=delete_simple_cases_and_replace_hard_tail. Reply ACK-C2 only.",
+        "Memory stress benchmark. Do not call tools. Store distractor: old_score=92_vs_98_is_not_enough_signal. Reply ACK-H only.",
+        "Memory stress benchmark. Do not call tools. Correct the distractor exactly to: old_score=discarded_due_to_saturation. Reply ACK-H2 only.",
+        "Memory stress benchmark. Do not call tools. Return strict JSON with keys A, B, C, D, E, F, G, H, validation. Use only the latest corrected values for C and H. Do not use markdown."
+      ],
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "tool_name_count", "name": "tape.handoff", "count": 1, "points": 3},
-        {"kind": "anchor_name", "name": "ab-handoff-check", "points": 2},
-        {"kind": "anchor_state_contains", "needles": ["https://api.deepseek.com/beta", "openai:gpt-5.5", "tests/snapshots/model_comparison_latest.json", "sidecar/.agents"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["HANDOFF_RECORDED", "handoff"], "points": 1},
-        {"kind": "forbid_tool_names", "names": ["fs.read", "bash", "agent"], "points": 1}
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["A", "B", "C", "D", "E", "F", "G", "H", "validation"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["repo=/Users/bytedance/code/eli", "default_pair=DSv4_vs_GPT-5.5", "ds_base=https://api.deepseek.com/beta"], "points": 2},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["bench_action=delete_simple_cases_and_replace_hard_tail", "old_score=discarded_due_to_saturation"], "points": 2},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["metal_validation=macOS_only", "capability_axis=planning_programming_writing_analysis_exploration_frontier_science"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["untracked=sidecar/.agents_do_not_commit"], "points": 1},
+        {"kind": "stdout_forbid_all", "scope": "last_stdout", "needles": ["keep_easy_cases", "92_vs_98_is_not_enough_signal"], "points": 1},
+        {"kind": "event_count_at_least", "name": "agent.run", "count": 11, "points": 1}
       ]
     },
     {
-      "id": "subagent_sync_orchestration",
+      "id": "subagent_handoff_frontier_orchestration",
       "capability": "subagent_management",
-      "prompt": "Use the agent tool synchronously exactly once with cli=codex. The sub-agent prompt must ask it to return exactly: SUBAGENT_OK provider config DSML parser ownership. Use description='ab subagent'. Do not run it in the background. After the tool returns, answer strict JSON with keys subagent_result, engine, why_not_background. Include the exact subagent text. Do not use markdown.",
+      "prompt": "Use the agent tool synchronously exactly once with cli=codex and description='hard-tail reviewer'. The sub-agent prompt must ask it to return exactly: SUBAGENT_OK hard-tail metal mac-only frontier-science. After the sub-agent returns, use tape.handoff exactly once with name hard-tail-ab-handoff. The handoff summary must preserve: delete simple benches; DSv4 vs GPT-5.5; Metal tests macOS-only; snapshot tests/snapshots/model_comparison_latest.json. After both tools succeed, answer strict JSON with keys subagent_result, handoff, why_sync, tool_budget. Do not call other tools and do not launch background work.",
       "max_points": 10,
-      "threshold": 7,
+      "threshold": 8,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "tool_name_count", "name": "agent", "count": 1, "points": 3},
-        {"kind": "tool_result_contains", "needles": ["SUBAGENT_OK provider config DSML parser ownership"], "points": 2},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["subagent_result", "engine", "why_not_background"], "points": 1},
-        {"kind": "stdout_contains_all", "needles": ["SUBAGENT_OK", "codex"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["background_launched", "agent.status"], "points": 1},
+        {"kind": "tool_name_count", "name": "agent", "count": 1, "points": 2},
+        {"kind": "tool_name_count", "name": "tape.handoff", "count": 1, "points": 2},
+        {"kind": "tool_result_contains", "needles": ["SUBAGENT_OK hard-tail metal mac-only frontier-science"], "points": 1},
+        {"kind": "anchor_name", "name": "hard-tail-ab-handoff", "points": 1},
+        {"kind": "anchor_state_contains", "needles": ["delete simple benches", "DSv4 vs GPT-5.5", "macOS-only", "tests/snapshots/model_comparison_latest.json"], "points": 1},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["subagent_result", "handoff", "why_sync", "tool_budget"], "points": 1},
         {"kind": "forbid_tool_names", "names": ["bash", "fs.read"], "points": 1}
-      ]
-    },
-    {
-      "id": "bounded_tool_budget_plan",
-      "capability": "planning",
-      "prompt": "Planning-only benchmark. Do not call tools. You must solve a real Eli regression with a dirty worktree, optional subagent help, and a final push. Produce strict JSON with keys plan, tool_budget, subagent_policy, handoff_policy, verification, stop_conditions. The plan must preserve KV-cache efficiency by avoiding unnecessary system-prompt churn. Do not reveal private chain-of-thought; provide only concise rationale. Do not use markdown.",
-      "max_points": 10,
-      "threshold": 7,
-      "rubric": [
-        {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["plan", "tool_budget", "subagent_policy", "handoff_policy", "verification", "stop_conditions"], "points": 2},
-        {"kind": "stdout_contains_any", "needles": ["dirty worktree", "unrelated changes", "git status"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["subagent", "parallel", "bounded"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["handoff", "snapshot", "memory"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["cargo test", "clippy", "fmt"], "points": 1},
-        {"kind": "stdout_contains_any", "needles": ["KV-cache", "cache", "system prompt"], "points": 1},
-        {"kind": "stdout_forbid_all", "needles": ["chain of thought", "let me think step by step"], "points": 1},
-        {"kind": "no_tool_calls", "points": 1}
       ]
     }
   ]

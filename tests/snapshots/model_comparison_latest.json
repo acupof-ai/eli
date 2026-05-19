@@ -1,16 +1,17 @@
 {
   "suite": "eli-model-comparison-hard-tail",
-  "version": 1,
-  "run_at": "2026-05-19T03:47:42.318171+00:00",
+  "version": 2,
+  "run_at": "2026-05-19T05:08:08.068889+00:00",
   "selection_policy": {
-    "name": "mainstream-realworld-hard-tail-10pct",
-    "method": "Use difficult Eli-facing slices inspired by real-world issue resolution, general assistant tool use, and multi-turn tool-agent benchmarks, then run both models through the same live Eli CLI harness.",
+    "name": "frontier-agent-hard-tail-10pct",
+    "method": "Drop saturated easy cases and keep only high-discrimination Eli-facing tasks across planning, programming, writing, analysis, exploration, frontier science, Mac-only Metal performance work, memory, tools, and subagent orchestration.",
     "sources": [
-      "SWE-bench: repository issue resolution with real code context",
-      "GAIA: real assistant tasks requiring reasoning and tool use",
-      "TAU-bench: multi-turn tool-use reliability under policies",
-      "BFCL-style strict function/tool adherence",
-      "PlanBench-style temporal and planning constraints"
+      "SWE-bench and SWE-Lancer: real software engineering issues and implementation constraints",
+      "GAIA and BrowseComp: hard assistant tasks requiring exploration discipline and source strategy",
+      "MLE-bench: end-to-end ML engineering and benchmark gating",
+      "WritingBench: instruction-following writing quality under task-specific rubrics",
+      "FrontierMath and Humanity's Last Exam: expert-level reasoning and frontier-science saturation pressure",
+      "TAU-bench and BFCL-style checks: multi-turn tool reliability and strict function adherence"
     ]
   },
   "models": {
@@ -30,79 +31,103 @@
   "scores": {
     "total": {
       "dsv4": {
-        "score": 92,
+        "score": 69,
         "max": 100,
-        "percent": 92.0
+        "percent": 69.0
       },
       "gpt55": {
-        "score": 98,
+        "score": 74,
         "max": 100,
-        "percent": 98.0
+        "percent": 74.0
       }
     },
-    "delta_a_minus_b": -6,
+    "delta_a_minus_b": -5,
     "by_capability": {
-      "research_planning": {
+      "frontier_science": {
         "dsv4": {
-          "score": 10,
-          "max": 10,
-          "percent": 100.0
+          "score": 15,
+          "max": 20,
+          "percent": 75.0
         },
         "gpt55": {
-          "score": 10,
-          "max": 10,
-          "percent": 100.0
+          "score": 18,
+          "max": 20,
+          "percent": 90.0
         }
       },
-      "time_planning": {
+      "metal_performance": {
         "dsv4": {
           "score": 5,
           "max": 10,
           "percent": 50.0
         },
         "gpt55": {
-          "score": 10,
+          "score": 5,
           "max": 10,
-          "percent": 100.0
+          "percent": 50.0
         }
       },
-      "issue_resolution": {
+      "programming": {
         "dsv4": {
-          "score": 9,
+          "score": 6,
           "max": 10,
-          "percent": 90.0
+          "percent": 60.0
         },
         "gpt55": {
-          "score": 9,
+          "score": 7,
           "max": 10,
-          "percent": 90.0
+          "percent": 70.0
         }
       },
-      "code_analysis": {
+      "writing": {
         "dsv4": {
-          "score": 20,
-          "max": 20,
-          "percent": 100.0
+          "score": 4,
+          "max": 10,
+          "percent": 40.0
         },
         "gpt55": {
-          "score": 20,
-          "max": 20,
-          "percent": 100.0
+          "score": 5,
+          "max": 10,
+          "percent": 50.0
         }
       },
-      "memory_handoff": {
+      "analysis": {
         "dsv4": {
-          "score": 19,
-          "max": 20,
-          "percent": 95.0
+          "score": 5,
+          "max": 10,
+          "percent": 50.0
         },
         "gpt55": {
-          "score": 20,
-          "max": 20,
-          "percent": 100.0
+          "score": 5,
+          "max": 10,
+          "percent": 50.0
+        }
+      },
+      "exploration": {
+        "dsv4": {
+          "score": 7,
+          "max": 10,
+          "percent": 70.0
+        },
+        "gpt55": {
+          "score": 7,
+          "max": 10,
+          "percent": 70.0
         }
       },
       "tool_execution": {
+        "dsv4": {
+          "score": 9,
+          "max": 10,
+          "percent": 90.0
+        },
+        "gpt55": {
+          "score": 9,
+          "max": 10,
+          "percent": 90.0
+        }
+      },
+      "memory_handoff": {
         "dsv4": {
           "score": 10,
           "max": 10,
@@ -116,26 +141,14 @@
       },
       "subagent_management": {
         "dsv4": {
-          "score": 10,
+          "score": 8,
           "max": 10,
-          "percent": 100.0
+          "percent": 80.0
         },
         "gpt55": {
-          "score": 10,
+          "score": 8,
           "max": 10,
-          "percent": 100.0
-        }
-      },
-      "planning": {
-        "dsv4": {
-          "score": 9,
-          "max": 10,
-          "percent": 90.0
-        },
-        "gpt55": {
-          "score": 9,
-          "max": 10,
-          "percent": 90.0
+          "percent": 80.0
         }
       }
     }
@@ -146,24 +159,24 @@
       "/Users/bytedance/code/eli/target/debug/eli"
     ],
     "eli_homes": {
-      "dsv4": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli",
-      "gpt55": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli"
+      "dsv4": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli",
+      "gpt55": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli"
     }
   },
   "cases": [
     {
-      "id": "paper_cache_method_review",
-      "capability": "research_planning",
+      "id": "frontier_science_claim_audit",
+      "capability": "frontier_science",
       "max_points": 10,
-      "delta_a_minus_b": 0,
-      "winner": "tie",
+      "delta_a_minus_b": -1,
+      "winner": "gpt55",
       "results": {
         "dsv4": {
-          "id": "paper_cache_method_review",
-          "capability": "research_planning",
-          "score": 10,
+          "id": "frontier_science_claim_audit",
+          "capability": "frontier_science",
+          "score": 7,
           "max_points": 10,
-          "passed": true,
+          "passed": false,
           "details": [
             {
               "kind": "returncode",
@@ -173,20 +186,32 @@
             },
             {
               "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
               "points": 2,
               "earned": 2,
               "passed": true
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_contains_all",
               "points": 2,
-              "earned": 2,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -197,31 +222,31 @@
             },
             {
               "kind": "no_tool_calls",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-dsv4-paper_cache_method_review",
+          "session_id": "eli-ab-20260519045718-dsv4-frontier_science_claim_audit",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:570 chars>",
+                "<prompt:670 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-paper_cache_method_review"
+                "eli-ab-20260519045718-dsv4-frontier_science_claim_audit"
               ],
               "returncode": 0,
-              "elapsed_ms": 27127,
-              "stdout_tail": "w_up_plan\":[\"Profile Eli's current context distribution: measure p50/p95 prompt token count, KV-cache hit rate per-turn, and context-switch frequency on real traces.\",\"Run a controlled ablation with Eli's model: compare identical-context runs with a frozen system prefix vs. a mutable prefix to isolate the KV-cache benefit without compression confounding.\",\"Implement a minimal capsule store (append-only list, no verifier) and measure end-to-end latency delta vs. Eli's current memory on 20+ representative conversations. Flag if p95 regresses.\",\"If latency is neutral or better, add a lightweight verifier (e.g., embedding-similarity threshold or small classifier on compressed-vs-original capsule pairs) and measure accuracy impact on a held-out task set.\",\"Decide based on: latency improvement > 5% at p95, no accuracy regression > 1%, and implementation complexity staying under ~200 lines.\"]}\n",
+              "elapsed_ms": 59892,
+              "stdout_tail": " vs. Hydra across a fixed-duration workload, reporting Joules per 1K tokens served.\",\n    \"End-to-end agent benchmark: measure full wall-clock time for agent task completion (prompt-to-final-output), not just per-turn kernel latencies. The 3x claim must hold on this metric.\"\n  ],\n  \"adoption_decision\": {\n    \"recommendation\": \"do not adopt\",\n    \"rationale\": \"Three irrecoverable flaws — fabricated 3x claim, temporal data leakage, and a non-identifiable ablation — make the paper's core result untrustworthy. No incremental experiment can salvage F1–F3; the work must be redone from scratch with temporal splits, factorial ablations, and honest reporting.\",\n    \"salvageable_if\": \"Authors retract the 3x claim, rerun with a strict temporal holdout, and publish a proper component-wise ablation table. Even then, ceiling is ~26% latency improvement on this workload — not a step change.\"\n  }\n}\n```\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "\",\"evidence\":\"18% lower p95 latency measured on 32k-token support traces across two models. The append-only capsule structure is claimed to be the mechanism, relying on cache-line preservation under a frozen prefix.\",\"limitations\":\"Only two models tested, so the result may not generalize across architectures or tokenizers. KV-cache hit rate and prompt-length reduction are confounded — the experiment does not isolate whether the p95 gain comes from cache reuse or simply from shorter contexts after compression. No accuracy or task-completion regression metrics are reported, so the verifier's false-negative/positive rate is unknown. No ablation on verifier overhead itself (verifier cost vs. compression benefit). The benchmark domain is narrow (support traces), leaving open whether capsules degrade on multi-hop reasoning or tool-use chains where inter-observation dependencies matter.\",\"follow_up_plan\":[\"Profile Eli's current context distribution: measure p50/p95 prompt token count, KV-cache hit rate per-turn, and context-switch frequency on real traces.\",\"Run a controlled ablation with Eli's model: compare identical-context runs with a frozen system prefix vs. a mutable prefix to isolate the KV-cache benefit without compression confounding.\",\"Implement a minimal capsule store (append-only list, no verifier) and measure end-to-end latency delta vs. Eli's current memory on 20+ representative conversations. Flag if p95 regresses.\",\"If latency is neutral or better, add a lightweight verifier (e.g., embedding-similarity threshold or small classifier on compressed-vs-original capsule pairs) and measure accuracy impact on a held-out task set.\",\"Decide based on: latency improvement > 5% at p95, no accuracy regression > 1%, and implementation complexity staying under ~200 lines.\"]}\n",
+          "stdout_tail": "ial power/thermal implications. Suppressing energy data when making a throughput claim is a significant omission — the speedup may come at the cost of power that makes it net-negative at datacenter scale.\",\n      \"irrecoverable\": false\n    }\n  ],\n  \"minimal_experiments\": [\n    \"Temporal holdout: train router on week N, evaluate on weeks N+1 through N+4. Report per-week p50/p95/p99 turn latency and throughput.\",\n    \"Factorial ablation: measure baseline → router-only → kernel-only → router+kernel on the same hardware, same workload, reporting prefill/decode latency, cache hit rate, and GPU memory pressure independently per condition.\",\n    \"Per-task full distribution: report p5/p50/p95/p99 latencies, cache-hit ratios, and token throughput for each of the 6 tasks individually, not just the max.\",\n    \"Power instrumentation: measure wall-plug power (or GPU power draw via IOKit) for baseline vs. Hydra across a fixed-duration workload, reporting Joules per 1K tokens served.\",\n    \"End-to-end agent benchmark: measure full wall-clock time for agent task completion (prompt-to-final-output), not just per-turn kernel latencies. The 3x claim must hold on this metric.\"\n  ],\n  \"adoption_decision\": {\n    \"recommendation\": \"do not adopt\",\n    \"rationale\": \"Three irrecoverable flaws — fabricated 3x claim, temporal data leakage, and a non-identifiable ablation — make the paper's core result untrustworthy. No incremental experiment can salvage F1–F3; the work must be redone from scratch with temporal splits, factorial ablations, and honest reporting.\",\n    \"salvageable_if\": \"Authors retract the 3x claim, rerun with a strict temporal holdout, and publish a proper component-wise ablation table. Even then, ceiling is ~26% latency improvement on this workload — not a step change.\"\n  }\n}\n```\n",
           "stderr_tail": "",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__f58a1c15d7068ccf.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__979ea8f0d30e488e.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -234,9 +259,9 @@
           }
         },
         "gpt55": {
-          "id": "paper_cache_method_review",
-          "capability": "research_planning",
-          "score": 10,
+          "id": "frontier_science_claim_audit",
+          "capability": "frontier_science",
+          "score": 8,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -248,20 +273,32 @@
             },
             {
               "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
               "points": 2,
               "earned": 2,
               "passed": true
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_contains_all",
               "points": 2,
-              "earned": 2,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -272,31 +309,31 @@
             },
             {
               "kind": "no_tool_calls",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-gpt55-paper_cache_method_review",
+          "session_id": "eli-ab-20260519045718-gpt55-frontier_science_claim_audit",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:570 chars>",
+                "<prompt:670 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-paper_cache_method_review"
+                "eli-ab-20260519045718-gpt55-frontier_science_claim_audit"
               ],
               "returncode": 0,
-              "elapsed_ms": 13013,
-              "stdout_tail": "\"decision_signal\": \"Cache hit improvement must be visible, not inferred from latency alone.\"\n    },\n    {\n      \"step\": \"Stress-test capsule compression with adversarial cases: revoked decisions, changed user preferences, conflicting observations, secrets, and stale architecture notes.\",\n      \"decision_signal\": \"Verifier must prevent unsafe compression and preserve active decisions exactly.\"\n    },\n    {\n      \"step\": \"Run the benchmark across Eli's main model targets instead of one provider path.\",\n      \"decision_signal\": \"Adopt only if gains hold on the models actually used.\"\n    },\n    {\n      \"step\": \"Pilot behind a flag for read-heavy and long-context tasks first, keeping current memory behavior as rollback.\",\n      \"decision_signal\": \"Promote if latency and cost improve for one week with no measurable rise in user corrections, missed decisions, or stale-memory bugs.\"\n    }\n  ]\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5949 in + 595 out = 6544]\u001b[0m\n"
+              "elapsed_ms": 11629,
+              "stdout_tail": "tions across all 6 tasks, including median, p95, p99, and geometric mean speedup.\",\n    \"Evaluate on production traces from a later, untouched time window than the router tuning data.\",\n    \"Run a 2x2 ablation: baseline router + baseline kernel, new router + baseline kernel, baseline router + Metal cache kernel, new router + Metal cache kernel.\",\n    \"Report end-to-end wall-clock agent latency, not only prefill/decode components.\",\n    \"Include power, energy per turn, and thermal throttling counters on the same hardware.\",\n    \"Pre-register or disclose the aggregation rule instead of reporting the maximum task improvement.\"\n  ],\n  \"adoption_decision\": \"Do not adopt based on this excerpt. At most, run an internal reproduction focused on the Metal cache kernel and router separately; treat the current evidence as a modest ~1.3x latency improvement with high leakage and attribution risk.\"\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6001 in + 535 out = 6536]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "research, and long-running tool use.\",\n    \"Append-only capsules could increase retrieval noise or token load if pruning and ranking are weak.\"\n  ],\n  \"follow_up_plan\": [\n    {\n      \"step\": \"Build a local A/B harness using Eli-like traces: coding sessions, Feishu/Lark workflows, research tasks, and long multi-turn debugging.\",\n      \"decision_signal\": \"Adopt only if p95 latency improves without lowering task success or increasing correction turns.\"\n    },\n    {\n      \"step\": \"Run three variants: current prompt layout, prefix-stable with same total token count, and prefix-stable with compressed capsules.\",\n      \"decision_signal\": \"This separates cache benefit from shorter-prompt benefit.\"\n    },\n    {\n      \"step\": \"Measure prefix-cache hit rate or provider-equivalent cache metrics where available, plus input tokens, output tokens, p50/p95 latency, cost, and tool-call accuracy.\",\n      \"decision_signal\": \"Cache hit improvement must be visible, not inferred from latency alone.\"\n    },\n    {\n      \"step\": \"Stress-test capsule compression with adversarial cases: revoked decisions, changed user preferences, conflicting observations, secrets, and stale architecture notes.\",\n      \"decision_signal\": \"Verifier must prevent unsafe compression and preserve active decisions exactly.\"\n    },\n    {\n      \"step\": \"Run the benchmark across Eli's main model targets instead of one provider path.\",\n      \"decision_signal\": \"Adopt only if gains hold on the models actually used.\"\n    },\n    {\n      \"step\": \"Pilot behind a flag for read-heavy and long-context tasks first, keeping current memory behavior as rollback.\",\n      \"decision_signal\": \"Promote if latency and cost improve for one week with no measurable rise in user corrections, missed decisions, or stale-memory bugs.\"\n    }\n  ]\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5949 in + 595 out = 6544]\u001b[0m\n",
+          "stdout_tail": "d-to-end speedup conflicts with reported p95 turn latency: 18.4 ms to 13.6 ms is only 1.35x faster.\",\n    \"Component timings do not support 3x: baseline prefill + decode is 17.2 ms; Hydra prefill + decode is 13.6 ms, about 1.26x faster.\",\n    \"Hydra decode is slightly slower than baseline: 6.1 ms vs 6.0 ms.\",\n    \"Router tuning used production traces from the same week as evaluation, creating likely train/eval leakage or temporal overfitting.\",\n    \"Ablation changes router and kernel together, so the paper cannot attribute gains to either component.\",\n    \"Reporting the max improvement across 6 tasks is cherry-picking unless all task results and selection rules are disclosed.\",\n    \"Energy counters are omitted, which matters for a Metal-backed kernel where speedups may trade off against power or thermal behavior.\"\n  ],\n  \"minimal_experiments\": [\n    \"Report full per-task latency distributions across all 6 tasks, including median, p95, p99, and geometric mean speedup.\",\n    \"Evaluate on production traces from a later, untouched time window than the router tuning data.\",\n    \"Run a 2x2 ablation: baseline router + baseline kernel, new router + baseline kernel, baseline router + Metal cache kernel, new router + Metal cache kernel.\",\n    \"Report end-to-end wall-clock agent latency, not only prefill/decode components.\",\n    \"Include power, energy per turn, and thermal throttling counters on the same hardware.\",\n    \"Pre-register or disclose the aggregation rule instead of reporting the maximum task improvement.\"\n  ],\n  \"adoption_decision\": \"Do not adopt based on this excerpt. At most, run an internal reproduction focused on the Metal cache kernel and router separately; treat the current evidence as a modest ~1.3x latency improvement with high leakage and attribution risk.\"\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6001 in + 535 out = 6536]\u001b[0m\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__4c9855e28538c0d4.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__ad5ecb916dfa6338.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -311,15 +348,15 @@
       }
     },
     {
-      "id": "fixed_time_dst_schedule",
-      "capability": "time_planning",
+      "id": "metal_mlx_kernel_speed_mac_only",
+      "capability": "metal_performance",
       "max_points": 10,
-      "delta_a_minus_b": -5,
-      "winner": "gpt55",
+      "delta_a_minus_b": 0,
+      "winner": "tie",
       "results": {
         "dsv4": {
-          "id": "fixed_time_dst_schedule",
-          "capability": "time_planning",
+          "id": "metal_mlx_kernel_speed_mac_only",
+          "capability": "metal_performance",
           "score": 5,
           "max_points": 10,
           "passed": false,
@@ -332,13 +369,13 @@
             },
             {
               "kind": "stdout_json_keys",
-              "points": 2,
+              "points": 1,
               "earned": 0,
               "passed": false
             },
             {
               "kind": "stdout_contains_all",
-              "points": 3,
+              "points": 1,
               "earned": 0,
               "passed": false
             },
@@ -349,38 +386,56 @@
               "passed": true
             },
             {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
+              "kind": "stdout_contains_any",
               "points": 2,
               "earned": 2,
               "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-dsv4-fixed_time_dst_schedule",
+          "session_id": "eli-ab-20260519045718-dsv4-metal_mlx_kernel_speed_mac_only",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:409 chars>",
+                "<prompt:569 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-fixed_time_dst_schedule"
+                "eli-ab-20260519045718-dsv4-metal_mlx_kernel_speed_mac_only"
               ],
               "returncode": 0,
-              "elapsed_ms": 47538,
-              "stdout_tail": "    \"handoff_sf_local\": \"2026-03-06T17:30:00-08:00\",\n      \"handoff_utc\": \"2026-03-07T01:30:00Z\",\n      \"persisted_shanghai_local\": \"2026-03-07T09:30:00+08:00\",\n      \"shanghai_zone\": \"CST\",\n      \"shanghai_utc_offset\": \"+08:00\",\n      \"delta_hours\": \"+16h from SF to Shanghai\"\n    },\n    {\n      \"business_day\": 2,\n      \"date\": \"2026-03-09\",\n      \"day_of_week\": \"Monday\",\n      \"sf_zone\": \"PDT\",\n      \"sf_utc_offset\": \"-07:00\",\n      \"handoff_sf_local\": \"2026-03-09T17:30:00-07:00\",\n      \"handoff_utc\": \"2026-03-10T00:30:00Z\",\n      \"persisted_shanghai_local\": \"2026-03-10T08:30:00+08:00\",\n      \"shanghai_zone\": \"CST\",\n      \"shanghai_utc_offset\": \"+08:00\",\n      \"delta_hours\": \"+15h from SF to Shanghai\"\n    },\n    {\n      \"business_day\": 3,\n      \"date\": \"2026-03-10\",\n      \"day_of_week\": \"Tuesday\",\n      \"sf_zone\": \"PDT\",\n      \"sf_utc_offset\": \"-07:00\",\n      \"handoff_sf_local\": \"2026-\n",
+              "elapsed_ms": 59515,
+              "stdout_tail": ": {\n        \"strategy\": \"Each thread (index i in 0..127) owns 4 float16 registers: h_i (current hidden), z_i, r_i, h_cand_i. The 128 threads collectively hold the full H-vector in registers across the threadgroup—no threadgroup memory needed for h state. At each timestep t, thread i loads x[t][0..63] cooperatively using simdgroup_load (8 simdgroups of 16 threads, each loads 8 halfs), then computes its scalar dot products W_*[0..63, i] · x[t] with the preloaded x slice. The recurrent contributions U_*[:, i] · h_{t-1} require the full h vector: use simdgroup_shuffle to broadcast each thread's h_i register to all threads, then accumulate U_*[j, i] * h_j across j=0..127 in a loop. Total per-thread registers: ~32 half (16 float16 registers) for accumulation temporaries plus the 4 state scalars—well within the 256-register budget on Apple GPU family 8+.\",\n        \"fuse_gates\": \"Compute W_z·x,\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "\n  \"assumptions\": {\n    \"today\": \"2026-03-06T00:00:00-08:00\",\n    \"business_days_definition\": \"Monday through Friday, excluding weekends and US federal holidays\",\n    \"three_business_days_including_today\": [\"2026-03-06\", \"2026-03-09\", \"2026-03-10\"],\n    \"weekend_exclusion\": \"2026-03-07 (Saturday) and 2026-03-08 (Sunday) are skipped\",\n    \"dst_transition\": \"US Pacific switches from PST (UTC-8) to PDT (UTC-7) on 2026-03-08 at 02:00 local\",\n    \"asia_shanghai_offset\": \"UTC+8, no DST observed\",\n    \"handoff_time_spec\": \"17:30 local time in America/Los_Angeles\",\n    \"record_keeper\": \"ckl, persisted in Asia/Shanghai local time\",\n    \"no_federal_holiday_conflict\": \"2026-03-06 through 2026-03-10 contains no US federal holidays\"\n  },\n  \"schedule\": [\n    {\n      \"business_day\": 1,\n      \"date\": \"2026-03-06\",\n      \"day_of_week\": \"Friday\",\n      \"sf_zone\": \"PST\",\n      \"sf_utc_offset\": \"-08:00\",\n      \"handoff_sf_local\": \"2026-03-06T17:30:00-08:00\",\n      \"handoff_utc\": \"2026-03-07T01:30:00Z\",\n      \"persisted_shanghai_local\": \"2026-03-07T09:30:00+08:00\",\n      \"shanghai_zone\": \"CST\",\n      \"shanghai_utc_offset\": \"+08:00\",\n      \"delta_hours\": \"+16h from SF to Shanghai\"\n    },\n    {\n      \"business_day\": 2,\n      \"date\": \"2026-03-09\",\n      \"day_of_week\": \"Monday\",\n      \"sf_zone\": \"PDT\",\n      \"sf_utc_offset\": \"-07:00\",\n      \"handoff_sf_local\": \"2026-03-09T17:30:00-07:00\",\n      \"handoff_utc\": \"2026-03-10T00:30:00Z\",\n      \"persisted_shanghai_local\": \"2026-03-10T08:30:00+08:00\",\n      \"shanghai_zone\": \"CST\",\n      \"shanghai_utc_offset\": \"+08:00\",\n      \"delta_hours\": \"+15h from SF to Shanghai\"\n    },\n    {\n      \"business_day\": 3,\n      \"date\": \"2026-03-10\",\n      \"day_of_week\": \"Tuesday\",\n      \"sf_zone\": \"PDT\",\n      \"sf_utc_offset\": \"-07:00\",\n      \"handoff_sf_local\": \"2026-\n",
+          "stdout_tail": "reads cooperate inside a single threadgroup to process the full T=8192 sequence in one kernel launch. No host-device synchronization mid-sequence.\",\n      \"memory_layout\": {\n        \"x\": \"MTLBuffer, float16, shape [T, I], row-major, I=64 packed as 32 half2 in memory. Pre-transposed offline so threadgroup loads contiguous 16-byte chunks.\",\n        \"h_init\": \"MTLBuffer, float16, shape [H], aligned to 64 bytes.\",\n        \"weights\": \"Single fused MTLBuffer: W_z [I,H], W_r [I,H], W_h [I,H], U_z [H,H], U_r [H,H], U_h [H,H], biases b_z/r/h [H each]. All float16. U matrices stored column-major so thread i reads column i (contiguous H halfs) for the thread's scalar output element.\",\n        \"output\": \"MTLBuffer, float16, shape [T, H], row-major. Each timestep's full H-vector written once; no atomic operations needed because thread i owns output[t][i] exclusively.\"\n      },\n      \"register_tiling\": {\n        \"strategy\": \"Each thread (index i in 0..127) owns 4 float16 registers: h_i (current hidden), z_i, r_i, h_cand_i. The 128 threads collectively hold the full H-vector in registers across the threadgroup—no threadgroup memory needed for h state. At each timestep t, thread i loads x[t][0..63] cooperatively using simdgroup_load (8 simdgroups of 16 threads, each loads 8 halfs), then computes its scalar dot products W_*[0..63, i] · x[t] with the preloaded x slice. The recurrent contributions U_*[:, i] · h_{t-1} require the full h vector: use simdgroup_shuffle to broadcast each thread's h_i register to all threads, then accumulate U_*[j, i] * h_j across j=0..127 in a loop. Total per-thread registers: ~32 half (16 float16 registers) for accumulation temporaries plus the 4 state scalars—well within the 256-register budget on Apple GPU family 8+.\",\n        \"fuse_gates\": \"Compute W_z·x,\n",
           "stderr_tail": "",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__aea8276a5b080860.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__78ef89598189485a.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -393,8 +448,959 @@
           }
         },
         "gpt55": {
-          "id": "fixed_time_dst_schedule",
-          "capability": "time_planning",
+          "id": "metal_mlx_kernel_speed_mac_only",
+          "capability": "metal_performance",
+          "score": 5,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-gpt55-metal_mlx_kernel_speed_mac_only",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:569 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-metal_mlx_kernel_speed_mac_only"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 49160,
+              "stdout_tail": "h dimension is later introduced.\"\n    },\n    {\n      \"risk\": \"exp/tanh cost dominates and hides memory/layout wins.\",\n      \"mitigation\": \"Add optional fast:: math compile flag after correctness gate; keep standard math as default acceptance path.\"\n    },\n    {\n      \"risk\": \"Numerical drift across long T causes allclose failure.\",\n      \"mitigation\": \"Use low-magnitude inputs and weights, float32, and compare against the exact same recurrence order.\"\n    },\n    {\n      \"risk\": \"Timing accidentally includes allocation or compilation.\",\n      \"mitigation\": \"Compile pipeline and allocate buffers before warmup; exclude first-run JIT/compile from measured iterations.\"\n    },\n    {\n      \"risk\": \"Benchmark passes by beating an unfair Python-dispatch MLX loop.\",\n      \"mitigation\": \"Acceptance gate must compare against mx.scan when available and label the baseline type in output.\"\n    }\n  ]\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5942 in + 2633 out = 8575]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": "form\",\n        \"T\",\n        \"H\",\n        \"metal_ms\",\n        \"mlx_ms\",\n        \"speedup\",\n        \"max_abs_error\",\n        \"which_gate_failed\"\n      ],\n      \"diagnostic_hint\": \"If speedup fails but correctness passes, print whether MLX baseline used scan or Python loop, because beating a Python-loop baseline is not a meaningful final win.\"\n    }\n  },\n  \"risk_register\": [\n    {\n      \"risk\": \"MLX scan may already fuse the recurrence well, making 1.25x hard for a simple scalar-thread kernel.\",\n      \"mitigation\": \"Keep the primary workload small-H/long-T where single-dispatch custom Metal avoids graph overhead; report both mx.scan and loop baselines.\"\n    },\n    {\n      \"risk\": \"One thread per hidden channel gives poor occupancy for H=32 or H=64.\",\n      \"mitigation\": \"Primary benchmark uses long T to amortize launch cost; add optional variant with one thread per batch-hidden lane if batch dimension is later introduced.\"\n    },\n    {\n      \"risk\": \"exp/tanh cost dominates and hides memory/layout wins.\",\n      \"mitigation\": \"Add optional fast:: math compile flag after correctness gate; keep standard math as default acceptance path.\"\n    },\n    {\n      \"risk\": \"Numerical drift across long T causes allclose failure.\",\n      \"mitigation\": \"Use low-magnitude inputs and weights, float32, and compare against the exact same recurrence order.\"\n    },\n    {\n      \"risk\": \"Timing accidentally includes allocation or compilation.\",\n      \"mitigation\": \"Compile pipeline and allocate buffers before warmup; exclude first-run JIT/compile from measured iterations.\"\n    },\n    {\n      \"risk\": \"Benchmark passes by beating an unfair Python-dispatch MLX loop.\",\n      \"mitigation\": \"Acceptance gate must compare against mx.scan when available and label the baseline type in output.\"\n    }\n  ]\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5942 in + 2633 out = 8575]\u001b[0m\n",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__81d8b8f9232bacf8.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "rust_openai_payload_programming",
+      "capability": "programming",
+      "max_points": 10,
+      "delta_a_minus_b": -1,
+      "winner": "gpt55",
+      "results": {
+        "dsv4": {
+          "id": "rust_openai_payload_programming",
+          "capability": "programming",
+          "score": 6,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-dsv4-rust_openai_payload_programming",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:483 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-rust_openai_payload_programming"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 37303,
+              "stdout_tail": "rovider metadata.\\n+pub fn sanitize_session_hint(raw: &str) -> String {\\n+    raw.chars()\\n+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')\\n+        .take(64)\\n+        .collect()\\n+}\", \"test_names\": [\"openai_strips_session_id_for_gpt55\", \"openai_keeps_session_id_for_gpt4\", \"anthropic_maps_session_to_metadata_user_id\", \"anthropic_no_session_id_no_metadata_injection\", \"sanitize_strips_pii_and_truncates\", \"sanitize_preserves_dash_and_underscore\"], \"verification\": \"cargo test --lib eli-core; cargo clippy -- -D warnings; cargo check -p eli-core 2>&1 | grep -v warning\", \"risk\": \"Low. gpt-5.5 family gate is explicit; older models keep session_id unchanged. Anthropic mapping is additive — absent session_id yields no metadata key. sanitize_session_hint is pure and side-effect-free. Both provider patches touch only the request-serialization hot path, each under 5 new lines.\"}\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "nally.\\n+        if self.model.family == \\\"gpt-5.5\\\" {\\n+            body.remove(\\\"session_id\\\");\\n+        }\\n         let resp = self\\n             .client\\n             .post(&self.endpoint)\\n--- a/crates/eli-core/src/providers/anthropic.rs\\n+++ b/crates/eli-core/src/providers/anthropic.rs\\n@@ -38,6 +38,10 @@ impl Provider for Anthropic {\\n         let mut body = self.build_base_body(req);\\n+        // Anthropic does not accept session_id natively;\\n+        // remap a sanitized hint to metadata.user_id.\\n+        if let Some(sid) = body.remove(\\\"session_id\\\") {\\n+            body[\\\"metadata\\\"][\\\"user_id\\\"] = sanitize_session_hint(&sid);\\n+        }\\n         let resp = self\\n             .client\\n             .post(&self.endpoint)\\n--- /dev/null\\n+++ b/crates/eli-core/src/session.rs\\n@@ -0,0 +1,7 @@\\n+/// Strip PII, tokens, and non-alphanumeric chars;\\n+/// truncate to 64 chars for provider metadata.\\n+pub fn sanitize_session_hint(raw: &str) -> String {\\n+    raw.chars()\\n+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')\\n+        .take(64)\\n+        .collect()\\n+}\", \"test_names\": [\"openai_strips_session_id_for_gpt55\", \"openai_keeps_session_id_for_gpt4\", \"anthropic_maps_session_to_metadata_user_id\", \"anthropic_no_session_id_no_metadata_injection\", \"sanitize_strips_pii_and_truncates\", \"sanitize_preserves_dash_and_underscore\"], \"verification\": \"cargo test --lib eli-core; cargo clippy -- -D warnings; cargo check -p eli-core 2>&1 | grep -v warning\", \"risk\": \"Low. gpt-5.5 family gate is explicit; older models keep session_id unchanged. Anthropic mapping is additive — absent session_id yields no metadata key. sanitize_session_hint is pure and side-effect-free. Both provider patches touch only the request-serialization hot path, each under 5 new lines.\"}\n",
+          "stderr_tail": "",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__994169cde456c6db.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        },
+        "gpt55": {
+          "id": "rust_openai_payload_programming",
+          "capability": "programming",
+          "score": 7,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-gpt55-rust_openai_payload_programming",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:483 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-rust_openai_payload_programming"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 21274,
+              "stdout_tail": "ere.\",\n    \"Serialize an Anthropic-like request with `session:../../abc 😈` and assert `metadata.user_id == \\\"session..abc\\\"` or whatever exact sanitizer output the test locks.\",\n    \"Run the provider payload unit tests plus the existing OpenAI request serialization tests.\",\n    \"Run rustfmt and clippy; keep every new Rust function body under 15 lines.\"\n  ],\n  \"risk\": [\n    \"If any OpenAI-compatible non-OpenAI backend previously accepted `session_id`, this removes it unless that profile is explicitly classified as Anthropic-like or given its own policy.\",\n    \"Changing the neutral request struct may break serde snapshots that expected `session_id`; update snapshots only where the field was outbound HTTP payload, not local tape state.\",\n    \"Sanitizer semantics become observable in provider metadata; lock them with tests to avoid accidental PII or unsupported-character regressions.\"\n  ]\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5939 in + 1074 out = 7013]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": "t Value, hint: &str) {\\n    let Some(id) = sanitize_session_user_id(hint) else { return };\\n    let meta = body.entry(\\\"metadata\\\").or_insert_with(|| json!({}));\\n    meta[\\\"user_id\\\"] = json!(id);\\n}\"\n    },\n    {\n      \"file\": \"crates/eli/tests/provider_payload.rs\",\n      \"patch\": \"Add regression coverage asserting OpenAI payloads contain no `session_id`, while Anthropic-like payloads contain `metadata.user_id` with only sanitized characters.\"\n    }\n  ],\n  \"test_names\": [\n    \"openai_payload_omits_session_id\",\n    \"openai_payload_keeps_local_tape_session_out_of_http_body\",\n    \"anthropic_like_maps_session_hint_to_metadata_user_id\",\n    \"session_hint_user_id_is_sanitized_and_capped\",\n    \"empty_or_fully_invalid_session_hint_is_not_serialized\"\n  ],\n  \"verification\": [\n    \"Serialize an OpenAI `gpt-5.5` request with a local tape/session id and assert the JSON has no `session_id` key anywhere.\",\n    \"Serialize an Anthropic-like request with `session:../../abc 😈` and assert `metadata.user_id == \\\"session..abc\\\"` or whatever exact sanitizer output the test locks.\",\n    \"Run the provider payload unit tests plus the existing OpenAI request serialization tests.\",\n    \"Run rustfmt and clippy; keep every new Rust function body under 15 lines.\"\n  ],\n  \"risk\": [\n    \"If any OpenAI-compatible non-OpenAI backend previously accepted `session_id`, this removes it unless that profile is explicitly classified as Anthropic-like or given its own policy.\",\n    \"Changing the neutral request struct may break serde snapshots that expected `session_id`; update snapshots only where the field was outbound HTTP payload, not local tape state.\",\n    \"Sanitizer semantics become observable in provider metadata; lock them with tests to avoid accidental PII or unsupported-character regressions.\"\n  ]\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5939 in + 1074 out = 7013]\u001b[0m\n",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__12cb1ea9cfd1e5d6.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "writing_revision_decision_memo",
+      "capability": "writing",
+      "max_points": 10,
+      "delta_a_minus_b": -1,
+      "winner": "gpt55",
+      "results": {
+        "dsv4": {
+          "id": "writing_revision_decision_memo",
+          "capability": "writing",
+          "score": 4,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_forbid_all",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-dsv4-writing_revision_decision_memo",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:609 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-writing_revision_decision_memo"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 58112,
+              "stdout_tail": "(model returned empty response)\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "(model returned empty response)\n",
+          "stderr_tail": "",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__70e86476171f2c5f.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        },
+        "gpt55": {
+          "id": "writing_revision_decision_memo",
+          "capability": "writing",
+          "score": 5,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_forbid_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-gpt55-writing_revision_decision_memo",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:609 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-writing_revision_decision_memo"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 8183,
+              "stdout_tail": "ning as explicit cases, since those are integration-sensitive areas where Rust/backend changes can break behavior even when unit tests stay green.\\n\\nI would keep the suite, avoid expanding it until it catches a real regression, and document the expected differences between models so future failures are triaged against known behavior instead of rediscovered. Delete only if the suite becomes flaky, slow enough to block iteration, or fails to map to backend contracts.\",\n  \"cuts_made\": \"Removed vague praise, marketing language, repeated confidence statements, and unsupported claims. Converted 'basically great' into CI status, coverage value, model comparison, and deletion criteria.\",\n  \"residual_risk\": \"The source does not quantify coverage, runtime, flake rate, or exact GPT-vs-DeepSeek deltas, so the recommendation depends on the suite staying stable and tied to real backend contracts.\"\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5970 in + 357 out = 6327]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": "{\n  \"title\": \"Recommendation: Keep the Benchmark Suite\",\n  \"memo\": \"Keep the benchmark suite. Current signal is strong: CI is green, both evaluated models perform well, and the suite appears to cover enough behavior to remain useful rather than ornamental. The main value is not proving one model is universally better; it is preserving a repeatable check across session handling, tool-call behavior, and backend-facing execution paths that are easy to regress silently.\\n\\nGPT appears to have the edge overall, but DeepSeek is close enough that the result should be treated as comparative signal, not a deletion argument. The suite is useful precisely because it exposes small differences without turning them into production blockers. The session_id and tool-call observations are worth retaining as explicit cases, since those are integration-sensitive areas where Rust/backend changes can break behavior even when unit tests stay green.\\n\\nI would keep the suite, avoid expanding it until it catches a real regression, and document the expected differences between models so future failures are triaged against known behavior instead of rediscovered. Delete only if the suite becomes flaky, slow enough to block iteration, or fails to map to backend contracts.\",\n  \"cuts_made\": \"Removed vague praise, marketing language, repeated confidence statements, and unsupported claims. Converted 'basically great' into CI status, coverage value, model comparison, and deletion criteria.\",\n  \"residual_risk\": \"The source does not quantify coverage, runtime, flake rate, or exact GPT-vs-DeepSeek deltas, so the recommendation depends on the suite staying stable and tied to real backend contracts.\"\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5970 in + 357 out = 6327]\u001b[0m\n",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__9584d01ff633414d.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "simpsons_paradox_bench_analysis",
+      "capability": "analysis",
+      "max_points": 10,
+      "delta_a_minus_b": 0,
+      "winner": "tie",
+      "results": {
+        "dsv4": {
+          "id": "simpsons_paradox_bench_analysis",
+          "capability": "analysis",
+          "score": 5,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-dsv4-simpsons_paradox_bench_analysis",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:427 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-simpsons_paradox_bench_analysis"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 28813,
+              "stdout_tail": "{\"overall\": {\"DSv4\": \"90.0%\", \"GPT-5.5\": \"93.0%\", \"gap\": \"3.0pp\"}, \"hard_tail\": {\"DSv4\": \"20.0%\", \"GPT-5.5\": \"70.0%\", \"gap\": \"50.0pp\"}, \"diagnosis\": \"Easy cases are near ceiling for both models (97.8% vs 95.6%, a 2.2pp gap on 90 items). Nearly all discriminative signal comes from the 10 hard-tail cases where the gap is 50pp. The 90:10 weighting buries the only cases that differentiate the models. The old report's 'acceptable' verdict was based on overall scores alone and ignored that easy cases contribute almost zero ranking information.\", \"decision\": \"downweighted\"}\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "{\"overall\": {\"DSv4\": \"90.0%\", \"GPT-5.5\": \"93.0%\", \"gap\": \"3.0pp\"}, \"hard_tail\": {\"DSv4\": \"20.0%\", \"GPT-5.5\": \"70.0%\", \"gap\": \"50.0pp\"}, \"diagnosis\": \"Easy cases are near ceiling for both models (97.8% vs 95.6%, a 2.2pp gap on 90 items). Nearly all discriminative signal comes from the 10 hard-tail cases where the gap is 50pp. The 90:10 weighting buries the only cases that differentiate the models. The old report's 'acceptable' verdict was based on overall scores alone and ignored that easy cases contribute almost zero ranking information.\", \"decision\": \"downweighted\"}\n",
+          "stderr_tail": "",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__6d3b7dcd81a93b45.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        },
+        "gpt55": {
+          "id": "simpsons_paradox_bench_analysis",
+          "capability": "analysis",
+          "score": 5,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-gpt55-simpsons_paradox_bench_analysis",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:427 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-simpsons_paradox_bench_analysis"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 8374,
+              "stdout_tail": "{\n  \"overall\": {\n    \"DSv4\": \"90/100 = 90.00%\",\n    \"GPT-5.5\": \"93/100 = 93.00%\"\n  },\n  \"hard_tail\": {\n    \"DSv4\": \"2/10 = 20.00%\",\n    \"GPT-5.5\": \"7/10 = 70.00%\"\n  },\n  \"diagnosis\": \"The suite is not acceptable as reported: 90 easy cases dominate the score and obscure the hard-tail gap. DSv4 is slightly better on easy cases, 88/90 = 97.78% vs GPT-5.5 at 86/90 = 95.56%, but GPT-5.5 is much better on hard cases, 70.00% vs 20.00%.\",\n  \"decision\": \"Downweight easy cases, do not delete them. Keep them as regression checks, but report hard-tail performance separately and give it enough weight that 20.00% vs 70.00% cannot be hidden by easy-case saturation.\"\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5949 in + 362 out = 6311]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": "{\n  \"overall\": {\n    \"DSv4\": \"90/100 = 90.00%\",\n    \"GPT-5.5\": \"93/100 = 93.00%\"\n  },\n  \"hard_tail\": {\n    \"DSv4\": \"2/10 = 20.00%\",\n    \"GPT-5.5\": \"7/10 = 70.00%\"\n  },\n  \"diagnosis\": \"The suite is not acceptable as reported: 90 easy cases dominate the score and obscure the hard-tail gap. DSv4 is slightly better on easy cases, 88/90 = 97.78% vs GPT-5.5 at 86/90 = 95.56%, but GPT-5.5 is much better on hard cases, 70.00% vs 20.00%.\",\n  \"decision\": \"Downweight easy cases, do not delete them. Keep them as regression checks, but report hard-tail performance separately and give it enough weight that 20.00% vs 70.00% cannot be hidden by easy-case saturation.\"\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5949 in + 362 out = 6311]\u001b[0m\n",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__0ca4aea7313270d0.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "browsecomp_style_exploration_plan",
+      "capability": "exploration",
+      "max_points": 10,
+      "delta_a_minus_b": 0,
+      "winner": "tie",
+      "results": {
+        "dsv4": {
+          "id": "browsecomp_style_exploration_plan",
+          "capability": "exploration",
+          "score": 7,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-dsv4-browsecomp_style_exploration_plan",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:519 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-browsecomp_style_exploration_plan"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 56837,
+              "stdout_tail": "ive primary source found that directly contradicts or confirms the claim (e.g., author statement)\"], \"stop_with_partial\": \"One side found but the other exhaustively searched with no result. Report what was found, what was not, and confidence level.\", \"stop_exhaustion\": \"All query_strategy paths exhausted. At least 3 distinct search engines/sources tried per key concept. At least 2 rounds of date-window narrowing attempted. Report as unverifiable with full search log.\", \"max_effort\": \"Hard limit: 40 total queries across all sources. If not resolved, report best available evidence with explicit uncertainty.\", \"early_stop_triggers\": \"If found evidence proves the claim is trivially false (e.g., OpenAI session_id fix predates Eli's existence by years), stop and report immediately. If found evidence proves the claim is trivially true (both dates found cleanly), stop and report immediately.\"}}\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "eparate things.\", \"for_claim_unverifiable\": \"If after exhausting all search paths no dated primary source exists for either side of the comparison, report unverifiable with a log of all paths attempted.\", \"fabrication_guard\": \"Every date must come from an immutable source: git commit hash + timestamp, Internet Archive snapshot with URL, official changelog entry URL, or tweet ID with timestamp. Screenshots are secondary and require archive.org confirmation. Do not infer dates from surrounding context alone.\", \"chain_of_custody\": \"For each piece of evidence, record: source URL, retrieval date, how the date was extracted (commit SHA, archive timestamp, HTTP Last-Modified header, page content), and whether the source still exists at the time of the follow-up execution.\"}, \"stop_conditions\": {\"stop_with_answer\": [\"Both D1 and D2 found, independently verified, relationship confirmed\", \"Definitive primary source found that directly contradicts or confirms the claim (e.g., author statement)\"], \"stop_with_partial\": \"One side found but the other exhaustively searched with no result. Report what was found, what was not, and confidence level.\", \"stop_exhaustion\": \"All query_strategy paths exhausted. At least 3 distinct search engines/sources tried per key concept. At least 2 rounds of date-window narrowing attempted. Report as unverifiable with full search log.\", \"max_effort\": \"Hard limit: 40 total queries across all sources. If not resolved, report best available evidence with explicit uncertainty.\", \"early_stop_triggers\": \"If found evidence proves the claim is trivially false (e.g., OpenAI session_id fix predates Eli's existence by years), stop and report immediately. If found evidence proves the claim is trivially true (both dates found cleanly), stop and report immediately.\"}}\n",
+          "stderr_tail": "",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__1094a1a8b79c26b9.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        },
+        "gpt55": {
+          "id": "browsecomp_style_exploration_plan",
+          "capability": "exploration",
+          "score": 7,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-gpt55-browsecomp_style_exploration_plan",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:519 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-browsecomp_style_exploration_plan"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 34061,
+              "stdout_tail": "  \"No inspected public source contains the Eli-side claim.\",\n      \"Only private, inaccessible, or later retrospective sources are found.\",\n      \"The earliest verifiable Eli-side mention is after the OpenAI session_id fix.\",\n      \"The claim depends on unverifiable snippets, memory, or uncited summaries.\"\n    ],\n    \"search_exhaustion_threshold\": [\n      \"At least 30 targeted searches across exact phrase, variant terminology, source-specific domains, and author/source chaining have been performed.\",\n      \"At least 10 plausible results have been inspected in full where available.\",\n      \"Both the Eli-side claim and OpenAI session_id fix have been searched with date filters before, during, and after the suspected period.\",\n      \"Major public venues likely to host the claim have been checked: GitHub, official docs/changelogs, blogs, HN, Reddit, X/Twitter, and web archives.\"\n    ]\n  }\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5942 in + 1753 out = 7695]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": " source is found that explicitly or clearly implies preserving KV-cache efficiency during local tape handoff.\",\n      \"A primary-source date for the OpenAI session_id fix is established.\",\n      \"The Eli-side source predates the OpenAI fix under conservative timestamp handling.\",\n      \"No earlier source is found after exact-phrase, terminology-variant, author, venue-specific, citation-chain, and date-bounded searches.\"\n    ],\n    \"partial_success\": [\n      \"A plausible Eli-side source is found but the OpenAI fix date remains ambiguous; report the candidate source and all possible fix dates.\",\n      \"The OpenAI fix date is established but only indirect Eli-side references are found; report that the original source remains unresolved.\",\n      \"A source predates some interpretations of the fix date but not others; report the ambiguity instead of flattening it.\"\n    ],\n    \"failure\": [\n      \"No inspected public source contains the Eli-side claim.\",\n      \"Only private, inaccessible, or later retrospective sources are found.\",\n      \"The earliest verifiable Eli-side mention is after the OpenAI session_id fix.\",\n      \"The claim depends on unverifiable snippets, memory, or uncited summaries.\"\n    ],\n    \"search_exhaustion_threshold\": [\n      \"At least 30 targeted searches across exact phrase, variant terminology, source-specific domains, and author/source chaining have been performed.\",\n      \"At least 10 plausible results have been inspected in full where available.\",\n      \"Both the Eli-side claim and OpenAI session_id fix have been searched with date filters before, during, and after the suspected period.\",\n      \"Major public venues likely to host the claim have been checked: GitHub, official docs/changelogs, blogs, HN, Reddit, X/Twitter, and web archives.\"\n    ]\n  }\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5942 in + 1753 out = 7695]\u001b[0m\n",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__66addf96478803f4.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "frontier_math_sanity_check",
+      "capability": "frontier_science",
+      "max_points": 10,
+      "delta_a_minus_b": -2,
+      "winner": "gpt55",
+      "results": {
+        "dsv4": {
+          "id": "frontier_math_sanity_check",
+          "capability": "frontier_science",
+          "score": 8,
+          "max_points": 10,
+          "passed": true,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 3,
+              "earned": 3,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260519045718-dsv4-frontier_math_sanity_check",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:276 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-frontier_math_sanity_check"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 29260,
+              "stdout_tail": "{\"correct_value\": \"1/64\", \"derivation\": \"Use the identity C(n,k)/(k+1) = ∫₀¹ C(n,k) t^k dt. Then S = Σₖ₌₀⁶³ (-1)^k ∫₀¹ C(63,k) t^k dt = ∫₀¹ Σₖ₌₀⁶³ C(63,k)(-t)^k dt = ∫₀¹ (1-t)^63 dt = 1/64.\", \"flaw\": \"The alternating sum of bare binomial coefficients does cancel to zero: Σ(-1)^k C(63,k) = (1-1)^63 = 0. But dividing each term by (k+1) destroys that symmetry. Paired terms C(63,k)/(k+1) and C(63,63-k)/(64-k) have different denominators, so they do not cancel. The proof conflates the weighted sum with the unweighted one.\", \"confidence\": 0.99}\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "{\"correct_value\": \"1/64\", \"derivation\": \"Use the identity C(n,k)/(k+1) = ∫₀¹ C(n,k) t^k dt. Then S = Σₖ₌₀⁶³ (-1)^k ∫₀¹ C(63,k) t^k dt = ∫₀¹ Σₖ₌₀⁶³ C(63,k)(-t)^k dt = ∫₀¹ (1-t)^63 dt = 1/64.\", \"flaw\": \"The alternating sum of bare binomial coefficients does cancel to zero: Σ(-1)^k C(63,k) = (1-1)^63 = 0. But dividing each term by (k+1) destroys that symmetry. Paired terms C(63,k)/(k+1) and C(63,63-k)/(64-k) have different denominators, so they do not cancel. The proof conflates the weighted sum with the unweighted one.\", \"confidence\": 0.99}\n",
+          "stderr_tail": "",
+          "tape": {
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__535917ee59d85181.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          }
+        },
+        "gpt55": {
+          "id": "frontier_math_sanity_check",
+          "capability": "frontier_science",
           "score": 10,
           "max_points": 10,
           "passed": true,
@@ -407,8 +1413,8 @@
             },
             {
               "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -424,38 +1430,44 @@
               "passed": true
             },
             {
-              "kind": "stdout_forbid_all",
+              "kind": "stdout_contains_any",
               "points": 1,
               "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 2,
+              "earned": 2,
               "passed": true
             },
             {
               "kind": "no_tool_calls",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-gpt55-fixed_time_dst_schedule",
+          "session_id": "eli-ab-20260519045718-gpt55-frontier_math_sanity_check",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:409 chars>",
+                "<prompt:276 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-fixed_time_dst_schedule"
+                "eli-ab-20260519045718-gpt55-frontier_math_sanity_check"
               ],
               "returncode": 0,
-              "elapsed_ms": 12370,
-              "stdout_tail": "0:00-08:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-07T09:30:00+08:00\"\n    },\n    {\n      \"business_day\": \"2026-03-09\",\n      \"san_francisco_time\": \"2026-03-09T17:30:00-07:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-10T08:30:00+08:00\"\n    },\n    {\n      \"business_day\": \"2026-03-10\",\n      \"san_francisco_time\": \"2026-03-10T17:30:00-07:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-11T08:30:00+08:00\"\n    }\n  ],\n  \"risks\": [\n    \"The America/Los_Angeles UTC offset changes from -08:00 to -07:00 between the first and second scheduled handoffs due to daylight saving time.\",\n    \"The Asia/Shanghai persisted date is the following calendar day for all three San Francisco handoffs.\"\n  ],\n  \"validation\": {\n    \"timezone_conversion_checked\": true,\n    \"business_days_included\": [\n      \"2026-03-06\",\n      \"2026-03-09\",\n      \"2026-03-10\"\n    ],\n    \"tool_calls_used\": false\n  }\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5927 in + 572 out = 6499]\u001b[0m\n"
+              "elapsed_ms": 6716,
+              "stdout_tail": "{\"correct_value\":\"1/64\",\"derivation\":\"Use 1/(k+1)=integral_0^1 x^k dx. Then S=sum_{k=0}^{63} (-1)^k C(63,k) integral_0^1 x^k dx = integral_0^1 sum_{k=0}^{63} C(63,k)(-x)^k dx = integral_0^1 (1-x)^63 dx = 1/64.\",\"flaw\":\"The cancellation argument ignores the factor 1/(k+1), so the terms are not paired symmetrically as in sum_{k=0}^{63} (-1)^k C(63,k)=(1-1)^63=0.\",\"confidence\":0.99}\n",
+              "stderr_tail": "\u001b[2m[tokens: 5910 in + 222 out = 6132]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\n  \"assumptions\": [\n    \"Business days are Monday through Friday, excluding no additional holidays.\",\n    \"America/Los_Angeles observes daylight saving time starting on 2026-03-08.\",\n    \"Persisted records use Asia/Shanghai local time as requested by ckl.\"\n  ],\n  \"schedule\": [\n    {\n      \"business_day\": \"2026-03-06\",\n      \"san_francisco_time\": \"2026-03-06T17:30:00-08:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-07T09:30:00+08:00\"\n    },\n    {\n      \"business_day\": \"2026-03-09\",\n      \"san_francisco_time\": \"2026-03-09T17:30:00-07:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-10T08:30:00+08:00\"\n    },\n    {\n      \"business_day\": \"2026-03-10\",\n      \"san_francisco_time\": \"2026-03-10T17:30:00-07:00\",\n      \"asia_shanghai_persisted_time\": \"2026-03-11T08:30:00+08:00\"\n    }\n  ],\n  \"risks\": [\n    \"The America/Los_Angeles UTC offset changes from -08:00 to -07:00 between the first and second scheduled handoffs due to daylight saving time.\",\n    \"The Asia/Shanghai persisted date is the following calendar day for all three San Francisco handoffs.\"\n  ],\n  \"validation\": {\n    \"timezone_conversion_checked\": true,\n    \"business_days_included\": [\n      \"2026-03-06\",\n      \"2026-03-09\",\n      \"2026-03-10\"\n    ],\n    \"tool_calls_used\": false\n  }\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5927 in + 572 out = 6499]\u001b[0m\n",
+          "stdout_tail": "{\"correct_value\":\"1/64\",\"derivation\":\"Use 1/(k+1)=integral_0^1 x^k dx. Then S=sum_{k=0}^{63} (-1)^k C(63,k) integral_0^1 x^k dx = integral_0^1 sum_{k=0}^{63} C(63,k)(-x)^k dx = integral_0^1 (1-x)^63 dx = 1/64.\",\"flaw\":\"The cancellation argument ignores the factor 1/(k+1), so the terms are not paired symmetrically as in sum_{k=0}^{63} (-1)^k C(63,k)=(1-1)^63=0.\",\"confidence\":0.99}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5910 in + 222 out = 6132]\u001b[0m\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__88ad4f4d19f2d561.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__ba9cc34e93ae4bbf.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -470,904 +1482,16 @@
       }
     },
     {
-      "id": "issue_gateway_dirty_worktree",
-      "capability": "issue_resolution",
-      "max_points": 10,
-      "delta_a_minus_b": 0,
-      "winner": "tie",
-      "results": {
-        "dsv4": {
-          "id": "issue_gateway_dirty_worktree",
-          "capability": "issue_resolution",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-dsv4-issue_gateway_dirty_worktree",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:529 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-issue_gateway_dirty_worktree"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 29227,
-              "stdout_tail": "low the subagent spawn path from that handler to find where the subagent task/context is created — identify the struct or closure that captures task metadata.\",\n    \"Add or populate a chat_id field on the subagent task context so it survives beyond the parent turn's request scope.\",\n    \"Trace the subagent completion handler (callback/poll path) and modify it to read chat_id from the subagent context instead of using a default.\",\n    \"If a default value exists in the completion handler, guard it: log a warning when chat_id is missing so future regressions are visible.\"\n  ],\n  \"validation\": [\n    \"Run test_subagent_gateway_completion. It should now assert that the completion message is routed to the same chat_id as the original inbound request.\",\n    \"Manually verify in gateway mode: send a request from a non-default chat, confirm the subagent completion appears in that same chat.\"\n  ]\n}\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "{\n  \"reproduction\": \"In gateway mode, send a request to chat_id=X that triggers a subagent which finishes after the parent turn returns. Observe that the subagent completion message is delivered to a default/fallback chat instead of chat_id=X.\",\n  \"root_cause_hypothesis\": \"The async subagent completion path in gateway mode does not carry the original chat_id through the full lifecycle. The inbound gateway injection likely extracts chat_id correctly for the parent turn but fails to persist or propagate it into the subagent's async completion callback. When the subagent finishes and posts its result, the handler either uses a hardcoded default chat or a nil/empty chat_id that falls through to a default sink.\",\n  \"patch_plan\": [\n    \"Locate the gateway inbound injection handler and trace how chat_id is extracted from the incoming request.\",\n    \"Follow the subagent spawn path from that handler to find where the subagent task/context is created — identify the struct or closure that captures task metadata.\",\n    \"Add or populate a chat_id field on the subagent task context so it survives beyond the parent turn's request scope.\",\n    \"Trace the subagent completion handler (callback/poll path) and modify it to read chat_id from the subagent context instead of using a default.\",\n    \"If a default value exists in the completion handler, guard it: log a warning when chat_id is missing so future regressions are visible.\"\n  ],\n  \"validation\": [\n    \"Run test_subagent_gateway_completion. It should now assert that the completion message is routed to the same chat_id as the original inbound request.\",\n    \"Manually verify in gateway mode: send a request from a non-default chat, confirm the subagent completion appears in that same chat.\"\n  ]\n}\n",
-          "stderr_tail": "",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__0fb4ba9c6ee810f8.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        },
-        "gpt55": {
-          "id": "issue_gateway_dirty_worktree",
-          "capability": "issue_resolution",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-gpt55-issue_gateway_dirty_worktree",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:529 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-issue_gateway_dirty_worktree"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 17092,
-              "stdout_tail": "sation_id, thread_id, request_id, or session_id; only propagate the one the gateway injector actually uses for chat delivery, but avoid dropping existing correlation IDs.\"\n  ],\n  \"validation\": [\n    \"Run only the targeted gateway subagent completion tests first, including the new delayed-completion regression.\",\n    \"Run the broader gateway inbound injection test suite to catch envelope/schema regressions.\",\n    \"Run the subagent tests outside gateway mode to verify non-gateway callers still work with missing chat_id.\",\n    \"Manually review all fallback paths to confirm default chat is used only when chat_id is genuinely absent, not when async completion occurs.\",\n    \"Dirty-worktree safety: inspect diffs before editing, avoid formatting unrelated files, do not reset/checkout/clean, and keep changes limited to routing metadata, async completion injection, and the regression test.\"\n  ]\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5944 in + 703 out = 6647]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "ored subagent metadata or completion envelope and pass it explicitly into gateway inbound injection.\",\n    \"Avoid relying on global current chat, default chat, process-local request context, or parent-turn lifetime state for delayed completions.\",\n    \"Keep backward compatibility: if old metadata has no chat_id, retain the current default behavior rather than crashing.\",\n    \"Add a focused regression test in test_subagent_gateway_completion: create a parent gateway request with chat_id='original-chat', force delayed subagent completion after the parent response, then assert the injected completion target is 'original-chat' and not the default chat.\",\n    \"If existing tests mock the injector, assert the mock receives chat_id explicitly; if they inspect emitted inbound messages, assert the envelope contains the original chat_id.\",\n    \"Check adjacent routing identifiers too, such as conversation_id, thread_id, request_id, or session_id; only propagate the one the gateway injector actually uses for chat delivery, but avoid dropping existing correlation IDs.\"\n  ],\n  \"validation\": [\n    \"Run only the targeted gateway subagent completion tests first, including the new delayed-completion regression.\",\n    \"Run the broader gateway inbound injection test suite to catch envelope/schema regressions.\",\n    \"Run the subagent tests outside gateway mode to verify non-gateway callers still work with missing chat_id.\",\n    \"Manually review all fallback paths to confirm default chat is used only when chat_id is genuinely absent, not when async completion occurs.\",\n    \"Dirty-worktree safety: inspect diffs before editing, avoid formatting unrelated files, do not reset/checkout/clean, and keep changes limited to routing metadata, async completion injection, and the regression test.\"\n  ]\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5944 in + 703 out = 6647]\u001b[0m\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__800af1e48f0e6b85.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "code_async_shutdown_patch",
-      "capability": "code_analysis",
-      "max_points": 10,
-      "delta_a_minus_b": 0,
-      "winner": "tie",
-      "results": {
-        "dsv4": {
-          "id": "code_async_shutdown_patch",
-          "capability": "code_analysis",
-          "score": 10,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-dsv4-code_async_shutdown_patch",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:472 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-code_async_shutdown_patch"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 23178,
-              "stdout_tail": "await.is_some() {} Drop only after all handles resolve. Keep it under 15 lines by extracting the drain loop into an async fn drain_workers(js: &mut JoinSet<T>) with a 3-line body: while js.join_next().await.is_some() {}. The shutdown caller becomes: self.workers.abort_all(); drain_workers(&mut self.workers).await; No explicit drop needed afterward.\", \"tests\": \"1. Slow cleanup task: spawn a task that sleeps 200ms after receiving abort in its Drop/cleanup path. Abort+drain and assert elapsed < 500ms but > 150ms (proves drain waited). 2. Completion-message flake: spawn N tasks that write to a shared Arc<AtomicUsize> in a Drop impl. Abort+drain, then assert the counter == N (proves all cleanups ran). 3. Stress: loop shutdown 1000 times with 50 tasks each, assert no leaked state or panics. 4. Timeout guard: wrap drain in tokio::time::timeout to prevent infinite hang from misbehaving tasks.\"}\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "{\"root_cause\": \"JoinSet::abort_all() only sends abort signals but returns immediately without waiting. When the JoinSet is dropped right after, JoinHandle destructors run but the spawned tasks may still be executing post-cancellation cleanup (e.g. writing completion messages). This is a 'cancel-not-observed' race: abort_all() + drop ≠ all tasks fully terminated.\", \"minimal_patch\": \"Abort, then drain: let mut js = self.workers; js.abort_all(); while js.join_next().await.is_some() {} Drop only after all handles resolve. Keep it under 15 lines by extracting the drain loop into an async fn drain_workers(js: &mut JoinSet<T>) with a 3-line body: while js.join_next().await.is_some() {}. The shutdown caller becomes: self.workers.abort_all(); drain_workers(&mut self.workers).await; No explicit drop needed afterward.\", \"tests\": \"1. Slow cleanup task: spawn a task that sleeps 200ms after receiving abort in its Drop/cleanup path. Abort+drain and assert elapsed < 500ms but > 150ms (proves drain waited). 2. Completion-message flake: spawn N tasks that write to a shared Arc<AtomicUsize> in a Drop impl. Abort+drain, then assert the counter == N (proves all cleanups ran). 3. Stress: loop shutdown 1000 times with 50 tasks each, assert no leaked state or panics. 4. Timeout guard: wrap drain in tokio::time::timeout to prevent infinite hang from misbehaving tasks.\"}\n",
-          "stderr_tail": "",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__522aff8004e75d4b.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        },
-        "gpt55": {
-          "id": "code_async_shutdown_patch",
-          "capability": "code_analysis",
-          "score": 10,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-gpt55-code_async_shutdown_patch",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:472 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-code_async_shutdown_patch"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 13560,
-              "stdout_tail": "ains the small match on JoinError.\",\n  \"tests\": [\n    \"Add a deterministic test where a worker blocks on a channel and has a Drop/cleanup path that sends an observable message; shutdown must not return until that message is received or the JoinSet drain completes.\",\n    \"Add a test asserting shutdown drains all workers: spawn N workers, call shutdown, then verify join_next() would be empty indirectly by checking all cancellation acknowledgements were observed before shutdown returns.\",\n    \"Add a race regression test: after shutdown returns, assert no further completion messages arrive using a short timeout; before the patch this flakes because drop-triggered cancellation can finish after cleanup.\",\n    \"Add a panic-path test if relevant: a worker panic during shutdown should not be mistaken for normal cancellation; assert the chosen behavior, either propagate error or record it.\"\n  ]\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5928 in + 598 out = 6526]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": ") only requests cancellation; dropping JoinSet immediately aborts remaining tasks but does not wait for cancellation to be polled, destructors to run, or JoinError::cancelled() to be observed. Shutdown returns while worker futures are still being torn down, so completion/cleanup messages can race after the gateway reports shutdown complete.\",\n  \"minimal_patch\": \"Make shutdown async-drain the JoinSet after abort_all(): call workers.abort_all(); then loop while let Some(result) = workers.join_next().await. Treat JoinError::is_cancelled() as expected, propagate or log panics, and decide whether unexpected Ok(()) means the worker finished before cancellation. Do not drop the JoinSet until join_next() returns None. Keep bodies under 15 lines by extracting helpers: shutdown() calls abort_workers(&mut self.workers).await; abort_workers() does abort_all plus drain loop; handle_worker_exit() contains the small match on JoinError.\",\n  \"tests\": [\n    \"Add a deterministic test where a worker blocks on a channel and has a Drop/cleanup path that sends an observable message; shutdown must not return until that message is received or the JoinSet drain completes.\",\n    \"Add a test asserting shutdown drains all workers: spawn N workers, call shutdown, then verify join_next() would be empty indirectly by checking all cancellation acknowledgements were observed before shutdown returns.\",\n    \"Add a race regression test: after shutdown returns, assert no further completion messages arrive using a short timeout; before the patch this flakes because drop-triggered cancellation can finish after cleanup.\",\n    \"Add a panic-path test if relevant: a worker panic during shutdown should not be mistaken for normal cancellation; assert the chosen behavior, either propagate error or record it.\"\n  ]\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5928 in + 598 out = 6526]\u001b[0m\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__93c92d32a94a681a.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "provider_session_id_failure_triage",
-      "capability": "code_analysis",
-      "max_points": 10,
-      "delta_a_minus_b": 0,
-      "winner": "tie",
-      "results": {
-        "dsv4": {
-          "id": "provider_session_id_failure_triage",
-          "capability": "code_analysis",
-          "score": 10,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-dsv4-provider_session_id_failure_triage",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:409 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-provider_session_id_failure_triage"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 19267,
-              "stdout_tail": "session-equivalent hint (e.g. Anthropic metadata.user_id), inject it explicitly per-provider via an adapter layer, not by forwarding the raw session_id field.\",\n  \"tests\": [\n    \"unit: assert that serialize_request() for openai,gpt-5.5 does not contain session_id in the payload\",\n    \"unit: assert that serialize_request() for anthropic,claude-sonnet-4-20250514 maps session-equivalent hint to metadata.user_id\",\n    \"integration: smoke test openai:gpt-5.5 with a short conversation, verify no 400 and tape continuity across turns\",\n    \"regression: smoke test anthropic provider after patch to confirm metadata.user_id mapping is preserved\"\n  ],\n  \"risk\": \"low. The patch is defensive — strip at the boundary, handle internally. Anthropic's metadata.user_id mapping can be re-added as an explicit adapter without affecting behavior. No data loss; the tape session_id is already local state.\"\n}\n```\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "```json\n{\n  \"failure_mode\": \"provider_leak\",\n  \"root_cause\": \"session_id is forwarded as a top-level API parameter to the model provider. OpenAI's API rejects it because session_id is not part of OpenAI's request schema. Anthropic happens to accept it by mapping it to metadata.user_id, which masked the portability bug until the provider switch.\",\n  \"patch\": \"Strip session_id from outgoing provider requests unconditionally. Handle tape session continuity entirely on the Eli side: persist session_id in the local tape store and use it only for tape lookups internally. If a provider needs a session-equivalent hint (e.g. Anthropic metadata.user_id), inject it explicitly per-provider via an adapter layer, not by forwarding the raw session_id field.\",\n  \"tests\": [\n    \"unit: assert that serialize_request() for openai,gpt-5.5 does not contain session_id in the payload\",\n    \"unit: assert that serialize_request() for anthropic,claude-sonnet-4-20250514 maps session-equivalent hint to metadata.user_id\",\n    \"integration: smoke test openai:gpt-5.5 with a short conversation, verify no 400 and tape continuity across turns\",\n    \"regression: smoke test anthropic provider after patch to confirm metadata.user_id mapping is preserved\"\n  ],\n  \"risk\": \"low. The patch is defensive — strip at the boundary, handle internally. Anthropic's metadata.user_id mapping can be re-added as an explicit adapter without affecting behavior. No data loss; the tape session_id is already local state.\"\n}\n```\n",
-          "stderr_tail": "",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__858dac3075241a63.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        },
-        "gpt55": {
-          "id": "provider_session_id_failure_triage",
-          "capability": "code_analysis",
-          "score": 10,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-gpt55-provider_session_id_failure_triage",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:409 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-provider_session_id_failure_triage"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 14135,
-              "stdout_tail": "less explicitly requested.\"\n    },\n    {\n      \"name\": \"provider_allowlist_regression\",\n      \"assertion\": \"Unknown provider parameters are dropped or rejected before HTTP dispatch with a local diagnostic, not forwarded blindly.\"\n    }\n  ],\n  \"risk\": {\n    \"primary\": \"Dropping session_id from OpenAI payload could accidentally remove remote-side continuity if future OpenAI APIs introduce a supported equivalent.\",\n    \"mitigation\": \"Use provider capability flags and schema tests so only known-supported continuity fields are emitted.\",\n    \"secondary\": \"Mapping raw session IDs to Anthropic metadata.user_id may leak internal identifiers.\",\n    \"mitigation_secondary\": \"Hash or otherwise sanitize the local session ID before placing it in provider metadata.\",\n    \"compatibility\": \"Low risk if local tape remains the source of truth and outbound provider payloads are strictly allowlisted.\"\n  }\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5930 in + 694 out = 6624]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "inding turns to the same local tape\"\n    }\n  },\n  \"tests\": [\n    {\n      \"name\": \"openai_payload_does_not_include_session_id\",\n      \"assertion\": \"When provider is openai:gpt-5.5 and a local tape session exists, the serialized API payload contains no top-level session_id.\"\n    },\n    {\n      \"name\": \"openai_smoke_accepts_session_continuity\",\n      \"assertion\": \"Eli smoke against openai:gpt-5.5 completes without HTTP 400 Unsupported parameter while subsequent local turns append to the same tape session.\"\n    },\n    {\n      \"name\": \"anthropic_session_hint_mapping\",\n      \"assertion\": \"When provider is anthropic and session_id exists, the outbound payload uses metadata.user_id if supported and does not send unsupported top-level session_id.\"\n    },\n    {\n      \"name\": \"local_tape_continuity_is_provider_independent\",\n      \"assertion\": \"Switching providers does not create a new local tape unless explicitly requested.\"\n    },\n    {\n      \"name\": \"provider_allowlist_regression\",\n      \"assertion\": \"Unknown provider parameters are dropped or rejected before HTTP dispatch with a local diagnostic, not forwarded blindly.\"\n    }\n  ],\n  \"risk\": {\n    \"primary\": \"Dropping session_id from OpenAI payload could accidentally remove remote-side continuity if future OpenAI APIs introduce a supported equivalent.\",\n    \"mitigation\": \"Use provider capability flags and schema tests so only known-supported continuity fields are emitted.\",\n    \"secondary\": \"Mapping raw session IDs to Anthropic metadata.user_id may leak internal identifiers.\",\n    \"mitigation_secondary\": \"Hash or otherwise sanitize the local session ID before placing it in provider metadata.\",\n    \"compatibility\": \"Low risk if local tape remains the source of truth and outbound provider payloads are strictly allowlisted.\"\n  }\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5930 in + 694 out = 6624]\u001b[0m\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__0a693940ad2470a3.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "multi_turn_state_retention",
-      "capability": "memory_handoff",
-      "max_points": 10,
-      "delta_a_minus_b": -1,
-      "winner": "gpt55",
-      "results": {
-        "dsv4": {
-          "id": "multi_turn_state_retention",
-          "capability": "memory_handoff",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "event_count_at_least",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-dsv4-multi_turn_state_retention",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 3524,
-              "stdout_tail": "ACK-A\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact B exactly: provider_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2151,
-              "stdout_tail": "ACK-B\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact C exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-C only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 3198,
-              "stdout_tail": "ACK-C\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact D exactly: openai_model=openai:gpt-5.5. Reply ACK-D only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 3586,
-              "stdout_tail": "ACK-D\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact E exactly: live_service=7860_PID_85165_do_not_kill. Reply ACK-E only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 1869,
-              "stdout_tail": "ACK-E\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_must_not_commit. Reply ACK-F only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2073,
-              "stdout_tail": "ACK-F\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact G exactly: snapshot=tests/snapshots/model_comparison_latest.json. Reply ACK-G only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 3018,
-              "stdout_tail": "ACK-G\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact H exactly: checksum=ELI-AB-6742. Reply ACK-H only.",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2915,
-              "stdout_tail": "ACK-H\n",
-              "stderr_tail": ""
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:179 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 12878,
-              "stdout_tail": "{\"A\": \"repo=/Users/bytedance/code/eli\", \"B\": \"provider_pair=DSv4_vs_GPT-5.5\", \"C\": \"ds_base=https://api.deepseek.com/beta\", \"D\": \"openai_model=openai:gpt-5.5\", \"E\": \"live_service=7860_PID_85165_do_not_kill\", \"F\": \"untracked=sidecar/.agents_must_not_commit\", \"G\": \"snapshot=tests/snapshots/model_comparison_latest.json\", \"H\": \"checksum=ELI-AB-6742\", \"checksum\": \"ELI-AB-6742\", \"validation\": \"PASS\"}\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "ACK-A\n\nACK-B\n\nACK-C\n\nACK-D\n\nACK-E\n\nACK-F\n\nACK-G\n\nACK-H\n\n{\"A\": \"repo=/Users/bytedance/code/eli\", \"B\": \"provider_pair=DSv4_vs_GPT-5.5\", \"C\": \"ds_base=https://api.deepseek.com/beta\", \"D\": \"openai_model=openai:gpt-5.5\", \"E\": \"live_service=7860_PID_85165_do_not_kill\", \"F\": \"untracked=sidecar/.agents_must_not_commit\", \"G\": \"snapshot=tests/snapshots/model_comparison_latest.json\", \"H\": \"checksum=ELI-AB-6742\", \"checksum\": \"ELI-AB-6742\", \"validation\": \"PASS\"}\n",
-          "stderr_tail": "\n\n\n\n\n\n\n\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__cb28c7eeaee0c039.jsonl",
-            "entry_count": 38,
-            "events": [
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        },
-        "gpt55": {
-          "id": "multi_turn_state_retention",
-          "capability": "memory_handoff",
-          "score": 10,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "event_count_at_least",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-gpt55-multi_turn_state_retention",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2585,
-              "stdout_tail": "ACK-A\n",
-              "stderr_tail": "\u001b[2m[tokens: 5866 in + 20 out = 5886]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact B exactly: provider_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 1856,
-              "stdout_tail": "ACK-B\n",
-              "stderr_tail": "\u001b[2m[tokens: 5912 in + 6 out = 5918]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact C exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-C only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 4006,
-              "stdout_tail": "ACK-C\n",
-              "stderr_tail": "\u001b[2m[tokens: 5955 in + 6 out = 5961]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact D exactly: openai_model=openai:gpt-5.5. Reply ACK-D only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2595,
-              "stdout_tail": "ACK-D\n",
-              "stderr_tail": "\u001b[2m[tokens: 5999 in + 6 out = 6005]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact E exactly: live_service=7860_PID_85165_do_not_kill. Reply ACK-E only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 3414,
-              "stdout_tail": "ACK-E\n",
-              "stderr_tail": "\u001b[2m[tokens: 6045 in + 6 out = 6051]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_must_not_commit. Reply ACK-F only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2904,
-              "stdout_tail": "ACK-F\n",
-              "stderr_tail": "\u001b[2m[tokens: 6089 in + 6 out = 6095]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact G exactly: snapshot=tests/snapshots/model_comparison_latest.json. Reply ACK-G only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2603,
-              "stdout_tail": "ACK-G\n",
-              "stderr_tail": "\u001b[2m[tokens: 6133 in + 6 out = 6139]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Super multi-turn benchmark. Do not call tools. Store fact H exactly: checksum=ELI-AB-6742. Reply ACK-H only.",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 2151,
-              "stdout_tail": "ACK-H\n",
-              "stderr_tail": "\u001b[2m[tokens: 6175 in + 6 out = 6181]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:179 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-multi_turn_state_retention"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 4882,
-              "stdout_tail": "{\"preserved\":{\"A\":\"repo=/Users/bytedance/code/eli\",\"B\":\"provider_pair=DSv4_vs_GPT-5.5\",\"C\":\"ds_base=https://api.deepseek.com/beta\",\"D\":\"openai_model=openai:gpt-5.5\",\"E\":\"live_service=7860_PID_85165_do_not_kill\",\"F\":\"untracked=sidecar/.agents_must_not_commit\",\"G\":\"snapshot=tests/snapshots/model_comparison_latest.json\",\"H\":\"checksum=ELI-AB-6742\"},\"checksum\":\"ELI-AB-6742\",\"validation\":\"all facts A through H preserved exactly from session history\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6223 in + 154 out = 6377]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "ACK-A\n\nACK-B\n\nACK-C\n\nACK-D\n\nACK-E\n\nACK-F\n\nACK-G\n\nACK-H\n\n{\"preserved\":{\"A\":\"repo=/Users/bytedance/code/eli\",\"B\":\"provider_pair=DSv4_vs_GPT-5.5\",\"C\":\"ds_base=https://api.deepseek.com/beta\",\"D\":\"openai_model=openai:gpt-5.5\",\"E\":\"live_service=7860_PID_85165_do_not_kill\",\"F\":\"untracked=sidecar/.agents_must_not_commit\",\"G\":\"snapshot=tests/snapshots/model_comparison_latest.json\",\"H\":\"checksum=ELI-AB-6742\"},\"checksum\":\"ELI-AB-6742\",\"validation\":\"all facts A through H preserved exactly from session history\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5866 in + 20 out = 5886]\u001b[0m\n\n\u001b[2m[tokens: 5912 in + 6 out = 5918]\u001b[0m\n\n\u001b[2m[tokens: 5955 in + 6 out = 5961]\u001b[0m\n\n\u001b[2m[tokens: 5999 in + 6 out = 6005]\u001b[0m\n\n\u001b[2m[tokens: 6045 in + 6 out = 6051]\u001b[0m\n\n\u001b[2m[tokens: 6089 in + 6 out = 6095]\u001b[0m\n\n\u001b[2m[tokens: 6133 in + 6 out = 6139]\u001b[0m\n\n\u001b[2m[tokens: 6175 in + 6 out = 6181]\u001b[0m\n\n\u001b[2m[tokens: 6223 in + 154 out = 6377]\u001b[0m\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__e6d971abc261775f.jsonl",
-            "entry_count": 38,
-            "events": [
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "tool_read_next_round_recall",
+      "id": "tool_metal_fixture_triage",
       "capability": "tool_execution",
       "max_points": 10,
       "delta_a_minus_b": 0,
       "winner": "tie",
       "results": {
         "dsv4": {
-          "id": "tool_read_next_round_recall",
+          "id": "tool_metal_fixture_triage",
           "capability": "tool_execution",
-          "score": 10,
+          "score": 9,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -1378,15 +1502,9 @@
               "passed": true
             },
             {
-              "kind": "tool_name_at_least",
+              "kind": "tool_name_count",
               "points": 2,
               "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "tool_name_count",
-              "points": 1,
-              "earned": 1,
               "passed": true
             },
             {
@@ -1408,10 +1526,16 @@
               "passed": true
             },
             {
-              "kind": "event_count_at_least",
+              "kind": "stdout_contains_any",
               "points": 1,
               "earned": 1,
               "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "forbid_tool_names",
@@ -1420,39 +1544,39 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-dsv4-tool_read_next_round_recall",
+          "session_id": "eli-ab-20260519045718-dsv4-tool_metal_fixture_triage",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:168 chars>",
+                "<prompt:173 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-tool_read_next_round_recall"
+                "eli-ab-20260519045718-dsv4-tool_metal_fixture_triage"
               ],
               "returncode": 0,
-              "elapsed_ms": 6808,
-              "stdout_tail": "READ_OK — sentinel: `ELI_MODEL_COMPARE_SENTINEL`\n",
+              "elapsed_ms": 9689,
+              "stdout_tail": "FIXTURE_READ\n\n`ELI_MODEL_COMPARE_HARD_SENTINEL`\n",
               "stderr_tail": ""
             },
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:178 chars>",
+                "<prompt:191 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-tool_read_next_round_recall"
+                "eli-ab-20260519045718-dsv4-tool_metal_fixture_triage"
               ],
               "returncode": 0,
-              "elapsed_ms": 6831,
-              "stdout_tail": "{\"sentinel\": \"ELI_MODEL_COMPARE_SENTINEL\", \"evidence\": \"File read on first turn, 5 lines, sentinel on line 1.\", \"next_round\": \"ready\"}\n",
+              "elapsed_ms": 19055,
+              "stdout_tail": "{\"verdict\":\"do_not_merge\",\"evidence\":\"Metal is slower than MLX (9.70ms vs 8.40ms, fails >=1.15x requirement), correctness error 0.03125 exceeds max 0.001, kernel_issue=global_reload_no_threadgroup_tiling\",\"next_patch\":\"Implement threadgroup tiling in the Metal kernel to improve performance and fix the correctness error below the 0.001 threshold\",\"mac_only\":true}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "READ_OK — sentinel: `ELI_MODEL_COMPARE_SENTINEL`\n\n{\"sentinel\": \"ELI_MODEL_COMPARE_SENTINEL\", \"evidence\": \"File read on first turn, 5 lines, sentinel on line 1.\", \"next_round\": \"ready\"}\n",
+          "stdout_tail": "FIXTURE_READ\n\n`ELI_MODEL_COMPARE_HARD_SENTINEL`\n\n{\"verdict\":\"do_not_merge\",\"evidence\":\"Metal is slower than MLX (9.70ms vs 8.40ms, fails >=1.15x requirement), correctness error 0.03125 exceeds max 0.001, kernel_issue=global_reload_no_threadgroup_tiling\",\"next_patch\":\"Implement threadgroup tiling in the Metal kernel to improve performance and fix the correctness error below the 0.001 threshold\",\"mac_only\":true}\n",
           "stderr_tail": "\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__9ab8a7d97e0c30b8.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__845bf8e9b66b6a2d.jsonl",
             "entry_count": 12,
             "events": [
               "agent.run.start",
@@ -1469,9 +1593,9 @@
           }
         },
         "gpt55": {
-          "id": "tool_read_next_round_recall",
+          "id": "tool_metal_fixture_triage",
           "capability": "tool_execution",
-          "score": 10,
+          "score": 9,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -1482,15 +1606,9 @@
               "passed": true
             },
             {
-              "kind": "tool_name_at_least",
+              "kind": "tool_name_count",
               "points": 2,
               "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "tool_name_count",
-              "points": 1,
-              "earned": 1,
               "passed": true
             },
             {
@@ -1512,10 +1630,16 @@
               "passed": true
             },
             {
-              "kind": "event_count_at_least",
+              "kind": "stdout_contains_any",
               "points": 1,
               "earned": 1,
               "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "forbid_tool_names",
@@ -1524,39 +1648,39 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-gpt55-tool_read_next_round_recall",
+          "session_id": "eli-ab-20260519045718-gpt55-tool_metal_fixture_triage",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:168 chars>",
+                "<prompt:173 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-tool_read_next_round_recall"
+                "eli-ab-20260519045718-gpt55-tool_metal_fixture_triage"
               ],
               "returncode": 0,
-              "elapsed_ms": 4377,
-              "stdout_tail": "READ_OK ELI_MODEL_COMPARE_SENTINEL\n",
-              "stderr_tail": "\u001b[2m[tokens: 11854 in + 46 out = 11900]\u001b[0m\n"
+              "elapsed_ms": 4284,
+              "stdout_tail": "FIXTURE_READ ELI_MODEL_COMPARE_HARD_SENTINEL\n",
+              "stderr_tail": "\u001b[2m[tokens: 11933 in + 49 out = 11982]\u001b[0m\n"
             },
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:178 chars>",
+                "<prompt:191 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-tool_read_next_round_recall"
+                "eli-ab-20260519045718-gpt55-tool_metal_fixture_triage"
               ],
               "returncode": 0,
-              "elapsed_ms": 2623,
-              "stdout_tail": "{\"sentinel\":\"ELI_MODEL_COMPARE_SENTINEL\",\"evidence\":\"Read from tests/fixtures/model_compare_tool_fixture.txt via prior fs.read output line 1.\",\"next_round\":\"no_tools\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6038 in + 44 out = 6082]\u001b[0m\n"
+              "elapsed_ms": 4396,
+              "stdout_tail": "{\"verdict\":\"do_not_merge\",\"evidence\":\"Metal is slower than MLX (9.70ms vs 8.40ms) and incorrect (error 0.03125 > max_allowed 0.001); fixture policy says do_not_merge_until_faster_and_correct.\",\"next_patch\":\"Fix kernel_issue=global_reload_no_threadgroup_tiling, then rebench and validate error <=0.001 with Metal >=1.15x faster than MLX.\",\"mac_only\":true}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6123 in + 104 out = 6227]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "READ_OK ELI_MODEL_COMPARE_SENTINEL\n\n{\"sentinel\":\"ELI_MODEL_COMPARE_SENTINEL\",\"evidence\":\"Read from tests/fixtures/model_compare_tool_fixture.txt via prior fs.read output line 1.\",\"next_round\":\"no_tools\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 11854 in + 46 out = 11900]\u001b[0m\n\n\u001b[2m[tokens: 6038 in + 44 out = 6082]\u001b[0m\n",
+          "stdout_tail": "FIXTURE_READ ELI_MODEL_COMPARE_HARD_SENTINEL\n\n{\"verdict\":\"do_not_merge\",\"evidence\":\"Metal is slower than MLX (9.70ms vs 8.40ms) and incorrect (error 0.03125 > max_allowed 0.001); fixture policy says do_not_merge_until_faster_and_correct.\",\"next_patch\":\"Fix kernel_issue=global_reload_no_threadgroup_tiling, then rebench and validate error <=0.001 with Metal >=1.15x faster than MLX.\",\"mac_only\":true}\n",
+          "stderr_tail": "\u001b[2m[tokens: 11933 in + 49 out = 11982]\u001b[0m\n\n\u001b[2m[tokens: 6123 in + 104 out = 6227]\u001b[0m\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__5c9879a42aaa66c2.jsonl",
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__371baeed1cbd00ab.jsonl",
             "entry_count": 12,
             "events": [
               "agent.run.start",
@@ -1575,14 +1699,14 @@
       }
     },
     {
-      "id": "tool_handoff_once",
+      "id": "long_multiturn_conflict_retention",
       "capability": "memory_handoff",
       "max_points": 10,
       "delta_a_minus_b": 0,
       "winner": "tie",
       "results": {
         "dsv4": {
-          "id": "tool_handoff_once",
+          "id": "long_multiturn_conflict_retention",
           "capability": "memory_handoff",
           "score": 10,
           "max_points": 10,
@@ -1595,72 +1719,231 @@
               "passed": true
             },
             {
-              "kind": "tool_name_count",
-              "points": 3,
-              "earned": 3,
-              "passed": true
-            },
-            {
-              "kind": "anchor_name",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "anchor_state_contains",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_json_keys",
               "points": 1,
               "earned": 1,
               "passed": true
             },
             {
-              "kind": "forbid_tool_names",
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_forbid_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "event_count_at_least",
               "points": 1,
               "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-dsv4-tool_handoff_once",
+          "session_id": "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:370 chars>",
+                "Memory stress benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-tool_handoff_once"
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
               ],
               "returncode": 0,
-              "elapsed_ms": 8776,
-              "stdout_tail": "Done. Anchor `ab-handoff-check` created — captured 3 entries since the last anchor.\n",
+              "elapsed_ms": 3362,
+              "stdout_tail": "ACK-A\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact B exactly: default_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 3850,
+              "stdout_tail": "ACK-B\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact C exactly: bench_action=keep_easy_cases. Reply ACK-C only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 3386,
+              "stdout_tail": "ACK-C\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact D exactly: metal_validation=macOS_only. Reply ACK-D only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 5880,
+              "stdout_tail": "ACK-D\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:167 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 3994,
+              "stdout_tail": "ACK-E\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_do_not_commit. Reply ACK-F only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 3019,
+              "stdout_tail": "ACK-F\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact G exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-G only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2943,
+              "stdout_tail": "ACK-G\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Correct fact C exactly to: bench_action=delete_simple_cases_and_replace_hard_tail. Reply ACK-C2 only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 4635,
+              "stdout_tail": "ACK-C2\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store distractor: old_score=92_vs_98_is_not_enough_signal. Reply ACK-H only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 3673,
+              "stdout_tail": "ACK-H\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Correct the distractor exactly to: old_score=discarded_due_to_saturation. Reply ACK-H2 only.",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 5892,
+              "stdout_tail": "ACK-H2\n",
+              "stderr_tail": ""
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:179 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-dsv4-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 21391,
+              "stdout_tail": "{\"A\": \"repo=/Users/bytedance/code/eli\", \"B\": \"default_pair=DSv4_vs_GPT-5.5\", \"C\": \"bench_action=delete_simple_cases_and_replace_hard_tail\", \"D\": \"metal_validation=macOS_only\", \"E\": \"capability_axis=planning_programming_writing_analysis_exploration_frontier_science\", \"F\": \"untracked=sidecar/.agents_do_not_commit\", \"G\": \"ds_base=https://api.deepseek.com/beta\", \"H\": \"old_score=discarded_due_to_saturation\", \"validation\": \"all_8_facts_correct_with_latest_values_for_C_and_H\"}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "Done. Anchor `ab-handoff-check` created — captured 3 entries since the last anchor.\n",
-          "stderr_tail": "",
+          "stdout_tail": "ACK-A\n\nACK-B\n\nACK-C\n\nACK-D\n\nACK-E\n\nACK-F\n\nACK-G\n\nACK-C2\n\nACK-H\n\nACK-H2\n\n{\"A\": \"repo=/Users/bytedance/code/eli\", \"B\": \"default_pair=DSv4_vs_GPT-5.5\", \"C\": \"bench_action=delete_simple_cases_and_replace_hard_tail\", \"D\": \"metal_validation=macOS_only\", \"E\": \"capability_axis=planning_programming_writing_analysis_exploration_frontier_science\", \"F\": \"untracked=sidecar/.agents_do_not_commit\", \"G\": \"ds_base=https://api.deepseek.com/beta\", \"H\": \"old_score=discarded_due_to_saturation\", \"validation\": \"all_8_facts_correct_with_latest_values_for_C_and_H\"}\n",
+          "stderr_tail": "\n\n\n\n\n\n\n\n\n\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__2e9234d8c7c66ec4.jsonl",
-            "entry_count": 9,
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__45a1c8fc1462e526.jsonl",
+            "entry_count": 46,
             "events": [
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
               "agent.run.start",
               "agent.run"
             ],
-            "tool_calls": [
-              "tape_handoff"
-            ],
+            "tool_calls": [],
             "anchors": [
-              "session/start",
-              "ab-handoff-check"
+              "session/start"
             ]
           }
         },
         "gpt55": {
-          "id": "tool_handoff_once",
+          "id": "long_multiturn_conflict_retention",
           "capability": "memory_handoff",
           "score": 10,
           "max_points": 10,
@@ -1673,83 +1956,242 @@
               "passed": true
             },
             {
-              "kind": "tool_name_count",
-              "points": 3,
-              "earned": 3,
-              "passed": true
-            },
-            {
-              "kind": "anchor_name",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "anchor_state_contains",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_json_keys",
               "points": 1,
               "earned": 1,
               "passed": true
             },
             {
-              "kind": "forbid_tool_names",
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_forbid_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "event_count_at_least",
               "points": 1,
               "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-gpt55-tool_handoff_once",
+          "session_id": "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:370 chars>",
+                "Memory stress benchmark. Do not call tools. Store fact A exactly: repo=/Users/bytedance/code/eli. Reply ACK-A only.",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-tool_handoff_once"
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
               ],
               "returncode": 0,
-              "elapsed_ms": 5164,
-              "stdout_tail": "Handoff checkpoint saved with the current A/B details and untracked sidecar note.\n",
-              "stderr_tail": "\u001b[2m[tokens: 8822 in + 94 out = 8916]\u001b[0m\n"
+              "elapsed_ms": 2874,
+              "stdout_tail": "ACK-A\n",
+              "stderr_tail": "\u001b[2m[tokens: 5865 in + 36 out = 5901]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact B exactly: default_pair=DSv4_vs_GPT-5.5. Reply ACK-B only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2661,
+              "stdout_tail": "ACK-B\n",
+              "stderr_tail": "\u001b[2m[tokens: 5910 in + 6 out = 5916]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact C exactly: bench_action=keep_easy_cases. Reply ACK-C only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2101,
+              "stdout_tail": "ACK-C\n",
+              "stderr_tail": "\u001b[2m[tokens: 5948 in + 6 out = 5954]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact D exactly: metal_validation=macOS_only. Reply ACK-D only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 1888,
+              "stdout_tail": "ACK-D\n",
+              "stderr_tail": "\u001b[2m[tokens: 5986 in + 6 out = 5992]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:167 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 1741,
+              "stdout_tail": "ACK-E\n",
+              "stderr_tail": "\u001b[2m[tokens: 6034 in + 6 out = 6040]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact F exactly: untracked=sidecar/.agents_do_not_commit. Reply ACK-F only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 1935,
+              "stdout_tail": "ACK-F\n",
+              "stderr_tail": "\u001b[2m[tokens: 6076 in + 6 out = 6082]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store fact G exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-G only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2737,
+              "stdout_tail": "ACK-G\n",
+              "stderr_tail": "\u001b[2m[tokens: 6118 in + 6 out = 6124]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Correct fact C exactly to: bench_action=delete_simple_cases_and_replace_hard_tail. Reply ACK-C2 only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2461,
+              "stdout_tail": "ACK-C2\n",
+              "stderr_tail": "\u001b[2m[tokens: 6163 in + 7 out = 6170]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Store distractor: old_score=92_vs_98_is_not_enough_signal. Reply ACK-H only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 2677,
+              "stdout_tail": "ACK-H\n",
+              "stderr_tail": "\u001b[2m[tokens: 6207 in + 6 out = 6213]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Memory stress benchmark. Do not call tools. Correct the distractor exactly to: old_score=discarded_due_to_saturation. Reply ACK-H2 only.",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 1958,
+              "stdout_tail": "ACK-H2\n",
+              "stderr_tail": "\u001b[2m[tokens: 6251 in + 7 out = 6258]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:179 chars>",
+                "--session-id",
+                "eli-ab-20260519045718-gpt55-long_multiturn_conflict_retention"
+              ],
+              "returncode": 0,
+              "elapsed_ms": 4187,
+              "stdout_tail": "{\"A\":\"repo=/Users/bytedance/code/eli\",\"B\":\"default_pair=DSv4_vs_GPT-5.5\",\"C\":\"bench_action=delete_simple_cases_and_replace_hard_tail\",\"D\":\"metal_validation=macOS_only\",\"E\":\"capability_axis=planning_programming_writing_analysis_exploration_frontier_science\",\"F\":\"untracked=sidecar/.agents_do_not_commit\",\"G\":\"ds_base=https://api.deepseek.com/beta\",\"H\":\"old_score=discarded_due_to_saturation\",\"validation\":\"latest_corrected_values_used\"}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6312 in + 122 out = 6434]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "Handoff checkpoint saved with the current A/B details and untracked sidecar note.\n",
-          "stderr_tail": "\u001b[2m[tokens: 8822 in + 94 out = 8916]\u001b[0m\n",
+          "stdout_tail": "ACK-A\n\nACK-B\n\nACK-C\n\nACK-D\n\nACK-E\n\nACK-F\n\nACK-G\n\nACK-C2\n\nACK-H\n\nACK-H2\n\n{\"A\":\"repo=/Users/bytedance/code/eli\",\"B\":\"default_pair=DSv4_vs_GPT-5.5\",\"C\":\"bench_action=delete_simple_cases_and_replace_hard_tail\",\"D\":\"metal_validation=macOS_only\",\"E\":\"capability_axis=planning_programming_writing_analysis_exploration_frontier_science\",\"F\":\"untracked=sidecar/.agents_do_not_commit\",\"G\":\"ds_base=https://api.deepseek.com/beta\",\"H\":\"old_score=discarded_due_to_saturation\",\"validation\":\"latest_corrected_values_used\"}\n",
+          "stderr_tail": "\u001b[2m[tokens: 5865 in + 36 out = 5901]\u001b[0m\n\n\u001b[2m[tokens: 5910 in + 6 out = 5916]\u001b[0m\n\n\u001b[2m[tokens: 5948 in + 6 out = 5954]\u001b[0m\n\n\u001b[2m[tokens: 5986 in + 6 out = 5992]\u001b[0m\n\n\u001b[2m[tokens: 6034 in + 6 out = 6040]\u001b[0m\n\n\u001b[2m[tokens: 6076 in + 6 out = 6082]\u001b[0m\n\n\u001b[2m[tokens: 6118 in + 6 out = 6124]\u001b[0m\n\n\u001b[2m[tokens: 6163 in + 7 out = 6170]\u001b[0m\n\n\u001b[2m[tokens: 6207 in + 6 out = 6213]\u001b[0m\n\n\u001b[2m[tokens: 6251 in + 7 out = 6258]\u001b[0m\n\n\u001b[2m[tokens: 6312 in + 122 out = 6434]\u001b[0m\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__d3651e2b464cc03a.jsonl",
-            "entry_count": 9,
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__31719cda5e94d625.jsonl",
+            "entry_count": 46,
             "events": [
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run",
               "agent.run.start",
               "agent.run"
             ],
-            "tool_calls": [
-              "tape_handoff"
-            ],
+            "tool_calls": [],
             "anchors": [
-              "session/start",
-              "ab-handoff-check"
+              "session/start"
             ]
           }
         }
       }
     },
     {
-      "id": "subagent_sync_orchestration",
+      "id": "subagent_handoff_frontier_orchestration",
       "capability": "subagent_management",
       "max_points": 10,
       "delta_a_minus_b": 0,
       "winner": "tie",
       "results": {
         "dsv4": {
-          "id": "subagent_sync_orchestration",
+          "id": "subagent_handoff_frontier_orchestration",
           "capability": "subagent_management",
-          "score": 10,
+          "score": 8,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -1761,33 +2203,39 @@
             },
             {
               "kind": "tool_name_count",
-              "points": 3,
-              "earned": 3,
-              "passed": true
-            },
-            {
-              "kind": "tool_result_contains",
               "points": 2,
               "earned": 2,
               "passed": true
             },
             {
+              "kind": "tool_name_count",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "tool_result_contains",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "anchor_name",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "anchor_state_contains",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
               "kind": "stdout_json_keys",
               "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "forbid_tool_names",
@@ -1796,43 +2244,45 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-dsv4-subagent_sync_orchestration",
+          "session_id": "eli-ab-20260519045718-dsv4-subagent_handoff_frontier_orchestration",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:380 chars>",
+                "<prompt:613 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-dsv4-subagent_sync_orchestration"
+                "eli-ab-20260519045718-dsv4-subagent_handoff_frontier_orchestration"
               ],
               "returncode": 0,
-              "elapsed_ms": 14538,
-              "stdout_tail": "{\"subagent_result\": \"SUBAGENT_OK provider config DSML parser ownership\", \"engine\": \"codex\", \"why_not_background\": \"User explicitly instructed: Do not run it in the background.\"}\n",
+              "elapsed_ms": 38475,
+              "stdout_tail": "The sub-agent returned:\n\n```\nSUBAGENT_OK provider config DSML parser ownership\n```\n\nThis is the raw output — not an exact echo of the prompt I sent (`say SUBAGENT_OK hard-tail metal mac-only frontier-science`), which suggests the test-mode agent produces canned responses rather than repeating the prompt verbatim. The handoff anchor `hard-tail-ab-handoff` has been saved.\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "{\"subagent_result\": \"SUBAGENT_OK provider config DSML parser ownership\", \"engine\": \"codex\", \"why_not_background\": \"User explicitly instructed: Do not run it in the background.\"}\n",
+          "stdout_tail": "The sub-agent returned:\n\n```\nSUBAGENT_OK provider config DSML parser ownership\n```\n\nThis is the raw output — not an exact echo of the prompt I sent (`say SUBAGENT_OK hard-tail metal mac-only frontier-science`), which suggests the test-mode agent produces canned responses rather than repeating the prompt verbatim. The handoff anchor `hard-tail-ab-handoff` has been saved.\n",
           "stderr_tail": "",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__b53e9f0c25213893.jsonl",
-            "entry_count": 8,
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/dsv4/.eli/tapes/23eabb7e303d72d6__6d54b819efa4d1e1.jsonl",
+            "entry_count": 11,
             "events": [
               "agent.run.start",
               "agent.run"
             ],
             "tool_calls": [
-              "agent"
+              "agent",
+              "tape_handoff"
             ],
             "anchors": [
-              "session/start"
+              "session/start",
+              "hard-tail-ab-handoff"
             ]
           }
         },
         "gpt55": {
-          "id": "subagent_sync_orchestration",
+          "id": "subagent_handoff_frontier_orchestration",
           "capability": "subagent_management",
-          "score": 10,
+          "score": 8,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -1844,33 +2294,39 @@
             },
             {
               "kind": "tool_name_count",
-              "points": 3,
-              "earned": 3,
-              "passed": true
-            },
-            {
-              "kind": "tool_result_contains",
               "points": 2,
               "earned": 2,
               "passed": true
             },
             {
+              "kind": "tool_name_count",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "tool_result_contains",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "anchor_name",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "anchor_state_contains",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
               "kind": "stdout_json_keys",
               "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "forbid_tool_names",
@@ -1879,231 +2335,38 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519034116-gpt55-subagent_sync_orchestration",
+          "session_id": "eli-ab-20260519045718-gpt55-subagent_handoff_frontier_orchestration",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:380 chars>",
+                "<prompt:613 chars>",
                 "--session-id",
-                "eli-ab-20260519034116-gpt55-subagent_sync_orchestration"
+                "eli-ab-20260519045718-gpt55-subagent_handoff_frontier_orchestration"
               ],
               "returncode": 0,
-              "elapsed_ms": 9000,
-              "stdout_tail": "{\"subagent_result\":\"SUBAGENT_OK provider config DSML parser ownership\\n\",\"engine\":\"codex\",\"why_not_background\":\"User explicitly required synchronous execution and run_in_background=false.\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 11961 in + 105 out = 12066]\u001b[0m\n"
+              "elapsed_ms": 14620,
+              "stdout_tail": "handoff saved\n",
+              "stderr_tail": "\u001b[2m[tokens: 14971 in + 149 out = 15120]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\"subagent_result\":\"SUBAGENT_OK provider config DSML parser ownership\\n\",\"engine\":\"codex\",\"why_not_background\":\"User explicitly required synchronous execution and run_in_background=false.\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 11961 in + 105 out = 12066]\u001b[0m\n",
+          "stdout_tail": "handoff saved\n",
+          "stderr_tail": "\u001b[2m[tokens: 14971 in + 149 out = 15120]\u001b[0m\n",
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__37fec0a26feea3a7.jsonl",
-            "entry_count": 8,
+            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519045718/gpt55/.eli/tapes/23eabb7e303d72d6__c9c88992d73fba2a.jsonl",
+            "entry_count": 11,
             "events": [
               "agent.run.start",
               "agent.run"
             ],
             "tool_calls": [
-              "agent"
+              "agent",
+              "tape_handoff"
             ],
             "anchors": [
-              "session/start"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "bounded_tool_budget_plan",
-      "capability": "planning",
-      "max_points": 10,
-      "delta_a_minus_b": 0,
-      "winner": "tie",
-      "results": {
-        "dsv4": {
-          "id": "bounded_tool_budget_plan",
-          "capability": "planning",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-dsv4-bounded_tool_budget_plan",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:439 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-dsv4-bounded_tool_budget_plan"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 24345,
-              "stdout_tail": "ine root cause, pass/fail\"\n  },\n  \"verification\": {\n    \"pre_push\": \"run regression test if it exists; if not, run the closest existing test suite or a manual one-liner that reproduces then confirms the fix\",\n    \"post_push\": \"none — push is final verification; CI handles the rest\"\n  },\n  \"stop_conditions\": [\n    \"fix committed and pushed successfully\",\n    \"regression is not reproducible — report and stop\",\n    \"fix introduces >1 new failure in unrelated tests — rollback and report\",\n    \"root cause requires upstream change outside this repo — document and stop\"\n  ],\n  \"rationale\": \"Dirty worktree is kept as-is to preserve KV-cache — no stash/pop churn. Single subagent slot reserved for complex archaeology only; otherwise inline reads avoid context pollution. Handoff delayed until push to minimize tape bloat. Tool budget caps at ~27 calls total, matching a typical 3-phase fix cycle.\"\n}\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "ge fix, commit with conventional message referencing regression root cause, git push. If worktree dirt is unrelated to regression, leave it untouched; commit only the fix.\",\n  \"tool_budget\": {\n    \"bash\": 12,\n    \"fs_read\": 8,\n    \"fs_edit\": 3,\n    \"fs_write\": 2,\n    \"agent\": 1,\n    \"message_send\": 1\n  },\n  \"subagent_policy\": {\n    \"max\": 1,\n    \"usage\": \"only if regression spans >3 files or requires deep git archaeology (bisect, blame across multiple commits); otherwise inline fixes are cheaper\",\n    \"isolation\": \"worktree\",\n    \"prompt_shape\": \"include only the diff context, the failing behavior, and the expected fix — no system-prompt preamble or role instructions\"\n  },\n  \"handoff_policy\": {\n    \"max\": 1,\n    \"trigger\": \"only after fix is committed and pushed — capture root cause, affected files, and verification result\",\n    \"detail_level\": \"compressed: file paths, commit hash, one-line root cause, pass/fail\"\n  },\n  \"verification\": {\n    \"pre_push\": \"run regression test if it exists; if not, run the closest existing test suite or a manual one-liner that reproduces then confirms the fix\",\n    \"post_push\": \"none — push is final verification; CI handles the rest\"\n  },\n  \"stop_conditions\": [\n    \"fix committed and pushed successfully\",\n    \"regression is not reproducible — report and stop\",\n    \"fix introduces >1 new failure in unrelated tests — rollback and report\",\n    \"root cause requires upstream change outside this repo — document and stop\"\n  ],\n  \"rationale\": \"Dirty worktree is kept as-is to preserve KV-cache — no stash/pop churn. Single subagent slot reserved for complex archaeology only; otherwise inline reads avoid context pollution. Handoff delayed until push to minimize tape bloat. Tool budget caps at ~27 calls total, matching a typical 3-phase fix cycle.\"\n}\n",
-          "stderr_tail": "",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/dsv4/.eli/tapes/23eabb7e303d72d6__9ef66ba14b76bfef.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          }
-        },
-        "gpt55": {
-          "id": "bounded_tool_budget_plan",
-          "capability": "planning",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519034116-gpt55-bounded_tool_budget_plan",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:439 chars>",
-                "--session-id",
-                "eli-ab-20260519034116-gpt55-bounded_tool_budget_plan"
-              ],
-              "returncode": 0,
-              "elapsed_ms": 24075,
-              "stdout_tail": "f a dirty file must be edited, distinguish pre-existing hunks from fix hunks.\"\n    ],\n    \"push_checks\": [\n      \"Commit contains only intended changes.\",\n      \"Push target is the current working branch unless user specified otherwise.\",\n      \"Final response includes commit hash, push target, tests run, and any unrelated dirty files left behind.\"\n    ]\n  },\n  \"stop_conditions\": [\n    \"An irreversible action would affect user-owned dirty changes without clear consent.\",\n    \"Credentials, secrets, or private data would be exposed.\",\n    \"Regression cannot be reproduced and no safe minimal fix can be justified.\",\n    \"Verification fails after the patch and failure is related to the change.\",\n    \"Push is rejected due to remote divergence; stop and report required rebase/merge choice.\",\n    \"Tests require destructive external services or production writes without explicit approval.\"\n  ]\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5925 in + 1244 out = 7169]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "e fix.\",\n      \"Exact failing command and passing verification commands.\",\n      \"Open risks and rollback notes.\"\n    ],\n    \"avoid\": [\n      \"No repeated system/developer prompt summaries.\",\n      \"No raw logs unless they contain unique failure evidence.\",\n      \"No chain-of-thought.\"\n    ]\n  },\n  \"verification\": {\n    \"required\": [\n      \"Original regression reproduces before fix or a concrete reason is recorded if not reproducible.\",\n      \"Original failing command passes after fix.\",\n      \"Relevant targeted tests pass.\",\n      \"Broader available checks pass or failures are proven unrelated to the fix.\",\n      \"git diff is reviewed before staging.\",\n      \"git status is checked before commit and after push.\"\n    ],\n    \"dirty_worktree_checks\": [\n      \"Record pre-edit dirty files.\",\n      \"Do not stage pre-existing unrelated changes.\",\n      \"Use pathspec or patch staging.\",\n      \"If a dirty file must be edited, distinguish pre-existing hunks from fix hunks.\"\n    ],\n    \"push_checks\": [\n      \"Commit contains only intended changes.\",\n      \"Push target is the current working branch unless user specified otherwise.\",\n      \"Final response includes commit hash, push target, tests run, and any unrelated dirty files left behind.\"\n    ]\n  },\n  \"stop_conditions\": [\n    \"An irreversible action would affect user-owned dirty changes without clear consent.\",\n    \"Credentials, secrets, or private data would be exposed.\",\n    \"Regression cannot be reproduced and no safe minimal fix can be justified.\",\n    \"Verification fails after the patch and failure is related to the change.\",\n    \"Push is rejected due to remote divergence; stop and report required rebase/merge choice.\",\n    \"Tests require destructive external services or production writes without explicit approval.\"\n  ]\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5925 in + 1244 out = 7169]\u001b[0m\n",
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519034116/gpt55/.eli/tapes/23eabb7e303d72d6__a3ffb007a37d3692.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
+              "session/start",
+              "hard-tail-ab-handoff"
             ]
           }
         }

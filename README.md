@@ -248,10 +248,15 @@ scripts/run_model_comparison_suite.py --keep-eli-home
 
 The default pair is DSv4 (`deepseek:deepseek-v4-pro` at
 `https://api.deepseek.com/beta`) versus GPT-5.5 (`openai:gpt-5.5`). The suite
-uses the same Eli CLI path for both models and scores planning, paper reading,
-fixed-time scheduling, issue triage, code analysis, multi-turn memory,
-tool-use replay, tape handoff, and subagent orchestration. Results are written
+uses the same Eli CLI path for both models and keeps only hard-tail cases that
+stress planning, programming, writing, analysis, exploration, frontier-science
+reasoning, Mac-only Metal-vs-MLX performance work, multi-turn memory, tool
+evidence replay, tape handoff, and subagent orchestration. Results are written
 to `tests/snapshots/model_comparison_latest.json`.
+
+Metal performance cases are macOS/Darwin-only. They require a hand-written
+Metal path to beat the MLX baseline before merge; Linux or CUDA validation is
+not part of this benchmark.
 
 ## Development
 

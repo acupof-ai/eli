@@ -1,4 +1,4 @@
-# DSv4 vs GPT-5.5 Hard-Tail A/B Suite
+# DSv4 vs GPT-5.5 Frontier Hard-Tail A/B Suite
 
 Date: 2026-05-19
 
@@ -10,30 +10,33 @@ the same Eli CLI harness and wrote
 
 | Model | Score |
 |---|---:|
-| DSv4 (`deepseek:deepseek-v4-pro`) | 92 / 100 |
-| GPT-5.5 (`openai:gpt-5.5`) | 98 / 100 |
+| DSv4 (`deepseek:deepseek-v4-pro`) | 69 / 100 |
+| GPT-5.5 (`openai:gpt-5.5`) | 74 / 100 |
 
-GPT-5.5 led by 6 points. The clearest separator was fixed-time planning across
-the 2026 Pacific DST transition: DSv4 scored 5 / 10, GPT-5.5 scored 10 / 10.
-GPT-5.5 also gained 1 point on the 9-turn state-retention case.
+GPT-5.5 led by 5 points on the non-saturated hard-tail suite. The strongest
+separators were frontier-science audit, Rust patch sketching, writing a
+decision memo, and a mathematical sanity check. The Mac-only Metal-vs-MLX
+design case stayed hard for both models.
 
 ## Coverage
 
-- Paper-method critique and adoption planning
-- Fixed-date scheduling with timezone/DST conversion
-- Gateway issue-resolution planning under dirty-worktree constraints
-- Rust async shutdown/code-analysis planning
-- OpenAI `session_id` failure triage
-- 9-turn local memory retention
-- `fs.read` tool evidence reused on the next turn
-- `tape.handoff` creation and snapshot preservation
-- Synchronous `agent` subagent orchestration through a fake `codex`
-- Bounded tool-budget planning with KV-cache constraints
+- Frontier-science claim audit with leakage, ablation, and multiple-comparison
+  traps
+- Mac-only Metal kernel design that must beat an MLX baseline before merge
+- Rust OpenAI payload patch sketching under the local tape `session_id` rule
+- Decision-memo writing from noisy status text
+- Simpson-style analysis of easy-case saturation versus hard-tail signal
+- BrowseComp-style exploration planning without fabrication
+- Frontier-style mathematical sanity check
+- `fs.read` tool evidence reused on the next turn for Metal-vs-MLX triage
+- 11-turn memory retention with corrected facts overriding stale facts
+- Synchronous `agent` subagent orchestration plus `tape.handoff`
 
 ## Notes
 
-- OpenAI GPT-5.5 works after keeping Eli's `session_id` local instead of
-  forwarding it as a public OpenAI top-level request field.
-- Both models passed the real tool-call and next-turn replay cases.
-- The old DSv4-only score suite was removed because it measured single-model
-  capability rather than A/B discrimination.
+- The old high-pass smoke-style cases were removed because they produced
+  near-ceiling scores and weak model separation.
+- Metal validation is constrained to macOS/Darwin only. The benchmark does not
+  design or require Linux/CUDA Metal tests.
+- Both models passed the core tool-call, next-turn replay, long multi-turn
+  memory, and handoff/subagent infrastructure checks.

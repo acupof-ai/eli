@@ -1,5 +1,8 @@
-ELI_MODEL_COMPARE_SENTINEL
-
-This fixture is intentionally tiny. The live A/B suite reads it through
-Eli's fs.read tool, then checks whether the next model turn can reuse tool
-evidence without re-reading or guessing.
+ELI_MODEL_COMPARE_HARD_SENTINEL
+host=macOS_14.6_Darwin_23.6_arm64_M2_Max
+mlx_ms=8.40 mlx_p95=8.90
+metal_ms=9.70 metal_p95=11.30
+metal_error=0.03125 max_allowed=0.001
+kernel_issue=global_reload_no_threadgroup_tiling
+requirement=macOS_only Metal >=1.15x faster_than_MLX
+merge_policy=do_not_merge_until_faster_and_correct
