@@ -43,6 +43,71 @@ const consumers = new Map<string, ChildProcess>();
 const respawnAttempts = new Map<string, number>();
 
 // ---------------------------------------------------------------------------
+// Per-chat state: the latest inbound message_id (so the bot's reply quotes
+// it via +messages-reply) and the reaction_id we added (so we can delete it
+// once the bot's outbound has shipped).
+//
+// Keyed by chat_id. If two inbound messages arrive in the same chat before
+// the bot replies to the first, the older entry is overwritten — the bot
+// replies to the latest, which is what users expect, and the earlier
+// reaction lingers (minor visual cost vs the storage complexity of a queue).
+// ---------------------------------------------------------------------------
+interface ChatPending {
+  messageId: string;
+  reactionId: string | null;
+  addedAt: number;
+}
+const pendingByChat = new Map<string, ChatPending>();
+const PENDING_TTL_MS = 30 * 60 * 1000; // 30 min
+
+function rememberPending(chatId: string, messageId: string): void {
+  pendingByChat.set(chatId, { messageId, reactionId: null, addedAt: Date.now() });
+}
+
+function takePending(chatId: string): ChatPending | undefined {
+  const p = pendingByChat.get(chatId);
+  if (!p) return undefined;
+  if (Date.now() - p.addedAt > PENDING_TTL_MS) {
+    pendingByChat.delete(chatId);
+    return undefined;
+  }
+  pendingByChat.delete(chatId);
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// Event dedup: lark-cli replays the recent event log when its bus daemon
+// reconnects (network blip, restart, etc.), so without this every restart
+// re-fires the last N messages as if they were brand new and the bot
+// "spontaneously" replies to history. Keep a bounded set of seen event_ids;
+// older entries get evicted FIFO.
+// ---------------------------------------------------------------------------
+const seenEventIds = new Map<string, number>();
+const SEEN_CAP = 2000;
+const SEEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+function alreadySeen(eventId: string | undefined): boolean {
+  if (!eventId) return false;
+  const now = Date.now();
+  // Lazy GC: prune expired entries when we'd otherwise exceed the cap.
+  if (seenEventIds.size >= SEEN_CAP) {
+    for (const [k, ts] of seenEventIds) {
+      if (now - ts > SEEN_TTL_MS) seenEventIds.delete(k);
+      if (seenEventIds.size < SEEN_CAP) break;
+    }
+    // Still over the cap? Drop the oldest insertions (Map iteration order).
+    while (seenEventIds.size >= SEEN_CAP) {
+      const first = seenEventIds.keys().next().value;
+      if (first === undefined) break;
+      seenEventIds.delete(first);
+    }
+  }
+  if (seenEventIds.has(eventId)) return true;
+  seenEventIds.set(eventId, now);
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // Inbound — spawn `lark-cli event consume` per event key.
 // ---------------------------------------------------------------------------
 
@@ -160,11 +225,24 @@ function handleEventLine(
     return;
   }
 
+  // Drop replays: lark-cli's bus replays recent events to a fresh consumer.
+  // Without this the bot "auto-replies" to old messages every restart.
+  if (alreadySeen(evt?.event_id)) {
+    log.debug("dropping duplicate event", { eventId: evt.event_id, eventKey });
+    return;
+  }
+
   const envelope = toEnvelope(accountId, eventKey, evt);
   if (!envelope) return;
 
-  // Fire-and-forget acknowledgement so the user sees a sign of life before
-  // eli's LLM finishes thinking. Errors are logged but never block dispatch.
+  // Remember the inbound so the eventual outbound can quote it (+messages-reply)
+  // and so we can pair the reaction with its removal.
+  if (envelope.chatId && envelope.messageId) {
+    rememberPending(envelope.chatId as string, envelope.messageId as string);
+  }
+
+  // Fire-and-forget the Typing reaction; capture the reaction_id into the
+  // pending state so the outbound path can delete it.
   void ackInbound(envelope).catch((err) =>
     log.warn("ack failed", { messageId: envelope.messageId, err: err?.message }),
   );
@@ -277,6 +355,29 @@ async function ackInbound(env: InboundEnvelope): Promise<void> {
   ]);
   if (!result.ok) {
     log.warn("reaction create failed", { messageId, err: result.error });
+    return;
+  }
+  // Stash the reaction_id back on the pending entry so the outbound path
+  // can call reactions delete to clear it once the bot's reply has shipped.
+  const reactionId = result.result?.data?.reaction_id;
+  if (reactionId && env.chatId) {
+    const pending = pendingByChat.get(env.chatId as string);
+    if (pending && pending.messageId === messageId) {
+      pending.reactionId = reactionId;
+    }
+  }
+}
+
+async function deleteReaction(messageId: string, reactionId: string): Promise<void> {
+  const result = await runLarkCli([
+    "im", "reactions", "delete",
+    "--as", "bot",
+    "--params", JSON.stringify({ message_id: messageId, reaction_id: reactionId }),
+  ]);
+  if (!result.ok) {
+    log.debug("reaction delete failed (may already be gone)", {
+      messageId, reactionId, err: result.error,
+    });
   }
 }
 
@@ -338,19 +439,27 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   const { to, text, replyToId } = params;
   if (!text) return { ok: false, error: "empty text" };
 
-  // `--as bot` so the reply is sent as the bot account (tenant_access_token),
-  // matching how the inbound event was delivered. Defaulting to `auto` would
-  // resolve to user identity and either impersonate the developer or fail
-  // when the user token has expired.
-  //
-  // `--markdown` so Lark renders headings/bold/lists/code blocks instead of
-  // showing the raw `**...**` etc. Plain text also flows through this path
-  // unchanged because the markdown renderer is a superset.
-  const args = replyToId
-    ? ["im", "+messages-reply", "--as", "bot", "--message-id", replyToId, "--markdown", text]
+  // Look up the latest inbound for this chat so the bot's reply can quote
+  // the user's message via +messages-reply. Falls back to +messages-send
+  // when we have no pending entry (cold start, restart with stale TTL, etc.).
+  const pending = takePending(to);
+  const targetMessageId = replyToId ?? pending?.messageId;
+
+  // `--as bot` for tenant_access_token; `--markdown` for native Lark
+  // rendering of headings/bold/lists/code/inline-image-urls.
+  const args = targetMessageId
+    ? ["im", "+messages-reply", "--as", "bot", "--message-id", targetMessageId, "--markdown", text]
     : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--markdown", text];
 
-  return runLarkCli(args);
+  const result = await runLarkCli(args);
+
+  // Drop the Typing reaction once the actual reply is out. Best-effort —
+  // failure (already removed, race, etc.) is logged at debug.
+  if (pending?.reactionId && pending.messageId) {
+    void deleteReaction(pending.messageId, pending.reactionId).catch(() => {});
+  }
+
+  return result;
 }
 
 async function sendMedia(params: OutboundMediaParams | any): Promise<OutboundResult> {
