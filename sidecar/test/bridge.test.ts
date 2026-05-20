@@ -318,11 +318,22 @@ describe("outbound: eli callback", () => {
     expect(turnEndCalls).toHaveLength(0);
   });
 
-  it("mid-turn outbound forwards kind=notice and does NOT call onTurnEnd", async () => {
+  it("mid-turn outbound forwards kind=notice and preserves typing state", async () => {
     // message.send and new-session greetings set context._eli_mid_turn.
     // The plugin sees kind:"notice" so it keeps per-turn state alive;
     // onTurnEnd is reserved for end-of-turn cleanup-only paths and must
     // not fire for mid-turn dispatches.
+    //
+    // Seed pendingTyping so the "typing state survived" assertion is
+    // load-bearing — without a seeded entry the cleanupCalls check
+    // would be vacuous (endPendingTyping is a no-op on an empty map,
+    // as codex flagged in review #5).
+    pendingTyping.set("mock-channel:default:user_midturn", {
+      typingState: { reaction: "thinking" },
+      cfg: { channels: {} },
+      accountId: "default",
+    });
+
     const resp = await fetch(`http://127.0.0.1:${SIDECAR_PORT}/outbound`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -347,6 +358,7 @@ describe("outbound: eli callback", () => {
     expect(turnEndCalls).toHaveLength(0);
     // Typing state must survive mid-turn notices.
     expect(cleanupCalls).toHaveLength(0);
+    expect(pendingTyping.has("mock-channel:default:user_midturn")).toBe(true);
   });
 
   it("rejects unsupported contract_version", async () => {
