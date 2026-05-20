@@ -117,11 +117,35 @@ function handleEventLine(
   const envelope = toEnvelope(accountId, eventKey, evt);
   if (!envelope) return;
 
+  // Fire-and-forget acknowledgement so the user sees a sign of life before
+  // eli's LLM finishes thinking. Errors are logged but never block dispatch.
+  void ackInbound(envelope).catch((err) =>
+    log.warn("ack failed", { messageId: envelope.messageId, err: err?.message }),
+  );
+
   try {
     void onMessage(envelope);
   } catch (err: any) {
     log.error("onMessage dispatch threw", { err: err.message });
   }
+}
+
+/**
+ * Acknowledge an inbound message with a Feishu reaction so the user sees
+ * the bot picked it up before the LLM finishes. No extra text message —
+ * the reaction sits visibly on the user's message and the final answer
+ * lands as the only bot reply.
+ */
+async function ackInbound(env: InboundEnvelope): Promise<void> {
+  const messageId = env.messageId as string | undefined;
+  if (!messageId) return;
+
+  await runLarkCli([
+    "im", "reactions", "create",
+    "--as", "bot",
+    "--params", JSON.stringify({ message_id: messageId }),
+    "--data", JSON.stringify({ reaction_type: { emoji_type: "EYES" } }),
+  ]);
 }
 
 function toEnvelope(
