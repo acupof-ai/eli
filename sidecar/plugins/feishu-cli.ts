@@ -171,9 +171,13 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   const { to, text, replyToId } = params;
   if (!text) return { ok: false, error: "empty text" };
 
+  // `--as bot` so the reply is sent as the bot account (tenant_access_token),
+  // matching how the inbound event was delivered. Defaulting to `auto` would
+  // resolve to user identity and either impersonate the developer or fail
+  // when the user token has expired.
   const args = replyToId
-    ? ["im", "+messages-reply", "--message-id", replyToId, "--text", text]
-    : ["im", "+messages-send", ...routeArgs(to), "--text", text];
+    ? ["im", "+messages-reply", "--as", "bot", "--message-id", replyToId, "--text", text]
+    : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--text", text];
 
   return runLarkCli(args);
 }
@@ -185,7 +189,7 @@ async function sendMedia(params: OutboundMediaParams | any): Promise<OutboundRes
   const path: string = params.mediaPath ?? params.mediaUrl ?? "";
   if (!target || !path) return { ok: false, error: "missing target or path" };
 
-  const args = ["im", "+messages-send", ...routeArgs(target), "--file", path];
+  const args = ["im", "+messages-send", "--as", "bot", ...routeArgs(target), "--file", path];
   return runLarkCli(args);
 }
 
