@@ -220,12 +220,18 @@ async function ackInbound(env: InboundEnvelope): Promise<void> {
   const messageId = env.messageId as string | undefined;
   if (!messageId) return;
 
-  await runLarkCli([
+  // Feishu only accepts a closed enum of reaction emoji_types. Verified
+  // working set includes THUMBSUP / HEART / OK / SMILE / CLAP; values like
+  // EYES / THINKING_FACE / OK_HAND return `[231001] reaction type is invalid`.
+  const result = await runLarkCli([
     "im", "reactions", "create",
     "--as", "bot",
     "--params", JSON.stringify({ message_id: messageId }),
-    "--data", JSON.stringify({ reaction_type: { emoji_type: "EYES" } }),
+    "--data", JSON.stringify({ reaction_type: { emoji_type: "THUMBSUP" } }),
   ]);
+  if (!result.ok) {
+    log.warn("reaction create failed", { messageId, err: result.error });
+  }
 }
 
 function toEnvelope(
