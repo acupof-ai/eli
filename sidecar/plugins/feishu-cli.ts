@@ -706,5 +706,25 @@ export const feishuCliPlugin: ChannelPlugin = {
     async onInboundMessage() { return null; },
     async onOutboundReply() { /* no-op */ },
     resolveOutboundTarget(_context, chatId) { return chatId; },
+    /**
+     * Bridge invokes this when an inbound turn ends with no textual final
+     * reply (e.g. eli's render_outbound produced an empty string and the
+     * outbound was sent as cleanup-only). Drop the head inflight batch so
+     * the next real turn isn't paired with a stale one, and tear down the
+     * Typing reactions on the user's messages so the chat doesn't look
+     * like the bot is still working.
+     */
+    async onTurnEnd({ chatId }) {
+      const queue = inflightByChat.get(chatId);
+      if (!queue || queue.length === 0) return;
+      const batch = queue.shift();
+      if (queue.length === 0) inflightByChat.delete(chatId);
+      if (!batch) return;
+      for (const item of batch.items) {
+        if (item.reactionId) {
+          void deleteReaction(item.messageId, item.reactionId).catch(() => {});
+        }
+      }
+    },
   },
 };

@@ -168,6 +168,15 @@ export interface ChannelLifecycleHooks {
   onOutboundReply?(params: { cfg: any; typingState: any; accountId: string }): Promise<void>;
   /** Wrap tool execution with channel context (e.g. LarkTicket for OAuth). */
   wrapToolExecution?<T>(ctx: SessionContext, fn: () => Promise<T>): Promise<T>;
+  /**
+   * Called by the sidecar bridge when an inbound turn finishes WITHOUT a
+   * final outbound (e.g. cleanup-only response after an empty LLM
+   * output). Channels that track per-turn state — feishu-cli's inflight
+   * FIFO of pending message_ids + Typing reactions — must drop their
+   * head batch here, otherwise the next real turn pops a stale batch
+   * and replies to the wrong message. No-op default.
+   */
+  onTurnEnd?(params: { chatId: string; accountId: string; sessionId: string }): Promise<void>;
   /** Resolve outbound target from message context. Default: chatId. */
   resolveOutboundTarget?(context: Record<string, any>, chatId: string): string;
   /** Render a human-facing tool progress message for the channel, or null to suppress it. */

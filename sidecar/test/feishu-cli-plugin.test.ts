@@ -202,4 +202,25 @@ describe("inflight FIFO", () => {
     expect(popA?.items[0].messageId).toBe("om_a1");
     expect(__inflightDepth("oc_b")).toBe(1); // unaffected
   });
+
+  it("onTurnEnd lifecycle pops one head batch and is a no-op when empty", async () => {
+    // Import lazily so the test stays inside this describe's scope.
+    const { feishuCliPlugin } = await import("../plugins/feishu-cli.ts");
+    const onTurnEnd = feishuCliPlugin.lifecycle?.onTurnEnd;
+    if (!onTurnEnd) throw new Error("onTurnEnd not wired");
+
+    __seedInflight("oc_q", [makeItem("om_1", "first")]);
+    __seedInflight("oc_q", [makeItem("om_2", "second")]);
+    expect(__inflightDepth("oc_q")).toBe(2);
+
+    await onTurnEnd({ chatId: "oc_q", accountId: "default", sessionId: "feishu:default:oc_q" });
+    expect(__inflightDepth("oc_q")).toBe(1);
+
+    await onTurnEnd({ chatId: "oc_q", accountId: "default", sessionId: "feishu:default:oc_q" });
+    expect(__inflightDepth("oc_q")).toBe(0);
+
+    // Empty chat: must not throw, must remain empty.
+    await onTurnEnd({ chatId: "oc_q", accountId: "default", sessionId: "feishu:default:oc_q" });
+    expect(__inflightDepth("oc_q")).toBe(0);
+  });
 });

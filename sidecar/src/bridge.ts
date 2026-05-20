@@ -315,6 +315,22 @@ export function startOutboundServer(port: number): Promise<import("node:http").S
         }
 
         if (cleanupOnly) {
+          // The turn finished without a textual final reply (empty LLM
+          // output, etc.). Give the channel a chance to clear per-turn
+          // state — feishu-cli pops its inflight FIFO head + the
+          // matching Typing reactions — so the next real turn isn't
+          // matched against this dead batch.
+          if (channelPlugin.lifecycle?.onTurnEnd) {
+            try {
+              await channelPlugin.lifecycle.onTurnEnd({
+                chatId: to,
+                accountId,
+                sessionId,
+              });
+            } catch (e: any) {
+              log.debug("onTurnEnd failed", { err: e?.message ?? String(e) });
+            }
+          }
           res.json({ ok: true, cleanup_only: true });
           return;
         }
