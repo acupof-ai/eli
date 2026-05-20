@@ -1,65 +1,68 @@
 ---
 name: feishu-create-doc
-description: Create a Feishu cloud document from Lark-flavored Markdown, with optional folder or wiki placement.
+description: "Create a Feishu cloud document from Lark-flavored Markdown via lark-cli, with optional folder or wiki placement."
 ---
 
 # feishu-create-doc
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Creates a new Feishu cloud document from Lark-flavored Markdown content. Returns `doc_id`, `doc_url`, and `message`.
+`lark-cli docs +create` 是建 docx 的首选；`lark-cli markdown +create` 是 Drive 原生 Markdown 文件（不渲染为 docx）。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| Create a document | `feishu_create_doc` | markdown (required), title, folder_token, wiki_node, wiki_space |
+| Intent | Command |
+|--------|---------|
+| 从 Markdown 创建 docx | `lark-cli docs +create --title "..." --markdown-file ./content.md` |
+| 创建到指定文件夹 | `lark-cli docs +create --title "..." --markdown-file ./x.md --folder-token fldcnXXXX` |
+| 创建到 Wiki 节点 | `lark-cli docs +create --title "..." --markdown-file ./x.md --wiki-node wikcnXXXX` |
+| 直接传 markdown 字符串 | `lark-cli docs +create --title "..." --markdown "# hello\n..."` |
+| 创建 Drive 原生 .md 文件 | `lark-cli markdown +create --title "x.md" --content-file ./x.md --folder-token fldcnXXXX` |
 
 ## Parameters
 
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| markdown | Yes | Lark-flavored Markdown content |
-| title | No | Document title |
-| folder_token | No | Parent folder token (`fldcnXXXX`); omit to create in personal root |
-| wiki_node | No | Wiki node token or URL (`wikcnXXXX`); mutually exclusive with folder_token/wiki_space |
-| wiki_space | No | Wiki space ID; special value `my_library` for personal wiki; mutually exclusive with wiki_node/folder_token |
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--markdown-file` 或 `--markdown` | 是 | Lark-flavored Markdown 内容 |
+| `--title` | 否 | 文档标题；不给则由首行 H1 推断 |
+| `--folder-token` | 否 | 父目录 token；留空创建在个人根目录 |
+| `--wiki-node` | 否 | Wiki 节点 token；与 `--folder-token` 互斥 |
 
-**Priority:** wiki_node > wiki_space > folder_token
+## Lark-flavored Markdown 扩展
 
-## Content Guidelines
+| 元素 | 语法 |
+|------|------|
+| Callout | `<callout emoji="💡" background-color="light-blue">content</callout>` |
+| 双栏 | `<grid cols="2"><column>左</column><column>右</column></grid>` |
+| 增强表格 | `<lark-table header-row="true"><lark-tr><lark-td>...</lark-td></lark-tr></lark-table>` |
+| 图片(URL) | `<image url="https://..." width="800" align="center" caption="..."/>` |
+| 文件 | `<file url="https://..." name="document.pdf"/>` |
+| Mermaid | ```` ```mermaid ```` 代码块 |
+| @ 用户 | `<mention-user id="ou_xxx"/>` |
+| 文字颜色 | `<text color="red">red</text>` |
 
-The markdown content should be well-structured, visually rich, and readable:
+## Examples
 
-- **Clear structure**: Heading depth no more than 4 levels; use callouts to highlight key information
-- **Visual rhythm**: Break up long text with dividers, columns, and tables
-- **Visual diagrams**: Prefer Mermaid/PlantUML for flows and architecture diagrams
-- **Restraint**: Don't overuse callouts; bold only core terms
+```bash
+# 标准 case：从本地 md 创建到指定目录
+lark-cli docs +create \
+  --title "周会纪要 2026-05-20" \
+  --markdown-file ./minutes.md \
+  --folder-token fldcnAAAA
 
-When the user has explicit style/formatting preferences, follow those instead.
+# 创建到 Wiki 下的某个节点
+lark-cli docs +create \
+  --title "Release Notes 0.5.2" \
+  --markdown-file ./notes.md \
+  --wiki-node wikcnBBBB
+```
 
-### Common Extended Syntax
-
-- Callout: `<callout emoji="💡" background-color="light-blue">content</callout>`
-- Columns: `<grid cols="2"><column>left</column><column>right</column></grid>`
-- Enhanced table: `<lark-table header-row="true"><lark-tr><lark-td>content</lark-td></lark-tr></lark-table>`
-- Image: `<image url="https://..." width="800" align="center" caption="description"/>`
-- File: `<file url="https://..." name="document.pdf"/>`
-- Mermaid diagram: ` ```mermaid ` code block
-- Mention user: `<mention-user id="ou_xxx"/>`
-- Text color: `<text color="red">red text</text>`
+返回 JSON 含 `doc_token`、`doc_url`；`--jq '.doc_url'` 单取链接发到群。
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Start markdown with an H1 identical to the title | The title is already the document title; start markdown from body content |
-| Manually add a table of contents | Feishu auto-generates the TOC |
-| Use `doc_media` insert for URL-based images | Use `<image url="..."/>` syntax |
-| Create an extremely long document in one call | Use update-doc append mode to create in segments |
-
----
-
-> Detailed references: use `fs.read` to view
-> - `$SKILL_DIR/references/examples.md` -- full usage examples
-> - `$SKILL_DIR/LARK_MARKDOWN_REFERENCE.md` -- complete Lark-flavored Markdown syntax reference
+| markdown 用三反引号嵌代码块被 shell 截断 | 用 `--markdown-file` 走文件，避免 shell 转义 |
+| 同时给 `--folder-token` 和 `--wiki-node` | 互斥；二选一 |
+| Markdown 开头 H1 与 `--title` 重复 | title 已是标题，正文从内容开始 |
+| 手动加目录 | Feishu 自动生成 TOC |
+| 一次性塞超长内容 | 分段：先建空文档，再用 `feishu-update-doc` append |

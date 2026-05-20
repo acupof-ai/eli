@@ -754,16 +754,13 @@ function generateMissingSkills(destSkillsDir: string, srcSkillsDir: string): voi
 }
 
 /**
- * Remove SKILL.md files that the sidecar installed (cleanup on shutdown).
- * Only removes files the sidecar wrote — never touches user-created skills.
+ * Skill files are project-local content and should persist across gateway
+ * restarts — otherwise any project-committed override at .agents/skills/*
+ * would only survive until the first shutdown of the same session. The
+ * install logic in installPluginSkills already skips pre-existing files,
+ * so leaving installed files in place is harmless on subsequent startups.
  */
 export function cleanupInstalledSkills(): void {
-  const fs = require("fs");
-  for (const dir of writtenSkillDirs) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });
-    } catch {}
-  }
   writtenSkillDirs.length = 0;
 }
 

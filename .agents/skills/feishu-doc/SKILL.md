@@ -1,38 +1,47 @@
 ---
 name: feishu-doc
-description: "Manage comments and media files on Feishu cloud documents. Supports viewing/adding comments and inserting local images or downloading document assets."
+description: "Comment management and media (image/file) operations on Feishu cloud documents via lark-cli."
 ---
 
 # feishu-doc
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Comment management and media file operations for Feishu cloud documents (docx).
+文档评论和媒体文件操作。新建/读取/更新文档分别走 `feishu-create-doc` / `feishu-fetch-doc` / `feishu-update-doc`。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| View document comments | feishu_doc_comments | action=list, document_id |
-| Add a document comment | feishu_doc_comments | action=create, document_id, content |
-| Resolve/restore a comment | feishu_doc_comments | action=patch, comment_id |
-| Insert local image into document | feishu_doc_media | action=insert, document_id, file_path |
-| Download document asset | feishu_doc_media | action=download, token, output_path |
+| Intent | Command |
+|--------|---------|
+| 列文档评论 | `lark-cli drive file.comments list --params '{"file_token":"<token>","file_type":"docx"}' --page-all` |
+| 加文档级评论（任何文档类型） | `lark-cli drive +add-comment --url <doc_url> --content "评论文本"` |
+| 解决/恢复评论 | `lark-cli drive file.comments patch --params '{"file_token":"...","file_type":"docx","comment_id":"..."}' --data '{"is_solved":true}'` |
+| 回复评论 | `lark-cli drive file.comment.replys create --params '{...}' --data '{"content":...}'` |
+| 文档里插入本地图片 | `lark-cli docs +media-insert --doc-id <docx_id> --file ./pic.png` |
+| 在指定锚点插入 | `lark-cli docs +media-insert --doc-id <id> --file ./pic.png --selection-with-ellipsis "anchor text..."` |
+| 上传 media（不插入） | `lark-cli docs +media-upload --doc-id <id> --file ./x.png` |
+| 下载文档媒体 | `lark-cli docs +media-download --token <media_token> --output ./out.png` |
+| 预览文档媒体 | `lark-cli docs +media-preview --token <media_token>` |
 
-## Tools
+## Examples
 
-### feishu_doc_comments
-Manages cloud document comments (runs as the user). Supports: (1) list — get comment list with full replies; (2) create — add a document-level comment (supports text, @mentions, hyperlinks); (3) patch — resolve/restore a comment. Accepts wiki tokens.
+```bash
+# 加一条 doc 级评论
+lark-cli drive +add-comment \
+  --url "https://example.feishu.cn/docx/doxcnXXXX" \
+  --content "Need a follow-up on section 3."
 
-### feishu_doc_media
-Document media management tool (runs as the user). Supports two operations: (1) insert — append a local image or file to the end of a Feishu document (requires document ID + local file path); (2) download — download a document asset or whiteboard thumbnail to local storage (requires resource token + output path).
+# 在文档末尾插入图片
+lark-cli docs +media-insert --doc-id doxcnXXXX --file ./chart.png
 
-**Important:** insert only accepts local file paths. For URL images, use the `<image url="..."/>` syntax in create-doc/update-doc.
+# 下载文档里的某张图（从 fetch 输出的 token 拿到）
+lark-cli docs +media-download --token boxcnYYYY --output ./asset.png
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Using feishu_doc_media insert for URL images | insert only supports local files; use `<image url="..."/>` syntax in create-doc/update-doc for URLs |
-| Using feishu_doc_media to download images from chat messages | For message images, use feishu_im_bot_image or feishu_im_user_fetch_resource from the feishu-im skill |
-| Using feishu_doc_comments on spreadsheet comments | This tool only supports cloud document (docx) comments |
+| 把 wiki url 当 doc_token 用 | 先 `lark-cli wiki spaces get_node` 解析出 obj_token |
+| `+media-insert` 给 URL 图片 | 只支持本地路径；URL 图用 `<image url="..."/>` 走 update/create-doc |
+| 评论手动拼 @mention/链接结构 | `+add-comment` 自动构造 content |
+| 同 token 多次 `+media-insert` 并发 | 内部 4 步编排带 rollback，但请串行调用 |
+| 评论 Sheet/Bitable 用 docs 命令 | Sheet/Bitable 也走 `lark-cli drive +add-comment` 即可（按 file_token+type 路由） |

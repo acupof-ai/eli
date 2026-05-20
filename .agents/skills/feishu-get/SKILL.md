@@ -1,29 +1,36 @@
 ---
 name: feishu-get
-description: "Look up detailed info for a known Feishu user. Pass a user_id for a specific user, or omit it to query the current user."
+description: "Look up Feishu/Lark user info by ID (or self when no ID given) via lark-cli."
 ---
 
 # feishu-get
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Retrieve detailed user information by ID, or query the current user's own profile.
+单用户信息查询，走 `lark-cli contact`。按关键词搜人走 `feishu-search`。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| View own info | feishu_get_user | (no params) |
-| View a specific user's info | feishu_get_user | user_id |
+| Intent | Command |
+|--------|---------|
+| 查自己 | `lark-cli contact +get-user` |
+| 查指定用户 | `lark-cli contact +get-user --user-id ou_xxx` |
+| 按手机号/邮箱反查 | `lark-cli contact +search-user --query "13xxxxxxxxx"` |
 
-## Tools
+## Examples
 
-### feishu_get_user
-Retrieves user information. Omit user_id to get the current user's own info; provide user_id to look up a specific user. Returns name, avatar, email, phone number, department, and more.
+```bash
+# 当前登录人
+lark-cli contact +get-user --jq '{name,email,department:.department_ids}'
+
+# 指定用户
+lark-cli contact +get-user --user-id ou_abc \
+  --jq '{name,email,mobile,leader:.leader_user_id}'
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Using feishu_get_user to search for users | Use feishu_search_user from the feishu-search skill; get_user only works with a known ID or for querying yourself |
-| Asking the user to provide a user_id when you don't have one | First use feishu_search_user from the feishu-search skill to search by name and obtain the open_id |
+| 拿不到 user_id 时直接问用户 | 先 `lark-cli contact +search-user --query "姓名"` |
+| 期待拿到员工号 | scope 不含 `contact:user.employee_id` 时拿不到 |
+| 不带 `--as user` 想搜人 | `+search-user` 必须 user 身份 |
+| 用 `+get-user` 当搜索 | get-user 只接受已知 ID；模糊查找用 `+search-user` |

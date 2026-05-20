@@ -1,74 +1,67 @@
 ---
 name: feishu-im-read
-description: Read Feishu IM messages. Supports conversation history, thread replies, cross-conversation search, and resource downloads.
+description: "Read and search Feishu IM messages via lark-cli — conversation history, thread expansion, cross-chat search, and resource download."
 ---
 
 # feishu-im-read
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Read and search Feishu IM messages using user identity. Supports conversation history retrieval, thread reply expansion, cross-conversation search, and image/file resource downloads.
+Inbound/read-side messaging routed through `lark-cli im`. For sending use `feishu-im`.
 
 ## Prerequisites
 
-- All tools use user identity — only conversations the user has access to can be read
-- `open_id` and `chat_id` are mutually exclusive; prefer `chat_id`
-- `relative_time` and `start_time/end_time` are mutually exclusive
-- When a message contains `thread_id`, proactively use `feishu_im_user_get_thread_messages` to expand thread replies
-- For resource downloads, use `feishu_im_user_fetch_resource` with `message_id` + `file_key` + `type`
+- 读消息需要对该 chat 的访问权 — `--as user` 走用户身份；`--as bot` 仅能读 bot 在群里的消息。
+- ID 映射：chat `oc_xxx`，message `om_xxx`，thread `om_xxx` 或 `omt_xxx`。
+- `--chat-id` 和 `--user-id` 二选一；`--relative-time` 和 `--start/--end` 二选一。
+- 消息含 `thread_id` 时主动展开 thread。
 
 ## Quick Reference
 
-| Intent | Tool | Required Params | Common Optional |
-|--------|------|-----------------|-----------------|
-| Get group/direct chat history | feishu_im_user_get_messages | chat_id or open_id (one of) | relative_time, start_time/end_time, page_size, sort_rule |
-| Get thread replies | feishu_im_user_get_thread_messages | thread_id (omt_xxx) | page_size, sort_rule |
-| Search messages across conversations | feishu_im_user_search_messages | at least one filter condition | query, sender_ids, chat_id, relative_time, start_time/end_time, page_size |
-| Download image from message | feishu_im_user_fetch_resource | message_id, file_key (img_xxx), type="image" | - |
-| Download file/audio/video from message | feishu_im_user_fetch_resource | message_id, file_key (file_xxx), type="file" | - |
+| Intent | Command |
+|--------|---------|
+| 群/单聊历史消息 | `lark-cli im +chat-messages-list --chat-id oc_xxx` |
+| P2P 历史（用 user_id） | `lark-cli im +chat-messages-list --user-id ou_xxx` |
+| 限定时间窗 | `... --start "2026-05-20T00:00:00+08:00" --end "2026-05-20T23:59:59+08:00"` |
+| 相对时间 | `... --relative-time 24h` |
+| Thread 展开 | `lark-cli im +threads-messages-list --thread-id <om_or_omt>` |
+| 全局搜索消息 | `lark-cli im +messages-search --query "<keyword>"` |
+| 限定群/人/时间搜 | `lark-cli im +messages-search --query "..." --chat-id oc_xxx --sender ou_yyy --start ... --end ...` |
+| 批量拉消息 by id | `lark-cli im +messages-mget --message-ids om_a,om_b,om_c` |
+| 列我所在群 | `lark-cli im +chat-list` |
+| 找群 by 关键词/成员 | `lark-cli im +chat-search --query "周会" --member-ids ou_xxx` |
+| 下载消息中的图片/文件 | `lark-cli im +messages-resources-download --message-id om_xxx --file-key <key> --output ./x.jpg` |
 
-## Constraints
+## Thread strategy
 
-### Time range
+| 场景 | 取多少 |
+|------|--------|
+| 默认理解上下文 | 最新 10 条 (`page_size 10`, `sort create_time_desc`) |
+| "完整对话"/"详细讨论" | 全部 (`page_size 50`, `sort create_time_asc`)，分页拉完 |
+| 仅浏览概览 | 跳过 thread 展开 |
 
-When the user does not specify a time range, infer a suitable `relative_time` based on intent. When the user specifies an explicit time, use their value directly.
+Thread 不支持时间过滤（API 限制），只能分页。
 
-### Pagination
+## Examples
 
-- `page_size` range: 1-50, default 50
-- When `has_more=true`, use `page_token` to continue fetching
-- Paginate when complete results are needed; the first page usually suffices for browsing
+```bash
+# 看某个群最近一天聊了什么
+lark-cli im +chat-messages-list \
+  --chat-id oc_abc \
+  --relative-time 24h --page-all
 
-### Thread replies
+# 跨群搜"线上故障"
+lark-cli im +messages-search --query "线上故障" --start "2026-05-13" \
+  --jq '.items[]|{chat,sender_name,text:.content|@text}'
 
-| Scenario | Behavior |
-|----------|----------|
-| Need to understand context (default) | Get latest 10 replies (`page_size: 10, sort_rule: "create_time_desc"`) |
-| "Full conversation", "detailed discussion" | Get all replies (`page_size: 50, sort_rule: "create_time_asc"`), paginate as needed |
-| Browsing overview / skip replies | Skip thread expansion |
-
-Thread messages do not support time filtering (Feishu API limitation) — only pagination is available.
-
-### open_id vs chat_id
-
-| Param | Format | Use Case |
-|-------|--------|----------|
-| chat_id | `oc_xxx` | Known conversation ID (works for both group and direct chats) |
-| open_id | `ou_xxx` | Known user ID — fetch direct chat messages with that user |
+# 展开一个 thread
+lark-cli im +threads-messages-list --thread-id omt_xxx --page-all
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Pass both open_id and chat_id | Use one or the other; prefer chat_id |
-| Use both relative_time and start_time/end_time | Choose only one time filtering method |
-| Ignore has_more=true without paginating | Check has_more and use page_token to paginate when complete results are needed |
-| Ignore thread_id in messages | Proactively expand threads to get context |
-| Download current conversation images with user_fetch_resource | Use feishu_im_bot_image (bot identity) |
-
----
-
-> Detailed references: use `fs.read` to read
-> - `$SKILL_DIR/references/examples.md` — Full usage examples
-> - `$SKILL_DIR/references/errors.md` — Common errors and troubleshooting
-> - `$SKILL_DIR/references/appendix.md` — Search parameters, resource markers, time filtering details
+| 同时给 `--chat-id` 和 `--user-id` | 二选一 |
+| 同时给 `--relative-time` 和 `--start/--end` | 二选一 |
+| 看到 `thread_id` 不展开 | 主动用 `+threads-messages-list` 拿 thread 全文 |
+| 把 image key 当 URL 访问 | 必须 `+messages-resources-download` 下载 |
+| 拉大量历史不分页 | 加 `--page-all` 自动翻页 |

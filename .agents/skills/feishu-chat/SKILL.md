@@ -1,28 +1,39 @@
 ---
 name: feishu-chat
-description: "Retrieve the member list of a Feishu group chat. Use when the user wants to see who is in a specific group."
+description: "List Feishu group chat members and resolve chat metadata via lark-cli."
 ---
 
 # feishu-chat
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Fetches the member list for a specified Feishu group chat.
+Group chat 成员/元信息查询，走 `lark-cli im`。发消息走 `feishu-im`；按关键词找群走 `feishu-im` 里的 `+chat-search`。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| View group member list | feishu_chat_members | chat_id |
+| Intent | Command |
+|--------|---------|
+| 列群成员 | `lark-cli im chat.members get --params '{"chat_id":"oc_xxx"}' --page-all` |
+| 群基础信息 | `lark-cli api GET /open-apis/im/v1/chats/oc_xxx` |
+| 找群 by 关键词 | `lark-cli im +chat-search --query "..."` |
+| 找群 by 成员 | `lark-cli im +chat-search --member-ids ou_xxx,ou_yyy` |
+| 我所在的群 | `lark-cli im +chat-list` |
 
-## Tools
+## Examples
 
-### feishu_chat_members
-Retrieves the member list for a specified group chat, running as the user. Returns member information including member ID, name, etc. Note: bot members in the group are not included in the results.
+```bash
+# 列出群里所有人
+lark-cli im chat.members get --params '{"chat_id":"oc_abc"}' --page-all \
+  --jq '.items[]|{name,member_id}'
+
+# 群基础信息（名称、群主、人数）
+lark-cli api GET /open-apis/im/v1/chats/oc_abc \
+  --jq '{name,owner_id,chat_mode,member_count:.user_count}'
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Using feishu_chat_members to search for group chats | Use feishu_chat search from the feishu skill to search chats |
-| Guessing a chat_id when you don't know it | First use feishu_chat search from the feishu skill to find the chat and obtain its chat_id |
+| 期望返回机器人成员 | API 不返回 bot 成员 |
+| 一次性想拿全部成员不翻页 | 默认分页；加 `--page-all` 自动翻页 |
+| 把 user `ou_...` 当 `chat_id` 传 | chat_id 一定是 `oc_...` 开头 |
+| 不知道 chat_id 就猜 | 先 `lark-cli im +chat-search --query "群名"` 拿到 |

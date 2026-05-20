@@ -1,57 +1,62 @@
 ---
 name: feishu-im
-description: Send Feishu messages as user identity and download images/files from the current conversation as bot identity.
+description: "Send Feishu messages and replies via lark-cli (user or bot identity), download chat resources, and manage threads/reactions."
 ---
 
 # feishu-im
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
+Outbound messaging routed through `lark-cli im`. For reading/search use the sibling `feishu-im-read` skill.
 
-Send messages and replies as the user's Feishu identity, and download images/files from the current conversation using bot identity.
+## Identity
+
+- `--as user` (default for user-scoped scenarios): runs as the logged-in user; only chats the user is in.
+- `--as bot`: runs as the bot identity; only chats the bot is in.
+- 同一个 API 在两种身份下成败可能不同，遇到 403 先换身份。
+
+## Safety
+
+`--as user` 发消息时**接收方看到的发件人是用户本人**。调用前确认：(1) 收件人是谁；(2) 发什么内容。未经用户明确确认绝不要发。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| Send message as user | feishu_im_user_message | action=send, receive_id, msg_type, content |
-| Reply to message as user | feishu_im_user_message | action=reply, message_id, msg_type, content |
-| Download image/file from current conversation (bot identity) | feishu_im_bot_image | message_id, image_key/file_key |
+| Intent | Command |
+|--------|---------|
+| 发文本到群 | `lark-cli im +messages-send --chat-id oc_xxx --text "hi"` |
+| 发文本到人 (P2P) | `lark-cli im +messages-send --user-id ou_xxx --text "hi"` |
+| 发 markdown | `lark-cli im +messages-send --chat-id oc_xxx --markdown "**title**\nbody"` |
+| 发 post (富文本) | `lark-cli im +messages-send --chat-id oc_xxx --post-file ./post.json` |
+| 发图片/文件 | `lark-cli im +messages-send --chat-id oc_xxx --file ./pic.png` |
+| 回复某条消息 | `lark-cli im +messages-reply --message-id om_xxx --text "..."` |
+| 在 thread 中回复 | `lark-cli im +messages-reply --message-id om_xxx --text "..." --in-thread` |
+| 下载消息附件 | `lark-cli im +messages-resources-download --message-id om_xxx --file-key file_xxx --output ./out.jpg` |
+| 加表情 | `lark-cli im reactions create --params '{"message_id":"om_xxx"}' --data '{"reaction_type":{"emoji_type":"THUMBSUP"}}'` |
+| 撤回消息 | `lark-cli im messages delete --params '{"message_id":"om_xxx"}'` |
 
-> For message reading/searching/resource downloading, use the **feishu-im-read** skill.
+## Examples
 
-## Tools
+```bash
+# 群里发 markdown
+lark-cli im +messages-send \
+  --chat-id oc_abc123 \
+  --markdown $'**周会提醒**\n时间：14:00\n会议室：4F-A'
 
-### feishu_im_user_message
+# 回复某条消息并在 thread 内
+lark-cli im +messages-reply \
+  --message-id om_xyz \
+  --text "已收到，处理中。" --in-thread
 
-Send or reply to messages using the user's Feishu identity. **Use only when the user explicitly requests sending a message as themselves; otherwise prefer the system message tools.**
-
-Actions:
-- **send**: Send a message to a direct chat or group chat. Use `receive_id_type=open_id` for direct chats, `receive_id_type=chat_id` for group chats.
-- **reply**: Reply to a specific `message_id`. Supports thread replies (`reply_in_thread=true`).
-
-**Important**: `content` must be a valid JSON string. Format depends on `msg_type`. Most common: text type content is `'{"text":"message content"}'`.
-
-**Safety constraint**: This tool sends messages as the user — the recipient sees the user as the sender. Before calling, you must confirm with the user: 1) the recipient (which person or group), 2) the message content. Never send messages without the user's explicit consent.
-
-### feishu_im_bot_image
-
-Download images or file resources from Feishu IM messages to local storage, using bot identity.
-
-Use for: messages sent directly to the bot, quoted messages, or images/files in group messages the bot received — i.e., any `message_id` and `image_key`/`file_key` from the current conversation context.
-
-The `message_id` for quoted messages can be extracted from `[message_id=om_xxx]` in context — no need to ask the user.
-
-Files are saved to `/tmp/openclaw/`; the `saved_path` in the response is the actual file path.
-
-### Message reading tools
-
-`feishu_im_user_get_messages`, `feishu_im_user_get_thread_messages`, `feishu_im_user_search_messages`, `feishu_im_user_fetch_resource` — see the **feishu-im-read** skill for detailed usage.
+# 给客服群发图片
+lark-cli im +messages-send \
+  --chat-id oc_support \
+  --file ./screenshot.png
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Send message as user without confirming first | Always confirm recipient and content with the user before calling feishu_im_user_message |
-| Download current conversation images with feishu_im_user_fetch_resource | Use feishu_im_bot_image (bot identity, no user authorization needed) |
-| Use feishu-im skill for full message history reading/analysis | Use feishu-im-read skill |
-| Pass plain text string as content | content must be a JSON string, e.g. `'{"text":"hello"}'` |
+| `--chat-id` 和 `--user-id` 同时给 | 二选一；想给个人就用 `--user-id`（P2P 会自动建/复用 chat） |
+| post 富文本拼成 JSON 字符串字段塞 `--text` | 用 `--post-file path.json` 走文件 |
+| bot 身份发到没拉过的群 | 先把 bot 加进群；或换 `--as user` |
+| 期望 Lark Markdown ≡ GitHub Markdown | 子集有差异（callout/grid/lark-table 等扩展）|
+| 用 `feishu-im` 读消息 | 读消息走 `feishu-im-read` |

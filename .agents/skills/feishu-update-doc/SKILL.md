@@ -1,81 +1,78 @@
 ---
 name: feishu-update-doc
-description: Update a Feishu cloud document with 7 modes including append, overwrite, targeted replace, insert, and delete.
+description: "Update a Feishu cloud document via lark-cli with targeted modes (append, replace, insert, delete) plus full overwrite. Prefer targeted updates over overwrite."
 ---
 
 # feishu-update-doc
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Updates Feishu cloud documents with 7 operation modes. Prefer targeted updates over overwrite, which clears the entire document and may destroy images, comments, and collaboration history.
-
-## Quick Reference
-
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| Append to end | `feishu_update_doc` | mode=append, markdown |
-| Full overwrite (destructive) | `feishu_update_doc` | mode=overwrite, markdown |
-| Replace matched range | `feishu_update_doc` | mode=replace_range, selection, markdown |
-| Find-and-replace all | `feishu_update_doc` | mode=replace_all, selection, markdown (empty string = delete) |
-| Insert before match | `feishu_update_doc` | mode=insert_before, selection, markdown |
-| Insert after match | `feishu_update_doc` | mode=insert_after, selection, markdown |
-| Delete matched range | `feishu_update_doc` | mode=delete_range, selection |
+`lark-cli docs +update` 一个命令多个 mode。**优先精准操作**（append/replace/insert/delete），overwrite 会清掉整个文档（包括图片、评论、协作历史）。
 
 ## Modes
 
-| Mode | Purpose | Requires Selection | Requires Markdown |
-|------|---------|-------------------|-------------------|
-| append | Append to end | No | Yes |
-| overwrite | Full overwrite (destructive) | No | Yes |
-| replace_range | Replace a unique match | Yes | Yes |
-| replace_all | Replace all occurrences | Yes | Yes (empty string = delete) |
-| insert_before | Insert before match | Yes | Yes |
-| insert_after | Insert after match | Yes | Yes |
-| delete_range | Delete matched content | Yes | No |
+| Mode | 说明 | 需要 selection | 需要 markdown |
+|------|------|---------------|---------------|
+| `append` | 在文档末尾追加 | ❌ | ✅ |
+| `overwrite` | ⚠️ 全量覆盖（破坏性） | ❌ | ✅ |
+| `replace_range` | 替换匹配段落范围 | ✅ | ✅ |
+| `replace_all` | find-and-replace（空字符串 = 删除） | ✅ | ✅ |
+| `insert_before` | 在匹配项之前插入 | ✅ | ✅ |
+| `insert_after` | 在匹配项之后插入 | ✅ | ✅ |
+| `delete_range` | 删除匹配段落范围 | ✅ | ❌ |
 
-Optional parameter `new_title`: plain text, 1-800 characters, combinable with any mode.
+可选 `--new-title`（≤ 800 字）与任意 mode 组合改标题。
 
-## Selection Methods (choose one)
+## Selection 两种写法（择一）
 
-### selection_with_ellipsis -- Content-based selection
+### `selection-with-ellipsis` — 按内容选
 
-- **Range match**: `start_text...end_text` -- matches everything from start to end; use 10-20 characters for uniqueness
-- **Exact match**: `full_text` (no `...`) -- matches the complete text literally
-- **Escaping**: literal `...` must be written as `\.\.\.`
+- 范围匹配：`"start_text...end_text"` — 用 10–20 字符保证唯一
+- 完整匹配：`"full_text"`（不带 `...`）
+- 字面 `...` 写成 `\.\.\.`
 
-### selection_by_title -- Heading-based selection
+### `selection-by-title` — 按标题选
 
-Format: `## Section Title` (with or without `#` prefix). Automatically selects the entire section from the heading up to the next heading of the same or higher level.
+- 形如 `"## 章节标题"`（带不带 `#` 都行）
+- 自动选中从该标题到下一个同级/更高级标题之间所有内容
 
-## Constraints
+## Quick Reference
 
-### Use small, precise replacements
-The smaller the selection range, the safer the operation. For nested blocks (tables, columns), target only the specific text that needs changing.
+| Intent | Command |
+|--------|---------|
+| 末尾追加 | `lark-cli docs +update --doc-id <id> --mode append --markdown-file ./more.md` |
+| 全量覆盖（慎用） | `lark-cli docs +update --doc-id <id> --mode overwrite --markdown-file ./new.md` |
+| 替换匹配段 | `lark-cli docs +update --doc-id <id> --mode replace_range --selection-with-ellipsis "old anchor..." --markdown-file ./new.md` |
+| find-and-replace 全部 | `lark-cli docs +update --doc-id <id> --mode replace_all --selection-with-ellipsis "TODO" --markdown "DONE"` |
+| 在匹配前插入 | `lark-cli docs +update --doc-id <id> --mode insert_before --selection-by-title "## 结论" --markdown-file ./before.md` |
+| 在匹配后插入 | `lark-cli docs +update --doc-id <id> --mode insert_after --selection-by-title "## 背景" --markdown-file ./after.md` |
+| 删除某段 | `lark-cli docs +update --doc-id <id> --mode delete_range --selection-with-ellipsis "废弃内容..."` |
+| 改标题 | `lark-cli docs +update --doc-id <id> --mode append --markdown "" --new-title "新标题"` |
+| 更新白板 | `lark-cli docs +whiteboard-update --doc-id <id> --whiteboard-id <wb_id> --mermaid-file ./diagram.mmd` |
+| 覆盖 Drive 原生 .md | `lark-cli markdown +overwrite --file-token <token> --content-file ./new.md` |
 
-### Protect non-rebuildable content
-Images, whiteboards, spreadsheets, bitables, and tasks are stored as tokens and cannot be read out and written back intact. Avoid selecting these areas; target only plain text.
+## Examples
 
-### Insert mode boundaries
-- `insert_after` inserts after the **end** of the matched range
-- `insert_before` inserts before the **start** of the matched range
+```bash
+# 追加一段 changelog
+lark-cli docs +update --doc-id doxcnXXXX --mode append \
+  --markdown $'## 2026-05-20\n- 新增 foo\n- 修复 bar'
 
-When expanding a selection for uniqueness, verify the boundary is still the intended insertion point.
+# 把"待办"全替换成"已完成"
+lark-cli docs +update --doc-id doxcnXXXX --mode replace_all \
+  --selection-with-ellipsis "待办" --markdown "已完成"
 
-### Prefer incremental over wholesale
-Use multiple small replacements for multiple changes. Overwrite destroys media, comments, and collaboration history.
+# 在某一节后追加
+lark-cli docs +update --doc-id doxcnXXXX --mode insert_after \
+  --selection-by-title "## 背景" \
+  --markdown-file ./extra.md
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Large-range replace covering areas with images/whiteboards | Target only the plain text portion to avoid breaking token references |
-| Casually use overwrite mode | Overwrite destroys images and comments; prefer targeted updates |
-| Don't escape literal `...` in selection_with_ellipsis | Use `\.\.\.` for a literal three-dot sequence |
-| Expand selection for insert but ignore boundary shift | `insert_after` inserts after the match end; `insert_before` before the match start |
-
----
-
-> Detailed references: use `fs.read` to view
-> - `$SKILL_DIR/references/examples.md` -- examples for all 7 modes
-> - `$SKILL_DIR/references/appendix.md` -- return value format, new_title parameter details
-> - Markdown syntax reference: see the feishu-create-doc skill documentation
+| 想小改直接 overwrite | 用 `replace_range`/`insert_*`；overwrite 会丢图片/评论 |
+| selection 给得太短匹配多处 | 用足够独特的字符串，或加 `...` 范围匹配 |
+| selection 跨段落含换行 | 拼到一行或用 `selection-by-title` |
+| `selection-with-ellipsis` 字面 `...` 没转义 | 写成 `\.\.\.` |
+| 大范围 replace 覆盖到含图片/白板的段 | 只针对纯文本段；token 引用不能 round-trip |
+| 在白板上用 docx markdown 更新 | 白板用 `+whiteboard-update` 配 mermaid/plantuml/DSL |

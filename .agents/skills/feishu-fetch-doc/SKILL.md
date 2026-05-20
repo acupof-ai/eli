@@ -1,73 +1,61 @@
 ---
 name: feishu-fetch-doc
-description: Fetch Feishu cloud document content as Markdown, with support for images, files, and whiteboards.
+description: "Fetch Feishu cloud document content as Lark-flavored Markdown via lark-cli. Media (images/files/whiteboards) are token references that must be downloaded separately."
 ---
 
 # feishu-fetch-doc
 
-> **Tool calling:** Use `sidecar(tool="<tool_name>", params={...})` to call tools in this skill.
-
-Fetches Feishu cloud document content in Lark-flavored Markdown format. Media items (images, files, whiteboards) are returned as token references and must be downloaded separately.
+读 docx 文档内容；正文转 Markdown，媒体保留 token 引用，需要时另调下载。Sheet/Bitable/Wiki 走对应 sibling skill。
 
 ## Quick Reference
 
-| Intent | Tool | Key Params |
-|--------|------|------------|
-| Fetch document text | `feishu_mcp_fetch_doc` | doc_id |
-| Download image/file/whiteboard | `feishu_doc_media` | action=download, resource_token, resource_type=media, output_path |
-| Resolve wiki token type | `feishu_wiki_space_node` | action=get, node_token |
-| Read/write spreadsheet | `feishu_sheet` | spreadsheet_token |
-| Operate on bitable | `feishu_bitable_*` | app_token |
+| Intent | Command |
+|--------|---------|
+| 拉文档 Markdown | `lark-cli docs +fetch --doc-id <docx_id>` |
+| 用 URL 拉 | `lark-cli docs +fetch --url <doc_url>` |
+| 拉 Drive 原生 .md | `lark-cli markdown +fetch --file-token <token>` |
+| 解析 wiki -> 真实 obj_token | `lark-cli wiki spaces get_node --params '{"token":"wikcnXXXX"}'` |
+| 下载文档里的图片/附件 | `lark-cli docs +media-download --token <media_token> --output ./out.png` |
+| 读电子表格 | `lark-cli sheets +read --url <sheet_url>` |
+| 读多维表格 | `feishu-bitable` (`lark-cli base +record-list ...`) |
 
-## Tools
+## Markdown 里的媒体 tags
 
-### feishu_mcp_fetch_doc
+| Tag | 提取的 token | 下载 |
+|-----|--------------|------|
+| `<image token="boxcn..." width="..."/>` | image token | `lark-cli docs +media-download --token boxcn...` |
+| `<view type="1"><file token="..." name="..."/></view>` | file token | 同上 |
+| `<whiteboard token="..."/>` | whiteboard token | `+media-download` 拿缩略图；要改内容用 `feishu-update-doc +whiteboard-update` |
 
-Fetches the Markdown content of a Feishu cloud document.
+## Wiki URL 标准三步
 
-**Parameters:**
+```bash
+# 1. 拿到 obj_token + obj_type
+lark-cli wiki spaces get_node --params '{"token":"wikcnZZZZ"}' --jq '{obj_token,obj_type}'
 
-- **`doc_id`** (required): Accepts a document URL or token directly.
-  - URL: `https://xxx.feishu.cn/docx/Z1FjxxxxxxxxxxxxxxxxxxxtnAc` (token extracted automatically)
-  - Token: `Z1FjxxxxxxxxxxxxxxxxxxxtnAc`
-  - Wiki URL/token also supported: `https://xxx.feishu.cn/wiki/Z1FjxxxxxxxxxxxxxxxxxxxtnAc`
+# 2. 按 obj_type 路由
+#    docx    -> lark-cli docs +fetch --doc-id <obj_token>
+#    sheet   -> lark-cli sheets +read --spreadsheet-token <obj_token>
+#    bitable -> lark-cli base +record-list --app-token <obj_token> --table-id <tid>
+#    其他    -> 告知用户类型不支持
+```
 
-### feishu_doc_media (action: download)
+## Examples
 
-Downloads media items referenced in the document. Images, files, and whiteboards appear in the returned Markdown as HTML tags:
+```bash
+# 拉 docx 内容
+lark-cli docs +fetch --url "https://example.feishu.cn/docx/doxcnXXXX" \
+  --jq '.content' > doc.md
 
-- **Images**: `<image token="..." width="..." height="..." align="..."/>`
-- **Files**: `<view type="1"><file token="..." name="..."/></view>`
-- **Whiteboards**: `<whiteboard token="..."/>`
-
-**Steps to download:**
-
-1. Extract the `token` attribute from the HTML tag
-2. Call `feishu_doc_media` with action=download, resource_token=extracted_token, resource_type=media, output_path=save_path
-
-## Wiki URL Handling
-
-Wiki links (`/wiki/TOKEN`) can point to different document types (cloud doc, spreadsheet, bitable, etc.). You must resolve the actual type before fetching.
-
-**Workflow:**
-
-1. Call `feishu_wiki_space_node` (action=get) to resolve the wiki token
-2. Read `obj_type` and `obj_token` from the returned `node`
-3. Call the appropriate tool based on `obj_type`:
-
-| obj_type | Tool | Parameter |
-|----------|------|-----------|
-| `docx` | `feishu_mcp_fetch_doc` | doc_id = obj_token |
-| `sheet` | `feishu_sheet` | spreadsheet_token = obj_token |
-| `bitable` | `feishu_bitable_*` series | app_token = obj_token |
-| other | Inform user this type is not supported | -- |
-
-> See `$SKILL_DIR/references/examples.md` for full examples.
+# 拉到 markdown 里出现 token，下载对应图片
+lark-cli docs +media-download --token boxcnIMG --output ./img.png
+```
 
 ## Pitfalls
 
 | Wrong | Right |
 |-------|-------|
-| Treat a wiki URL directly as a docx and fetch it | Use `feishu_wiki_space_node` get to resolve `obj_type` first |
-| Expect `fetch_doc` to return image content inline | Images are returned as token tags; use `feishu_doc_media` download to retrieve them |
-| Ignore `<image>`/`<file>`/`<whiteboard>` tags in the output | Extract tokens and download as needed, or inform the user |
+| `wiki/wikcnXXXX` 当 doc_id 直接 fetch | 必须先 `wiki spaces get_node` 解析 obj_token + obj_type |
+| 把 `<image token="boxcn..."/>` 当 URL 访问 | 那是 token，必须 `docs +media-download` |
+| 拉非 docx (sheet/bitable) 用 `docs +fetch` | sheet → `sheets +read`；bitable → `feishu-bitable` |
+| 忽略输出里的 `<image>`/`<file>` tags | 提取 token 按需下载，或告知用户该处有媒体 |
