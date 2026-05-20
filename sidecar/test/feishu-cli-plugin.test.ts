@@ -9,6 +9,8 @@ import {
   chunkText,
   combineEnvelopes,
   friendlyizeError,
+  isAppSender,
+  MAX_CHUNK_BYTES,
   MAX_CHUNK_CHARS,
   normalizeEscapedWhitespace,
   routeArgs,
@@ -230,11 +232,42 @@ describe("inflight FIFO", () => {
   });
 
   it("chunkText hard-cuts when no boundary is reachable in the upper half", () => {
-    // 200 chars, no spaces or newlines, cap 50 → exact 50-char chunks.
+    // 200 ASCII chars (200 bytes), no spaces/newlines, cap 50 bytes.
     const text = "x".repeat(200);
     const chunks = chunkText(text, 50);
     expect(chunks).toHaveLength(4);
     for (const c of chunks) expect(c.length).toBe(50);
+  });
+
+  it("chunkText respects UTF-8 byte limit, not char count (CJK)", () => {
+    // 100 CJK chars × 3 bytes/char = 300 bytes; cap 120 bytes → at most
+    // ~40 chars per chunk. The bug we're guarding against was capping
+    // by chars (=100) and producing one chunk that exceeded the byte cap.
+    const text = "中".repeat(100);
+    const chunks = chunkText(text, 120);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(Buffer.byteLength(c, "utf8")).toBeLessThanOrEqual(120);
+    }
+    // Concatenation recovers the original (chunks have no separators
+    // injected because there were no paragraph/newline breaks).
+    expect(chunks.join("")).toBe(text);
+  });
+
+  it("chunkText closes + reopens fenced code blocks across chunk boundaries", () => {
+    // Build a long fenced block forced to split.
+    const fence = "```python\n" + ("print('x')\n".repeat(20)) + "```";
+    const chunks = chunkText(fence, 80);
+    expect(chunks.length).toBeGreaterThan(1);
+    // Every non-final chunk must end with a closing ``` and every
+    // non-first chunk must reopen with ```language so the user's
+    // markdown renderer keeps the code style intact.
+    for (let i = 0; i < chunks.length - 1; i++) {
+      expect(chunks[i].trimEnd().endsWith("```")).toBe(true);
+    }
+    for (let i = 1; i < chunks.length; i++) {
+      expect(chunks[i].startsWith("```python")).toBe(true);
+    }
   });
 
   it("chunkText production cap is large enough for most messages", () => {
@@ -275,6 +308,30 @@ describe("stripMentions", () => {
 
   it("handles self-closing <at/> tags", () => {
     expect(stripMentions('<at user_id="ou_xxx"/>你好')).toBe("你好");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isAppSender — anti-loop filter
+// ---------------------------------------------------------------------------
+
+describe("isAppSender", () => {
+  it("treats cli_* and app_* as apps (filtered)", () => {
+    expect(isAppSender("cli_a9f074df7179dbd2")).toBe(true);
+    expect(isAppSender("app_xyz")).toBe(true);
+  });
+
+  it("treats ou_* (open_id) as user (kept)", () => {
+    expect(isAppSender("ou_98599808ce3ee3c07ab6232848899942")).toBe(false);
+  });
+
+  it("treats on_* (union_id) as user (kept)", () => {
+    expect(isAppSender("on_unionid12345")).toBe(false);
+  });
+
+  it("treats tenant user_id (no prefix) as user (kept)", () => {
+    expect(isAppSender("abc123")).toBe(false);
+    expect(isAppSender("ckl")).toBe(false);
   });
 });
 

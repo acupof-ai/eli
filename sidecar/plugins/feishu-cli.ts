@@ -159,32 +159,105 @@ export function stripMentions(text: string): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Feishu's post / markdown message body has a content-length ceiling
- * around 30 KB; sending a single block above that yields an opaque
- * server error. Chunk well below the limit and prefer paragraph
- * boundaries so a code fence or list doesn't get severed mid-item.
+ * Feishu's post/markdown body cap is ~30 KB of UTF-8 *bytes*, not chars.
+ * A 25 K-char CJK reply at 3 bytes/char is ~75 KB and would fail with an
+ * opaque server error. Cap by bytes, prefer paragraph boundaries, and
+ * never sever a fenced code block — if the cut would land inside one,
+ * close the fence on this chunk and reopen it on the next.
  *
  * Returns one or more chunks (always ≥1; original text when ≤ cap).
+ *
+ * Backwards-compatible param name `MAX_CHUNK_CHARS` is kept for tests,
+ * but the value is now interpreted as bytes everywhere it's used.
  */
 export const MAX_CHUNK_CHARS = 25000;
+export const MAX_CHUNK_BYTES = MAX_CHUNK_CHARS;
 
-export function chunkText(text: string, cap = MAX_CHUNK_CHARS): string[] {
-  if (text.length <= cap) return [text];
+function utf8ByteLength(s: string): number {
+  return Buffer.byteLength(s, "utf8");
+}
+
+/**
+ * True when `senderId` looks like an app/bot identifier rather than a user.
+ * Apps use `cli_<app_id>`; users use `ou_` (open_id), `on_` (union_id) or
+ * a tenant `user_id`. We filter OUT apps rather than allow-listing one
+ * user prefix so unusual deployments (union_id, tenant user_id) still work.
+ */
+export function isAppSender(senderId: string): boolean {
+  return senderId.startsWith("cli_") || senderId.startsWith("app_");
+}
+
+/**
+ * How many leading characters of `s` fit inside `capBytes` of UTF-8.
+ * Returns s.length when the whole string fits.
+ */
+function charsFittingBytes(s: string, capBytes: number): number {
+  if (utf8ByteLength(s) <= capBytes) return s.length;
+  let bytes = 0;
+  let i = 0;
+  for (; i < s.length; i++) {
+    const cb = utf8ByteLength(s[i]);
+    if (bytes + cb > capBytes) break;
+    bytes += cb;
+  }
+  return i;
+}
+
+/**
+ * Count opening ``` fences (any backtick-3 run on its own line or
+ * inline) up to `idx`. Odd count = unclosed fence currently open.
+ */
+function unclosedFenceTag(prefix: string): string | null {
+  const matches = [...prefix.matchAll(/```([^\n`]*)/g)];
+  if (matches.length === 0) return null;
+  if (matches.length % 2 === 0) return null;
+  // The last unclosed fence; its capture group is the language tag.
+  const last = matches[matches.length - 1];
+  return last[1] ?? "";
+}
+
+export function chunkText(text: string, capBytes = MAX_CHUNK_BYTES): string[] {
+  if (utf8ByteLength(text) <= capBytes) return [text];
+
   const chunks: string[] = [];
   let remaining = text;
-  while (remaining.length > cap) {
-    // Find the best split point in the upper half of the window so we
-    // never produce a tiny leading chunk. Order of preference:
-    // double newline (paragraph) → single newline → space → hard cut.
-    const lowerBound = Math.floor(cap / 2);
-    let cut = remaining.lastIndexOf("\n\n", cap);
-    if (cut < lowerBound) cut = remaining.lastIndexOf("\n", cap);
-    if (cut < lowerBound) cut = remaining.lastIndexOf(" ", cap);
-    if (cut < lowerBound) cut = cap;
-    chunks.push(remaining.slice(0, cut));
+  let carryFence: string | null = null;
+
+  while (utf8ByteLength(remaining) > capBytes) {
+    // If a previous chunk left a fence open, prefix the continuation
+    // with the same opener so the markdown stays well-formed.
+    const prefix = carryFence !== null ? "```" + carryFence + "\n" : "";
+
+    // Compute the max char count that fits the byte cap *after* the prefix.
+    const innerCap = capBytes - utf8ByteLength(prefix);
+    const maxChars = charsFittingBytes(remaining, Math.max(innerCap, 1));
+
+    // Prefer paragraph break, then newline, then space — always in the
+    // upper half of the available window so we don't emit tiny chunks.
+    const lowerBound = Math.floor(maxChars / 2);
+    let cut = remaining.lastIndexOf("\n\n", maxChars);
+    if (cut < lowerBound) cut = remaining.lastIndexOf("\n", maxChars);
+    if (cut < lowerBound) cut = remaining.lastIndexOf(" ", maxChars);
+    if (cut < lowerBound) cut = maxChars;
+
+    let body = remaining.slice(0, cut);
+    // If the candidate body cuts inside an open code fence, close it now
+    // and remember the language tag so the next chunk reopens cleanly.
+    const stillOpen = unclosedFenceTag(prefix + body);
+    if (stillOpen !== null) {
+      body = body + "\n```";
+      carryFence = stillOpen;
+    } else {
+      carryFence = null;
+    }
+    chunks.push(prefix + body);
     remaining = remaining.slice(cut).replace(/^[\s\n]+/, "");
   }
-  if (remaining.length > 0) chunks.push(remaining);
+
+  if (remaining.length > 0) {
+    const prefix = carryFence !== null ? "```" + carryFence + "\n" : "";
+    chunks.push(prefix + remaining);
+  }
   return chunks;
 }
 
@@ -383,11 +456,23 @@ function handleEventLine(
     return;
   }
 
-  // Short-circuit slash commands that have a canned reply — no LLM cost,
-  // no inflight bookkeeping, no Typing reaction. The bot answers with a
-  // direct +messages-reply and drops the event.
-  if (typeof envelope.text === "string" && trySlashCommand(envelope.text, messageId)) {
-    return;
+  // Slash commands are handled in an async wrapper because the lark-cli
+  // call has to be awaited — if it fails, we fall through to the normal
+  // LLM dispatch path so the user is never left without any reply.
+  void handleSlashOrDispatch(envelope, chatId, messageId, onMessage).catch((err) =>
+    log.error("inbound dispatch threw", { messageId, err: err?.message }),
+  );
+}
+
+async function handleSlashOrDispatch(
+  envelope: InboundEnvelope,
+  chatId: string,
+  messageId: string,
+  onMessage: (envelope: InboundEnvelope) => void | Promise<void>,
+): Promise<void> {
+  if (typeof envelope.text === "string") {
+    const handled = await trySlashCommand(envelope.text, messageId);
+    if (handled) return;
   }
 
   const item: InboundItem = { envelope, messageId, receivedAt: Date.now() };
@@ -419,11 +504,12 @@ const SLASH_HELP_TEXT = [
 
 /**
  * Intercept canned slash commands. Returns true if the message was handled
- * (skip LLM dispatch); false to let the normal pipeline run.
+ * (skip LLM dispatch); false to fall through to the normal pipeline.
  *
- * Dispatched best-effort: failures are logged but do not bubble up.
+ * Awaits the lark-cli reply so a transient send failure falls back to
+ * the LLM path instead of leaving the user with no response.
  */
-function trySlashCommand(text: string, messageId: string): boolean {
+async function trySlashCommand(text: string, messageId: string): Promise<boolean> {
   const cmd = text.trim().split(/\s+/, 1)[0]?.toLowerCase();
   let body: string | null = null;
   if (cmd === "/help" || cmd === "/?") {
@@ -432,14 +518,16 @@ function trySlashCommand(text: string, messageId: string): boolean {
     body = renderStatus();
   }
   if (body === null) return false;
-  void runLarkCli([
+  const result = await runLarkCli([
     "im", "+messages-reply",
     "--as", "bot",
     "--message-id", messageId,
     "--markdown", body,
-  ]).then((r) => {
-    if (!r.ok) log.warn("slash reply failed", { cmd, err: r.error });
-  });
+  ]);
+  if (!result.ok) {
+    log.warn("slash reply failed; falling back to LLM", { cmd, err: result.error });
+    return false;
+  }
   return true;
 }
 
@@ -672,11 +760,13 @@ function toEnvelope(
 
 function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null {
   if (!evt.chat_id || !evt.sender_id) return null;
-  // Anti-loop: only accept messages from real users. Feishu sender_id format
-  // is `ou_xxx` for users; bots/apps/system messages use their app_id or
-  // other prefixes. Without this guard the bot could end up reacting to its
-  // own outbound (or another bot's) and spiral.
-  if (!String(evt.sender_id).startsWith("ou_")) return null;
+  // Anti-loop: reject messages whose sender is clearly an app/bot.
+  // Feishu user senders use one of `ou_` (open_id), `on_` (union_id),
+  // or a tenant `user_id`; apps/bots use `cli_<app_id>`. Filtering OUT
+  // app ids (instead of allow-listing one user prefix) keeps the bot
+  // safe from self-loops while still working under tenant_user_id /
+  // union_id deployments.
+  if (isAppSender(String(evt.sender_id))) return null;
   const chatType: "direct" | "group" = evt.chat_type === "p2p" ? "direct" : "group";
   const messageId = evt.message_id ?? evt.id;
   const rawText = typeof evt.content === "string" ? evt.content : "";
