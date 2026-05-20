@@ -6,7 +6,9 @@ import {
   __seedInflight,
   __takeInflightForTest,
   alreadySeen,
+  chunkText,
   combineEnvelopes,
+  MAX_CHUNK_CHARS,
   normalizeEscapedWhitespace,
   routeArgs,
   type InboundItem,
@@ -201,6 +203,42 @@ describe("inflight FIFO", () => {
     const popA = __takeInflightForTest("oc_a");
     expect(popA?.items[0].messageId).toBe("om_a1");
     expect(__inflightDepth("oc_b")).toBe(1); // unaffected
+  });
+
+  it("chunkText returns single chunk when under cap", () => {
+    const text = "hello";
+    expect(chunkText(text)).toEqual(["hello"]);
+  });
+
+  it("chunkText splits at paragraph boundaries when possible", () => {
+    // Build a deterministic 3-paragraph string just under 3× the test cap.
+    const cap = 100;
+    const para1 = "a".repeat(80) + "x";
+    const para2 = "b".repeat(80) + "y";
+    const para3 = "c".repeat(40);
+    const text = `${para1}\n\n${para2}\n\n${para3}`;
+    const chunks = chunkText(text, cap);
+    expect(chunks.length).toBeGreaterThanOrEqual(2);
+    // No chunk should exceed the cap.
+    for (const c of chunks) expect(c.length).toBeLessThanOrEqual(cap);
+    // Concatenating chunks recovers the original semantically (modulo
+    // collapsed whitespace at chunk boundaries).
+    const recovered = chunks.join("\n\n");
+    expect(recovered.replace(/\s+/g, "")).toBe(text.replace(/\s+/g, ""));
+  });
+
+  it("chunkText hard-cuts when no boundary is reachable in the upper half", () => {
+    // 200 chars, no spaces or newlines, cap 50 → exact 50-char chunks.
+    const text = "x".repeat(200);
+    const chunks = chunkText(text, 50);
+    expect(chunks).toHaveLength(4);
+    for (const c of chunks) expect(c.length).toBe(50);
+  });
+
+  it("chunkText production cap is large enough for most messages", () => {
+    // Sanity: cap should keep us safely under Feishu's ~30k content limit.
+    expect(MAX_CHUNK_CHARS).toBeGreaterThan(10_000);
+    expect(MAX_CHUNK_CHARS).toBeLessThan(30_000);
   });
 
   it("onTurnEnd lifecycle pops one head batch and is a no-op when empty", async () => {

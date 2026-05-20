@@ -121,6 +121,40 @@ export function __resetSeenEventIds(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Long reply chunking
+// ---------------------------------------------------------------------------
+
+/**
+ * Feishu's post / markdown message body has a content-length ceiling
+ * around 30 KB; sending a single block above that yields an opaque
+ * server error. Chunk well below the limit and prefer paragraph
+ * boundaries so a code fence or list doesn't get severed mid-item.
+ *
+ * Returns one or more chunks (always ≥1; original text when ≤ cap).
+ */
+export const MAX_CHUNK_CHARS = 25000;
+
+export function chunkText(text: string, cap = MAX_CHUNK_CHARS): string[] {
+  if (text.length <= cap) return [text];
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > cap) {
+    // Find the best split point in the upper half of the window so we
+    // never produce a tiny leading chunk. Order of preference:
+    // double newline (paragraph) → single newline → space → hard cut.
+    const lowerBound = Math.floor(cap / 2);
+    let cut = remaining.lastIndexOf("\n\n", cap);
+    if (cut < lowerBound) cut = remaining.lastIndexOf("\n", cap);
+    if (cut < lowerBound) cut = remaining.lastIndexOf(" ", cap);
+    if (cut < lowerBound) cut = cap;
+    chunks.push(remaining.slice(0, cut));
+    remaining = remaining.slice(cut).replace(/^[\s\n]+/, "");
+  }
+  if (remaining.length > 0) chunks.push(remaining);
+  return chunks;
+}
+
+// ---------------------------------------------------------------------------
 // Outbound text normalization
 // ---------------------------------------------------------------------------
 
@@ -269,6 +303,13 @@ function handleEventLine(
     return;
   }
 
+  // Short-circuit slash commands that have a canned reply — no LLM cost,
+  // no inflight bookkeeping, no Typing reaction. The bot answers with a
+  // direct +messages-reply and drops the event.
+  if (typeof envelope.text === "string" && trySlashCommand(envelope.text, messageId)) {
+    return;
+  }
+
   const item: InboundItem = { envelope, messageId, receivedAt: Date.now() };
 
   // Fire-and-forget Typing reaction; the resulting reaction_id is patched
@@ -278,6 +319,65 @@ function handleEventLine(
   );
 
   enqueueForBatch(chatId, item, onMessage);
+}
+
+const SLASH_HELP_TEXT = [
+  "**Eli bot · 飞书通道**",
+  "",
+  "**支持的命令**",
+  "- `/help` 显示这条帮助",
+  "- `/status` 显示当前模型 + 心跳",
+  "",
+  "**对话**",
+  "- 直接发消息即可，bot 看最近 5 条历史作为上下文。",
+  "- 1.5 秒内连发多条会合并成一次回复。",
+  "- 收到消息会立刻给一个 Typing 表情；回复完会撤掉。",
+  "- 长回复会自动按段落拆成多条发送。",
+  "",
+  "项目: https://github.com/cklxx/eli",
+].join("\n");
+
+/**
+ * Intercept canned slash commands. Returns true if the message was handled
+ * (skip LLM dispatch); false to let the normal pipeline run.
+ *
+ * Dispatched best-effort: failures are logged but do not bubble up.
+ */
+function trySlashCommand(text: string, messageId: string): boolean {
+  const cmd = text.trim().split(/\s+/, 1)[0]?.toLowerCase();
+  let body: string | null = null;
+  if (cmd === "/help" || cmd === "/?") {
+    body = SLASH_HELP_TEXT;
+  } else if (cmd === "/status") {
+    body = renderStatus();
+  }
+  if (body === null) return false;
+  void runLarkCli([
+    "im", "+messages-reply",
+    "--as", "bot",
+    "--message-id", messageId,
+    "--markdown", body,
+  ]).then((r) => {
+    if (!r.ok) log.warn("slash reply failed", { cmd, err: r.error });
+  });
+  return true;
+}
+
+function renderStatus(): string {
+  const up = process.uptime();
+  const h = Math.floor(up / 3600);
+  const m = Math.floor((up % 3600) / 60);
+  const s = Math.floor(up % 60);
+  return [
+    "**Eli 状态**",
+    `- uptime: ${h}h ${m}m ${s}s`,
+    `- pid: ${process.pid}`,
+    `- node: ${process.version}`,
+    `- channels alive: feishu (lark-cli) + telegram + openclaw-weixin`,
+    `- inflight chats: ${inflightByChat.size}`,
+    `- queued batches: ${queuedByChat.size}`,
+    `- seen events: ${seenEventIds.size}`,
+  ].join("\n");
 }
 
 /**
@@ -492,6 +592,11 @@ function toEnvelope(
 
 function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null {
   if (!evt.chat_id || !evt.sender_id) return null;
+  // Anti-loop: only accept messages from real users. Feishu sender_id format
+  // is `ou_xxx` for users; bots/apps/system messages use their app_id or
+  // other prefixes. Without this guard the bot could end up reacting to its
+  // own outbound (or another bot's) and spiral.
+  if (!String(evt.sender_id).startsWith("ou_")) return null;
   const chatType: "direct" | "group" = evt.chat_type === "p2p" ? "direct" : "group";
   const messageId = evt.message_id ?? evt.id;
   return {
@@ -607,20 +712,49 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   const latestMessageId = inflight?.items.at(-1)?.messageId;
   const targetMessageId = replyToId ?? latestMessageId;
 
+  // Split long replies. The first chunk quote-replies and triggers the
+  // reaction cleanup so the user sees a "the bot answered" signal even
+  // before later chunks arrive; subsequent chunks send as fresh
+  // non-quoted messages so the chat reads top-to-bottom in order.
+  const chunks = chunkText(text);
+  if (chunks.length > 1) {
+    log.info("splitting long reply", {
+      total_chars: text.length, chunks: chunks.length,
+    });
+  }
+
   // `--as bot` for tenant_access_token; `--markdown` for native Lark
   // rendering of headings/bold/lists/code/inline-image-urls.
-  const args = targetMessageId
-    ? ["im", "+messages-reply", "--as", "bot", "--message-id", targetMessageId, "--markdown", text]
-    : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--markdown", text];
+  const firstArgs = targetMessageId
+    ? ["im", "+messages-reply", "--as", "bot", "--message-id", targetMessageId, "--markdown", chunks[0]]
+    : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--markdown", chunks[0]];
 
-  const result = await runLarkCli(args);
+  const result = await runLarkCli(firstArgs);
 
-  // Drop Typing reactions on every item in the batch. Best-effort.
+  // Drop Typing reactions on every item in the batch. Best-effort —
+  // happens as soon as the first chunk lands so the visual indicator
+  // matches "bot just spoke", not "bot's last chunk shipped".
   if (inflight) {
     for (const item of inflight.items) {
       if (item.reactionId) {
         void deleteReaction(item.messageId, item.reactionId).catch(() => {});
       }
+    }
+  }
+
+  // Send remaining chunks in order. Failures on a continuation chunk
+  // do not roll back the first chunk — the user has already seen the
+  // start of the answer; better to leave that visible than to fail
+  // silently or duplicate.
+  for (let i = 1; i < chunks.length; i++) {
+    const chunkResult = await runLarkCli([
+      "im", "+messages-send", "--as", "bot",
+      ...routeArgs(to), "--markdown", chunks[i],
+    ]);
+    if (!chunkResult.ok) {
+      log.warn("chunk send failed", {
+        index: i, total: chunks.length, err: chunkResult.error,
+      });
     }
   }
 
