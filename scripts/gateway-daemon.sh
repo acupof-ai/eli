@@ -8,6 +8,12 @@ LOG_DIR="${ELI_LOG_DIR:-$HOME/.eli/logs}"
 LOG_FILE="$LOG_DIR/gateway.log"
 ELI_BIN="${ELI_BIN:-eli}"
 
+# Project root = parent of scripts/ dir. Used to locate the sidecar and as the
+# tmux start-dir so `eli gateway` resolves ./sidecar/ regardless of caller cwd.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export ELI_SIDECAR_DIR="${ELI_SIDECAR_DIR:-$PROJECT_ROOT/sidecar}"
+
 mkdir -p "$LOG_DIR"
 
 usage() {
@@ -39,7 +45,19 @@ cmd_start() {
     return 1
   fi
 
-  tmux new-session -d -s "$SESSION" -n gateway \
+  # Warn if a competing openclaw gateway is running — it would steal the same
+  # Feishu WS / Telegram bot polling / Weixin session and silently break IM.
+  local competing
+  competing=$(pgrep -lf 'openclaw-gateway|^openclaw$' 2>/dev/null | grep -v "$$\\|lark-cli\\|node_modules" || true)
+  if [ -n "$competing" ]; then
+    echo "warning: a competing openclaw gateway is running:" >&2
+    echo "$competing" >&2
+    echo "  Stop it first or eli will not receive any IM events." >&2
+    echo "  If it's the macOS LaunchAgent, run:" >&2
+    echo "    launchctl unload ~/Library/LaunchAgents/ai.openclaw.gateway.plist" >&2
+  fi
+
+  tmux new-session -d -s "$SESSION" -n gateway -c "$PROJECT_ROOT" \
     "exec '$ELI_BIN' gateway"
   tmux pipe-pane -o -t "$SESSION:gateway" "cat >> '$LOG_FILE'"
 
