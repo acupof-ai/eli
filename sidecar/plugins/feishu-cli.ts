@@ -123,11 +123,91 @@ function handleEventLine(
     log.warn("ack failed", { messageId: envelope.messageId, err: err?.message }),
   );
 
+  // Pull a short suffix-sliding window of chat history so the LLM has
+  // multi-turn context (eli's tape store only carries the bot's own past
+  // outputs, not the rest of the chat). Awaiting this delays onMessage by
+  // one quick lark-cli call (≈100-300 ms), worth it for context fidelity.
+  void enrichAndDispatch(envelope, onMessage);
+}
+
+async function enrichAndDispatch(
+  envelope: InboundEnvelope,
+  onMessage: (envelope: InboundEnvelope) => void | Promise<void>,
+): Promise<void> {
+  let enriched = envelope;
   try {
-    void onMessage(envelope);
+    enriched = await enrichWithHistory(envelope);
+  } catch (err: any) {
+    log.warn("history enrichment failed; dispatching without context", {
+      err: err?.message,
+    });
+  }
+  try {
+    await onMessage(enriched);
   } catch (err: any) {
     log.error("onMessage dispatch threw", { err: err.message });
   }
+}
+
+/** Suffix-sliding chat history window (last N messages preceding current). */
+const HISTORY_WINDOW = 5;
+/** Per-message text cap inside the history block, to keep prompt size sane. */
+const HISTORY_TEXT_CAP = 200;
+
+/**
+ * Prepend a short suffix-sliding window of recent chat history to the
+ * envelope text so the LLM sees multi-turn context. Pulls
+ * `HISTORY_WINDOW + 1` messages (current included), filters the current
+ * one out, reverses to chronological order, and renders as plain lines.
+ *
+ * Returns the envelope unmodified if the lookup fails or yields nothing —
+ * the bot still gets the current message; only context is missing.
+ */
+async function enrichWithHistory(env: InboundEnvelope): Promise<InboundEnvelope> {
+  const chatId = env.chatId;
+  const messageId = env.messageId as string | undefined;
+  if (!chatId) return env;
+
+  const result = await runLarkCli([
+    "im", "+chat-messages-list",
+    "--as", "bot",
+    "--chat-id", chatId,
+    "--page-size", String(HISTORY_WINDOW + 1),
+    "--sort", "desc",
+  ]);
+  if (!result.ok) return env;
+
+  const messages: any[] =
+    result.result?.data?.messages ??
+    result.result?.messages ??
+    [];
+
+  const prior = messages
+    .filter((m) => m && m.message_id !== messageId)
+    .slice(0, HISTORY_WINDOW)
+    .reverse(); // chronological: oldest first
+
+  if (prior.length === 0) return env;
+
+  const lines = prior.map(formatHistoryLine).join("\n");
+  const enrichedText = [
+    `[最近 ${prior.length} 条历史]`,
+    lines,
+    "",
+    "[当前消息]",
+    env.text,
+  ].join("\n");
+
+  return { ...env, text: enrichedText };
+}
+
+function formatHistoryLine(m: any): string {
+  const role = m?.sender?.sender_type === "app" ? "助手" : "用户";
+  const time = typeof m?.create_time === "string" ? m.create_time.slice(5) : "";
+  let content = typeof m?.content === "string" ? m.content : JSON.stringify(m?.content ?? "");
+  if (content.length > HISTORY_TEXT_CAP) content = content.slice(0, HISTORY_TEXT_CAP) + "…";
+  const prefix = time ? `[${time}] ${role}` : role;
+  return `${prefix}: ${content}`;
 }
 
 /**
