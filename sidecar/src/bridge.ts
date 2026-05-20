@@ -292,17 +292,27 @@ export function startOutboundServer(port: number): Promise<import("node:http").S
 
         const mediaItems = outboundMediaWithPath(msg);
 
+        // Mid-turn dispatches (the `message.send` tool, the greeting on
+        // new-session join, etc.) reach /outbound with the same shape as
+        // the final reply but mark themselves via context. Treat them as
+        // notices so channel plugins preserve their per-turn state and
+        // typing indicators stay until the actual answer ships.
+        const midTurn = Boolean(msg.context?._eli_mid_turn);
+
         log.debug("outbound", {
           channel: sourceChannel, to, text_len: msg.content?.length,
-          media: mediaItems.length, cleanup: cleanupOnly,
+          media: mediaItems.length, cleanup: cleanupOnly, mid_turn: midTurn,
         });
 
-        // Remove typing indicator if one was set for this session.
+        // Only clear the per-session typing indicator on a FINAL reply (or
+        // an explicit cleanup-only call). Mid-turn notices must leave the
+        // indicator in place so the user still sees "bot is typing" until
+        // the real answer arrives. Cleanup stays off the critical path so
+        // outbound delivery isn't blocked on plugin-side reaction APIs.
         const sessionId = msg.session_id || `${sourceChannel}:${accountId}:${chatId}`;
-        // Keep cleanup off the critical path of the actual reply send. The
-        // runtime queue preserves start/stop ordering for this session, so we
-        // do not need to block outbound delivery on the cleanup call here.
-        void endPendingTyping({ sessionId, channelPlugin });
+        if (!midTurn) {
+          void endPendingTyping({ sessionId, channelPlugin });
+        }
 
         if (cleanupOnly) {
           res.json({ ok: true, cleanup_only: true });
@@ -312,12 +322,6 @@ export function startOutboundServer(port: number): Promise<import("node:http").S
           res.status(501).json({ error: `channel "${sourceChannel}" cannot send text` });
           return;
         }
-
-        // Mid-turn dispatches (e.g. the `message.send` tool that lets the
-        // LLM acknowledge before completing) reach /outbound with the same
-        // shape as the final reply but mark themselves via context. Treat
-        // them as notices so channel plugins preserve their per-turn state.
-        const midTurn = Boolean(msg.context?._eli_mid_turn);
 
         // Send text — original path, errors propagate to caller.
         const result = await sendText({

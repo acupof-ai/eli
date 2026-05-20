@@ -330,6 +330,12 @@ impl EliFramework {
             "channel": channel,
             "chat_id": chat_id,
             "output_channel": output_channel,
+            // Greetings dispatch before the LLM runs and are followed by the
+            // final reply on the same session. Channel plugins (feishu-cli)
+            // that consume per-turn state on final replies must skip this
+            // one or they pop the inflight batch belonging to the user's
+            // actual question.
+            "context": { "_eli_mid_turn": true },
         })
     }
 
