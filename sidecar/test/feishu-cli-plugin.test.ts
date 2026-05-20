@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
+  __inflightDepth,
+  __resetChannelState,
   __resetSeenEventIds,
+  __seedInflight,
+  __takeInflightForTest,
   alreadySeen,
   combineEnvelopes,
   normalizeEscapedWhitespace,
@@ -11,6 +15,7 @@ import type { InboundEnvelope } from "../src/types.ts";
 
 afterEach(() => {
   __resetSeenEventIds();
+  __resetChannelState();
 });
 
 // ---------------------------------------------------------------------------
@@ -149,5 +154,52 @@ describe("combineEnvelopes", () => {
     const items = [makeItem("om_1", ""), makeItem("om_2", "real")];
     const combined = combineEnvelopes(items);
     expect(combined.text).toBe("[消息 1/2] \n[消息 2/2] real");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Inflight queue — FIFO ordering matches eli per-session turn serialization
+// (codex review P1 regression: was a single slot, overwrites stranded the
+// first batch's reactions and quote target).
+// ---------------------------------------------------------------------------
+
+describe("inflight FIFO", () => {
+  it("returns undefined when no batch is queued", () => {
+    expect(__takeInflightForTest("oc_empty")).toBeUndefined();
+    expect(__inflightDepth("oc_empty")).toBe(0);
+  });
+
+  it("preserves multiple batches and pops in FIFO order", () => {
+    const batchA = [makeItem("om_A", "first")];
+    const batchB = [makeItem("om_B", "second")];
+    const batchC = [makeItem("om_C", "third")];
+    __seedInflight("oc_x", batchA);
+    __seedInflight("oc_x", batchB);
+    __seedInflight("oc_x", batchC);
+    expect(__inflightDepth("oc_x")).toBe(3);
+
+    const first = __takeInflightForTest("oc_x");
+    expect(first?.items[0].messageId).toBe("om_A");
+    expect(__inflightDepth("oc_x")).toBe(2);
+
+    const second = __takeInflightForTest("oc_x");
+    expect(second?.items[0].messageId).toBe("om_B");
+
+    const third = __takeInflightForTest("oc_x");
+    expect(third?.items[0].messageId).toBe("om_C");
+
+    expect(__inflightDepth("oc_x")).toBe(0);
+    expect(__takeInflightForTest("oc_x")).toBeUndefined();
+  });
+
+  it("scopes inflight queues per chat — different chats don't interleave", () => {
+    __seedInflight("oc_a", [makeItem("om_a1", "a1")]);
+    __seedInflight("oc_b", [makeItem("om_b1", "b1")]);
+    expect(__inflightDepth("oc_a")).toBe(1);
+    expect(__inflightDepth("oc_b")).toBe(1);
+
+    const popA = __takeInflightForTest("oc_a");
+    expect(popA?.items[0].messageId).toBe("om_a1");
+    expect(__inflightDepth("oc_b")).toBe(1); // unaffected
   });
 });

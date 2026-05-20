@@ -39,6 +39,13 @@ export interface OutboundTextParams {
   accountId: string;
   replyToId?: string;
   threadId?: string;
+  /**
+   * Discriminates "final" LLM replies (consume pending state, quote the
+   * inbound) from "notice" tool-progress / status messages emitted mid-turn
+   * (do not consume pending state, send as plain non-quoted text).
+   * Defaults to "final" when omitted so existing channels keep working.
+   */
+  kind?: "final" | "notice";
   [key: string]: any;
 }
 
@@ -194,6 +201,13 @@ export interface EliBridgeContext {
   channel_target?: string;
   outbound_media?: EliBridgeMediaItem[];
   _eli_cleanup_only?: boolean;
+  /**
+   * Set by the eli `message.send` tool when the LLM dispatches a mid-turn
+   * progress / acknowledgement message via dispatch_mid_turn. Channel
+   * plugins should treat this as a notice (no inflight state consumption,
+   * no quote-reply target, no reaction cleanup).
+   */
+  _eli_mid_turn?: boolean;
   [key: string]: any;
 }
 

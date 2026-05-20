@@ -553,6 +553,25 @@ export function __resetChannelState(): void {
   inflightByChat.clear();
 }
 
+/** For tests — seed an inflight batch directly. */
+export function __seedInflight(chatId: string, items: InboundItem[]): void {
+  const queue = inflightByChat.get(chatId) ?? [];
+  queue.push({ items, startedAt: Date.now() });
+  inflightByChat.set(chatId, queue);
+}
+
+/** For tests — number of inflight batches still pending for a chat. */
+export function __inflightDepth(chatId: string): number {
+  return inflightByChat.get(chatId)?.length ?? 0;
+}
+
+/** For tests — pop the head batch (same logic sendText uses). */
+export function __takeInflightForTest(chatId: string): InflightBatch | undefined {
+  return takeInflight(chatId);
+}
+
+export type { InflightBatch };
+
 async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   const { to, replyToId } = params;
   let text = params.text;
@@ -568,9 +587,22 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
     text = normalized.text;
   }
 
+  // Mid-turn notices (tool progress, /notify) emit through the same
+  // outbound hook as final replies. They must NOT consume the pending
+  // batch — otherwise the final answer loses its quote-reply target and
+  // strands Typing reactions. Send as plain text, fresh message, no
+  // inflight bookkeeping.
+  if (params.kind === "notice") {
+    return runLarkCli([
+      "im", "+messages-send", "--as", "bot",
+      ...routeArgs(to), "--text", text,
+    ]);
+  }
+
   // Quote-reply to the latest inbound in this batch so the bot's answer
-  // threads visually under the user's message. Falls back to a fresh
-  // outbound message when nothing is inflight (cold start, stale TTL).
+  // threads visually under the user's message. FIFO shift: the oldest
+  // inflight batch is the one whose LLM run finishes first, matching eli's
+  // per-session turn serialization.
   const inflight = takeInflight(to);
   const latestMessageId = inflight?.items.at(-1)?.messageId;
   const targetMessageId = replyToId ?? latestMessageId;

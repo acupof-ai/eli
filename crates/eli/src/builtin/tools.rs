@@ -2966,6 +2966,11 @@ fn tool_message_send() -> Tool {
                     "channel": state.get("channel").and_then(|v| v.as_str()).unwrap_or(""),
                     "chat_id": state.get("chat_id").and_then(|v| v.as_str()).unwrap_or(""),
                     "output_channel": state.get("output_channel").and_then(|v| v.as_str()).unwrap_or(""),
+                    // Marker for the sidecar so channel plugins (e.g. feishu-cli)
+                    // know this is a mid-turn progress message, not the final
+                    // turn reply. Prevents the channel from consuming per-turn
+                    // state (inflight batch, quote-reply target, reactions).
+                    "context": { "_eli_mid_turn": true },
                 });
                 if let Some(path) = image_path {
                     let path_obj = std::path::Path::new(&path);

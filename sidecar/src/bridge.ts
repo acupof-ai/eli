@@ -184,6 +184,10 @@ async function sendSessionNotice(
       to: resolveToolNoticeTarget(channelPlugin, sessionCtx),
       text,
       accountId: sessionCtx.accountId,
+      // Channels that track per-turn state (e.g. feishu-cli's inflight
+      // batch for quote-reply + Typing reaction cleanup) must treat
+      // notices as side-effects that don't conclude the turn.
+      kind: "notice",
     });
   } catch (err: any) {
     log.error("send failed", { kind: noticeKind, err: err?.message ?? String(err) });
@@ -309,12 +313,19 @@ export function startOutboundServer(port: number): Promise<import("node:http").S
           return;
         }
 
+        // Mid-turn dispatches (e.g. the `message.send` tool that lets the
+        // LLM acknowledge before completing) reach /outbound with the same
+        // shape as the final reply but mark themselves via context. Treat
+        // them as notices so channel plugins preserve their per-turn state.
+        const midTurn = Boolean(msg.context?._eli_mid_turn);
+
         // Send text — original path, errors propagate to caller.
         const result = await sendText({
           cfg,
           to,
           text: msg.content,
           accountId,
+          kind: midTurn ? "notice" : "final",
         });
 
         // Send media independently — fire-and-forget, errors logged but don't fail the response.
