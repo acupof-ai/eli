@@ -36,6 +36,12 @@ const EVENT_KEYS = [
 //   key = `${accountId}:${eventKey}`
 const consumers = new Map<string, ChildProcess>();
 
+// Per-consumer-key state for the respawn backoff. lark-cli refuses to start
+// when another bus is already connected to the same app (typically on a
+// different machine); without backoff we'd respawn every 3 s forever and
+// spam the log. Resets to 0 once a consumer reports "ready".
+const respawnAttempts = new Map<string, number>();
+
 // ---------------------------------------------------------------------------
 // Inbound — spawn `lark-cli event consume` per event key.
 // ---------------------------------------------------------------------------
@@ -46,6 +52,15 @@ async function startGateway(params: GatewayStartParams): Promise<void> {
 
   abortSignal?.addEventListener("abort", () => stopAccount(accountId));
 
+  // Recycle any pre-existing lark-cli event bus before bringing up consumers.
+  // Each gateway restart may have left a stale upstream subscription with
+  // Feishu (the bus tracks consumer disconnects but stale instances still
+  // accumulate server-side, manifesting as `online_instance_cnt > 1` and
+  // events being round-robined to the dead subscription — i.e. silent
+  // message drops). `event stop --force` clears them; the next `event
+  // consume` boots a fresh bus with a single clean upstream connection.
+  await resetEventBus();
+
   for (const eventKey of EVENT_KEYS) {
     spawnConsumer(accountId, eventKey, onMessage);
   }
@@ -53,6 +68,19 @@ async function startGateway(params: GatewayStartParams): Promise<void> {
     accountId,
     events: EVENT_KEYS,
   });
+}
+
+async function resetEventBus(): Promise<void> {
+  const result = await runLarkCli(["event", "stop", "--force"]);
+  if (result.ok) {
+    log.info("recycled lark-cli event bus before consumer start");
+  } else {
+    // `event stop` returns non-zero when there was nothing to stop — that's
+    // the common path on a clean machine, so log at debug rather than warn.
+    log.debug("event stop returned non-zero (likely no bus to stop)", {
+      err: result.error,
+    });
+  }
 }
 
 function spawnConsumer(
@@ -89,14 +117,32 @@ function spawnConsumer(
 
   child.stderr.on("data", (chunk: Buffer) => {
     const text = chunk.toString("utf8").trim();
-    if (text) log.info("lark-cli event stderr", { eventKey, text: text.slice(0, 500) });
+    if (!text) return;
+    // "ready" line means the upstream subscription is live — clear backoff.
+    if (text.includes("[event] ready")) {
+      respawnAttempts.delete(key);
+    }
+    log.info("lark-cli event stderr", { eventKey, text: text.slice(0, 500) });
   });
 
   child.once("exit", (code, signal) => {
     consumers.delete(key);
     if (signal === "SIGTERM") return;
-    log.warn("lark-cli event consume exited; respawning in 3s", { eventKey, code });
-    setTimeout(() => spawnConsumer(accountId, eventKey, onMessage), 3000);
+    const attempt = (respawnAttempts.get(key) ?? 0) + 1;
+    respawnAttempts.set(key, attempt);
+    // Exponential backoff capped at 60 s. Worst case: stuck "another bus
+    // connected" on a peer machine — we keep retrying but quietly.
+    const delayMs = Math.min(60_000, 3_000 * 2 ** (attempt - 1));
+    if (attempt <= 2) {
+      log.warn("lark-cli event consume exited; respawning", {
+        eventKey, code, attempt, delayMs,
+      });
+    } else {
+      log.debug("lark-cli event consume still failing; backing off", {
+        eventKey, code, attempt, delayMs,
+      });
+    }
+    setTimeout(() => spawnConsumer(accountId, eventKey, onMessage), delayMs);
   });
 }
 
