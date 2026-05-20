@@ -1,16 +1,23 @@
 /**
  * Built-in Feishu/Lark channel plugin that wraps `lark-cli`.
  *
- * Inbound: spawns `lark-cli event consume <EventKey>` per event key as a
- * long-running NDJSON producer. Each line is one event payload (schema from
- * `lark-cli event schema <key>`). Events are translated to InboundEnvelope
- * and dispatched into the gateway pipeline.
+ * Inbound pipeline:
+ *   lark-cli event consume <EventKey>  (long-running NDJSON producer)
+ *     → handleEventLine  (parse, dedup, build envelope, react)
+ *     → enqueueForBatch  (per-chat debounce: combine rapid messages)
+ *     → flushBatch       (combine items into one envelope)
+ *     → enrichWithHistory (suffix-sliding window of recent chat history)
+ *     → onMessage(envelope) — handoff to eli framework
  *
- * Outbound: invokes `lark-cli im +messages-send` (or `+messages-reply` when
- * the eli envelope carries a reply target) as a short-lived child per call.
+ * Outbound pipeline:
+ *   bridge.ts /outbound  → sendText(params)
+ *     → normalize escaped whitespace
+ *     → takeInflight(chatId)  (the batch we were processing)
+ *     → lark-cli im +messages-reply --message-id <latest>  (quote-reply UX)
+ *     → deleteReaction(... for every item in the batch)  (clear Typing cue)
  *
- * Authentication is whatever lark-cli is logged into (`lark-cli auth status`).
- * The sidecar does not need feishu app credentials in its own config.
+ * Authentication is whatever lark-cli is logged into; the sidecar holds no
+ * Feishu app credentials of its own.
  */
 
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
@@ -37,74 +44,102 @@ const EVENT_KEYS = [
 const consumers = new Map<string, ChildProcess>();
 
 // Per-consumer-key state for the respawn backoff. lark-cli refuses to start
-// when another bus is already connected to the same app (typically on a
-// different machine); without backoff we'd respawn every 3 s forever and
-// spam the log. Resets to 0 once a consumer reports "ready".
+// when another bus is already connected to the same app; without backoff
+// we'd respawn every 3 s forever and spam the log.
 const respawnAttempts = new Map<string, number>();
 
 // ---------------------------------------------------------------------------
-// Per-chat state: the latest inbound message_id (so the bot's reply quotes
-// it via +messages-reply) and the reaction_id we added (so we can delete it
-// once the bot's outbound has shipped).
-//
-// Keyed by chat_id. If two inbound messages arrive in the same chat before
-// the bot replies to the first, the older entry is overwritten — the bot
-// replies to the latest, which is what users expect, and the earlier
-// reaction lingers (minor visual cost vs the storage complexity of a queue).
+// Per-chat state for batching + reply quoting + reaction cleanup
 // ---------------------------------------------------------------------------
-interface ChatPending {
+
+/** One inbound message awaiting dispatch or outbound. */
+export interface InboundItem {
+  envelope: InboundEnvelope;
   messageId: string;
-  reactionId: string | null;
-  addedAt: number;
-}
-const pendingByChat = new Map<string, ChatPending>();
-const PENDING_TTL_MS = 30 * 60 * 1000; // 30 min
-
-function rememberPending(chatId: string, messageId: string): void {
-  pendingByChat.set(chatId, { messageId, reactionId: null, addedAt: Date.now() });
+  receivedAt: number;
+  /** Populated async after the reactions.create returns. */
+  reactionId?: string;
 }
 
-function takePending(chatId: string): ChatPending | undefined {
-  const p = pendingByChat.get(chatId);
-  if (!p) return undefined;
-  if (Date.now() - p.addedAt > PENDING_TTL_MS) {
-    pendingByChat.delete(chatId);
-    return undefined;
-  }
-  pendingByChat.delete(chatId);
-  return p;
+/** A debounce window collecting rapid consecutive messages in one chat. */
+interface QueuedBatch {
+  items: InboundItem[];
+  flushTimer: ReturnType<typeof setTimeout>;
+  onMessage: (envelope: InboundEnvelope) => void | Promise<void>;
 }
+
+/** A dispatched batch waiting for the bot's reply to land. */
+interface InflightBatch {
+  items: InboundItem[];
+  startedAt: number;
+}
+
+const queuedByChat = new Map<string, QueuedBatch>();
+const inflightByChat = new Map<string, InflightBatch>();
+
+/** Window during which consecutive messages collapse into one agent turn. */
+const BATCH_DEBOUNCE_MS = 1500;
+/** TTL for inflight batches — protects against an LLM run that never replies. */
+const INFLIGHT_TTL_MS = 30 * 60 * 1000;
 
 // ---------------------------------------------------------------------------
-// Event dedup: lark-cli replays the recent event log when its bus daemon
-// reconnects (network blip, restart, etc.), so without this every restart
-// re-fires the last N messages as if they were brand new and the bot
-// "spontaneously" replies to history. Keep a bounded set of seen event_ids;
-// older entries get evicted FIFO.
+// Event dedup: lark-cli's bus replays the recent event log when its daemon
+// reconnects, so without this every gateway restart re-fires the last N
+// messages and the bot "spontaneously" answers history.
 // ---------------------------------------------------------------------------
+
 const seenEventIds = new Map<string, number>();
 const SEEN_CAP = 2000;
 const SEEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-function alreadySeen(eventId: string | undefined): boolean {
+export function alreadySeen(eventId: string | undefined, now = Date.now()): boolean {
   if (!eventId) return false;
-  const now = Date.now();
-  // Lazy GC: prune expired entries when we'd otherwise exceed the cap.
   if (seenEventIds.size >= SEEN_CAP) {
     for (const [k, ts] of seenEventIds) {
       if (now - ts > SEEN_TTL_MS) seenEventIds.delete(k);
       if (seenEventIds.size < SEEN_CAP) break;
     }
-    // Still over the cap? Drop the oldest insertions (Map iteration order).
     while (seenEventIds.size >= SEEN_CAP) {
-      const first = seenEventIds.keys().next().value;
-      if (first === undefined) break;
-      seenEventIds.delete(first);
+      const oldest = seenEventIds.keys().next().value;
+      if (oldest === undefined) break;
+      seenEventIds.delete(oldest);
     }
   }
   if (seenEventIds.has(eventId)) return true;
   seenEventIds.set(eventId, now);
   return false;
+}
+
+/** For tests — wipes dedup state so each test starts fresh. */
+export function __resetSeenEventIds(): void {
+  seenEventIds.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Outbound text normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Some upstream paths double-escape the LLM's string (JSON.stringify on text
+ * that already contained 0x0A bytes), so what reaches us is the 2-char
+ * sequence `\n` / `\t` / `\r` with zero real whitespace bytes. Feishu then
+ * renders the literal backslash-letter. When the signature is unambiguous —
+ * any escaped form present AND no real LF anywhere — unescape; mixed
+ * content is left alone since it's probably the user's literal text.
+ */
+export function normalizeEscapedWhitespace(text: string): {
+  text: string;
+  changed: boolean;
+} {
+  if (text.includes("\n") || !/\\[ntr]/.test(text)) {
+    return { text, changed: false };
+  }
+  const next = text
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t");
+  return { text: next, changed: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -118,21 +153,14 @@ async function startGateway(params: GatewayStartParams): Promise<void> {
   abortSignal?.addEventListener("abort", () => stopAccount(accountId));
 
   // Recycle any pre-existing lark-cli event bus before bringing up consumers.
-  // Each gateway restart may have left a stale upstream subscription with
-  // Feishu (the bus tracks consumer disconnects but stale instances still
-  // accumulate server-side, manifesting as `online_instance_cnt > 1` and
-  // events being round-robined to the dead subscription — i.e. silent
-  // message drops). `event stop --force` clears them; the next `event
-  // consume` boots a fresh bus with a single clean upstream connection.
+  // Each gateway restart could leave a stale upstream subscription with
+  // Feishu, manifesting as `online_instance_cnt > 1` and silent event drops.
   await resetEventBus();
 
   for (const eventKey of EVENT_KEYS) {
     spawnConsumer(accountId, eventKey, onMessage);
   }
-  log.info("started feishu event consumers", {
-    accountId,
-    events: EVENT_KEYS,
-  });
+  log.info("started feishu event consumers", { accountId, events: EVENT_KEYS });
 }
 
 async function resetEventBus(): Promise<void> {
@@ -140,8 +168,6 @@ async function resetEventBus(): Promise<void> {
   if (result.ok) {
     log.info("recycled lark-cli event bus before consumer start");
   } else {
-    // `event stop` returns non-zero when there was nothing to stop — that's
-    // the common path on a clean machine, so log at debug rather than warn.
     log.debug("event stop returned non-zero (likely no bus to stop)", {
       err: result.error,
     });
@@ -156,10 +182,9 @@ function spawnConsumer(
   const key = `${accountId}:${eventKey}`;
   if (consumers.has(key)) return;
 
-  // IMPORTANT: lark-cli `event consume` treats stdin EOF as a graceful exit
-  // signal ("wired for AI subprocess callers"). We must keep stdin open as a
-  // pipe (not "ignore") and never close it — SIGTERM is the shutdown path.
-  // Event keys under im.* require bot identity; `--as auto` resolves to user.
+  // IMPORTANT: lark-cli `event consume` treats stdin EOF as graceful exit
+  // ("wired for AI subprocess callers"). Keep stdin as a pipe and never
+  // close it — SIGTERM is the shutdown path. im.* events require --as bot.
   const child = spawn(
     "lark-cli",
     ["event", "consume", eventKey, "--quiet", "--as", "bot"],
@@ -183,7 +208,6 @@ function spawnConsumer(
   child.stderr.on("data", (chunk: Buffer) => {
     const text = chunk.toString("utf8").trim();
     if (!text) return;
-    // "ready" line means the upstream subscription is live — clear backoff.
     if (text.includes("[event] ready")) {
       respawnAttempts.delete(key);
     }
@@ -195,8 +219,6 @@ function spawnConsumer(
     if (signal === "SIGTERM") return;
     const attempt = (respawnAttempts.get(key) ?? 0) + 1;
     respawnAttempts.set(key, attempt);
-    // Exponential backoff capped at 60 s. Worst case: stuck "another bus
-    // connected" on a peer machine — we keep retrying but quietly.
     const delayMs = Math.min(60_000, 3_000 * 2 ** (attempt - 1));
     if (attempt <= 2) {
       log.warn("lark-cli event consume exited; respawning", {
@@ -225,8 +247,7 @@ function handleEventLine(
     return;
   }
 
-  // Drop replays: lark-cli's bus replays recent events to a fresh consumer.
-  // Without this the bot "auto-replies" to old messages every restart.
+  // Drop replays — see seenEventIds comment.
   if (alreadySeen(evt?.event_id)) {
     log.debug("dropping duplicate event", { eventId: evt.event_id, eventKey });
     return;
@@ -235,23 +256,85 @@ function handleEventLine(
   const envelope = toEnvelope(accountId, eventKey, evt);
   if (!envelope) return;
 
-  // Remember the inbound so the eventual outbound can quote it (+messages-reply)
-  // and so we can pair the reaction with its removal.
-  if (envelope.chatId && envelope.messageId) {
-    rememberPending(envelope.chatId as string, envelope.messageId as string);
+  const chatId = envelope.chatId as string | undefined;
+  const messageId = envelope.messageId as string | undefined;
+  if (!chatId || !messageId) {
+    // Without these we can't reply-quote, react, or batch — pass through.
+    void enrichAndDispatch(envelope, onMessage);
+    return;
   }
 
-  // Fire-and-forget the Typing reaction; capture the reaction_id into the
-  // pending state so the outbound path can delete it.
-  void ackInbound(envelope).catch((err) =>
-    log.warn("ack failed", { messageId: envelope.messageId, err: err?.message }),
+  const item: InboundItem = { envelope, messageId, receivedAt: Date.now() };
+
+  // Fire-and-forget Typing reaction; the resulting reaction_id is patched
+  // back onto the queued item so the outbound path can clean it up.
+  void ackInbound(item).catch((err) =>
+    log.warn("ack failed", { messageId, err: err?.message }),
   );
 
-  // Pull a short suffix-sliding window of chat history so the LLM has
-  // multi-turn context (eli's tape store only carries the bot's own past
-  // outputs, not the rest of the chat). Awaiting this delays onMessage by
-  // one quick lark-cli call (≈100-300 ms), worth it for context fidelity.
-  void enrichAndDispatch(envelope, onMessage);
+  enqueueForBatch(chatId, item, onMessage);
+}
+
+/**
+ * Add an inbound item to the per-chat debounce batch. Resets the flush
+ * timer on each call so a burst of messages within BATCH_DEBOUNCE_MS lands
+ * as a single agent turn with combined text.
+ */
+function enqueueForBatch(
+  chatId: string,
+  item: InboundItem,
+  onMessage: (envelope: InboundEnvelope) => void | Promise<void>,
+): void {
+  const existing = queuedByChat.get(chatId);
+  if (existing) {
+    existing.items.push(item);
+    clearTimeout(existing.flushTimer);
+    existing.flushTimer = setTimeout(() => flushBatch(chatId), BATCH_DEBOUNCE_MS);
+    return;
+  }
+  const batch: QueuedBatch = {
+    items: [item],
+    onMessage,
+    flushTimer: setTimeout(() => flushBatch(chatId), BATCH_DEBOUNCE_MS),
+  };
+  queuedByChat.set(chatId, batch);
+}
+
+function flushBatch(chatId: string): void {
+  const batch = queuedByChat.get(chatId);
+  if (!batch) return;
+  queuedByChat.delete(chatId);
+
+  const combined = combineEnvelopes(batch.items);
+
+  // Hand the batch over to the inflight tracker so the outbound path can
+  // pair the reply with the right messages (latest for quote, all for
+  // reaction cleanup).
+  inflightByChat.set(chatId, { items: batch.items, startedAt: Date.now() });
+
+  void enrichAndDispatch(combined, batch.onMessage);
+}
+
+/**
+ * Merge a burst of inbound items into one envelope. Uses the LATEST
+ * envelope as the base (for messageId, sender, chatId, etc.) and prepends
+ * a list of all messages chronologically into `text`, so the LLM sees the
+ * full burst in one turn.
+ */
+export function combineEnvelopes(items: InboundItem[]): InboundEnvelope {
+  if (items.length === 1) return items[0].envelope;
+
+  const latest = items[items.length - 1].envelope;
+  const lines = items
+    .map((it, idx) => `[消息 ${idx + 1}/${items.length}] ${it.envelope.text ?? ""}`)
+    .join("\n");
+
+  return {
+    ...latest,
+    text: lines,
+    batchSize: items.length,
+    batchMessageIds: items.map((it) => it.messageId),
+  };
 }
 
 async function enrichAndDispatch(
@@ -281,22 +364,31 @@ const HISTORY_TEXT_CAP = 200;
 /**
  * Prepend a short suffix-sliding window of recent chat history to the
  * envelope text so the LLM sees multi-turn context. Pulls
- * `HISTORY_WINDOW + 1` messages (current included), filters the current
- * one out, reverses to chronological order, and renders as plain lines.
- *
- * Returns the envelope unmodified if the lookup fails or yields nothing —
- * the bot still gets the current message; only context is missing.
+ * `HISTORY_WINDOW + 1` messages (current included), filters out the
+ * messages already in the current batch, reverses to chronological order,
+ * and renders as plain lines.
  */
 async function enrichWithHistory(env: InboundEnvelope): Promise<InboundEnvelope> {
   const chatId = env.chatId;
-  const messageId = env.messageId as string | undefined;
   if (!chatId) return env;
+
+  // Build a set of message_ids that are part of the current dispatch — for
+  // batched dispatches this is every item in the batch; for single-message
+  // dispatches it's just the lone messageId. We exclude them from history
+  // so the LLM sees them once (as the current turn), not twice.
+  const currentIds = new Set<string>();
+  const batched = (env as any).batchMessageIds as string[] | undefined;
+  if (batched && batched.length > 0) {
+    for (const id of batched) currentIds.add(id);
+  } else if (env.messageId) {
+    currentIds.add(env.messageId as string);
+  }
 
   const result = await runLarkCli([
     "im", "+chat-messages-list",
     "--as", "bot",
     "--chat-id", chatId,
-    "--page-size", String(HISTORY_WINDOW + 1),
+    "--page-size", String(HISTORY_WINDOW + Math.max(currentIds.size, 1)),
     "--sort", "desc",
   ]);
   if (!result.ok) return env;
@@ -307,9 +399,9 @@ async function enrichWithHistory(env: InboundEnvelope): Promise<InboundEnvelope>
     [];
 
   const prior = messages
-    .filter((m) => m && m.message_id !== messageId)
+    .filter((m) => m && !currentIds.has(m.message_id))
     .slice(0, HISTORY_WINDOW)
-    .reverse(); // chronological: oldest first
+    .reverse();
 
   if (prior.length === 0) return env;
 
@@ -335,18 +427,16 @@ function formatHistoryLine(m: any): string {
 }
 
 /**
- * Acknowledge an inbound message with a Feishu reaction so the user sees
- * the bot picked it up before the LLM finishes. No extra text message —
- * the reaction sits visibly on the user's message and the final answer
- * lands as the only bot reply.
+ * Acknowledge an inbound message with the Typing reaction so the user sees
+ * the bot picked it up. Stashes the resulting reaction_id back on the item
+ * so the outbound path can call reactions.delete to clear it.
  */
-async function ackInbound(env: InboundEnvelope): Promise<void> {
-  const messageId = env.messageId as string | undefined;
-  if (!messageId) return;
+async function ackInbound(item: InboundItem): Promise<void> {
+  const { messageId } = item;
 
   // Feishu's emoji_type enum is closed and case-sensitive. Full list at
   // https://open.feishu.cn/document/.../reference/im-v1/message-reaction/emojis-introduce
-  // `Typing` (mixed case) = 正在输入/敲代码中 — fits the "bot is working" cue.
+  // `Typing` (mixed case) = 正在输入/敲代码中.
   const result = await runLarkCli([
     "im", "reactions", "create",
     "--as", "bot",
@@ -357,14 +447,9 @@ async function ackInbound(env: InboundEnvelope): Promise<void> {
     log.warn("reaction create failed", { messageId, err: result.error });
     return;
   }
-  // Stash the reaction_id back on the pending entry so the outbound path
-  // can call reactions delete to clear it once the bot's reply has shipped.
   const reactionId = result.result?.data?.reaction_id;
-  if (reactionId && env.chatId) {
-    const pending = pendingByChat.get(env.chatId as string);
-    if (pending && pending.messageId === messageId) {
-      pending.reactionId = reactionId;
-    }
+  if (typeof reactionId === "string") {
+    item.reactionId = reactionId;
   }
 }
 
@@ -410,10 +495,9 @@ function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null
     messageId,
     eventId: evt.event_id,
     rawMessageType: evt.message_type,
-    // The Rust side flattens envelope.context into the user prompt as
-    // `k=v|k=v|...`. Exposing message_id (and a few helpers) here lets the
-    // LLM cite the exact message when sending an upfront reply via
-    // `lark-cli im +messages-reply --message-id ...`.
+    // Rust side flattens envelope.context into the user prompt as
+    // `k=v|k=v|...`. Exposing message_id (and a few helpers) lets the
+    // LLM cite the exact message when sending an upfront reply.
     context: {
       message_id: messageId,
       sender_id: evt.sender_id,
@@ -435,15 +519,38 @@ function stopAccount(accountId: string): void {
 // Outbound — `lark-cli im +messages-send` / `+messages-reply`.
 // ---------------------------------------------------------------------------
 
+function takeInflight(chatId: string): InflightBatch | undefined {
+  const inflight = inflightByChat.get(chatId);
+  if (!inflight) return undefined;
+  if (Date.now() - inflight.startedAt > INFLIGHT_TTL_MS) {
+    inflightByChat.delete(chatId);
+    return undefined;
+  }
+  inflightByChat.delete(chatId);
+  return inflight;
+}
+
 async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
-  const { to, text, replyToId } = params;
+  const { to, replyToId } = params;
+  let text = params.text;
   if (!text) return { ok: false, error: "empty text" };
 
-  // Look up the latest inbound for this chat so the bot's reply can quote
-  // the user's message via +messages-reply. Falls back to +messages-send
-  // when we have no pending entry (cold start, restart with stale TTL, etc.).
-  const pending = takePending(to);
-  const targetMessageId = replyToId ?? pending?.messageId;
+  // Defuse upstream double-escaping that would otherwise render as literal
+  // backslash-n in Feishu (esp. for diagrams / multi-line content).
+  const normalized = normalizeEscapedWhitespace(text);
+  if (normalized.changed) {
+    log.warn("normalized double-escaped whitespace in outbound text", {
+      sample: text.slice(0, 120),
+    });
+    text = normalized.text;
+  }
+
+  // Quote-reply to the latest inbound in this batch so the bot's answer
+  // threads visually under the user's message. Falls back to a fresh
+  // outbound message when nothing is inflight (cold start, stale TTL).
+  const inflight = takeInflight(to);
+  const latestMessageId = inflight?.items.at(-1)?.messageId;
+  const targetMessageId = replyToId ?? latestMessageId;
 
   // `--as bot` for tenant_access_token; `--markdown` for native Lark
   // rendering of headings/bold/lists/code/inline-image-urls.
@@ -453,10 +560,13 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
 
   const result = await runLarkCli(args);
 
-  // Drop the Typing reaction once the actual reply is out. Best-effort —
-  // failure (already removed, race, etc.) is logged at debug.
-  if (pending?.reactionId && pending.messageId) {
-    void deleteReaction(pending.messageId, pending.reactionId).catch(() => {});
+  // Drop Typing reactions on every item in the batch. Best-effort.
+  if (inflight) {
+    for (const item of inflight.items) {
+      if (item.reactionId) {
+        void deleteReaction(item.messageId, item.reactionId).catch(() => {});
+      }
+    }
   }
 
   return result;
@@ -474,7 +584,7 @@ async function sendMedia(params: OutboundMediaParams | any): Promise<OutboundRes
 }
 
 /** Build `--chat-id` or `--user-id` based on the prefix of the routing id. */
-function routeArgs(to: string): string[] {
+export function routeArgs(to: string): string[] {
   if (to.startsWith("oc_")) return ["--chat-id", to];
   if (to.startsWith("ou_")) return ["--user-id", to];
   // Fall back to chat-id; lark-cli will return a clearer error than we can.
@@ -508,7 +618,7 @@ function runLarkCli(args: string[]): Promise<OutboundResult> {
 }
 
 // ---------------------------------------------------------------------------
-// Helper for runtime registration — verify lark-cli is on PATH and authed.
+// Helper for runtime registration.
 // ---------------------------------------------------------------------------
 
 export function isLarkCliAvailable(): boolean {
@@ -537,7 +647,7 @@ export const feishuCliPlugin: ChannelPlugin = {
   gateway: { start: startGateway },
   lifecycle: {
     // Short-circuit the openclaw-lark "typing indicator" legacy paths in
-    // runtime.ts — we don't reach into that plugin and reactions are optional.
+    // runtime.ts — we handle reactions ourselves on the batch boundary.
     async onInboundMessage() { return null; },
     async onOutboundReply() { /* no-op */ },
     resolveOutboundTarget(_context, chatId) { return chatId; },
