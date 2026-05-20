@@ -262,12 +262,19 @@ impl AgentSettings {
         let model = EnvConfig::model(&config);
         let (api_key, api_base) = EnvConfig::api_credentials();
         // Profile-level api_base fills in for providers the env did not
-        // explicitly target. Env-supplied values always win.
-        let api_base = merge_profile_api_base(
+        // explicitly target. Env-supplied values always win. We merge **every**
+        // configured profile's api_base, not just the active one, so a
+        // fallback model on a different provider still reaches the right
+        // endpoint (e.g. anthropic primary → deepseek fallback uses the
+        // deepseek profile's api_base without needing ELI_DEEPSEEK_API_BASE).
+        let mut api_base = merge_profile_api_base(
             api_base,
             config.resolve_provider().as_deref(),
             config.resolve_api_base().as_deref(),
         );
+        for (provider, base) in config.profile_api_bases() {
+            api_base = merge_profile_api_base(api_base, Some(&provider), Some(&base));
+        }
 
         // Bug G: validate context_window so a misconfigured ELI_CONTEXT_WINDOW
         // (e.g. zero, absurdly large) doesn't cause handoff math to go haywire.
@@ -286,9 +293,22 @@ impl AgentSettings {
             );
         }
 
+        // ELI_FALLBACK_MODELS takes precedence; otherwise auto-derive the
+        // fallback chain from the other configured profiles so a quota /
+        // outage on one provider rolls over to the next without operator
+        // intervention. None when neither env nor config has a candidate.
+        let fallback_models = parse_fallback_models().or_else(|| {
+            let derived = config.default_fallback_models();
+            if derived.is_empty() {
+                None
+            } else {
+                Some(derived)
+            }
+        });
+
         Self {
             home,
-            fallback_models: parse_fallback_models(),
+            fallback_models,
             api_format: api_format_from_str_lossy(&env::var("ELI_API_FORMAT").unwrap_or_default()),
             max_steps: env_parse("ELI_MAX_STEPS").unwrap_or(50),
             max_tokens: env_parse("ELI_MAX_TOKENS")

@@ -156,6 +156,55 @@ impl EliConfig {
             .filter(|s| !s.trim().is_empty())
     }
 
+    /// Return every profile's `(provider, api_base)` for profiles that set
+    /// a non-empty `api_base`. Used so a fallback to a non-active provider
+    /// (e.g. anthropic primary → deepseek fallback) still hits the right
+    /// endpoint without requiring `ELI_<PROVIDER>_API_BASE` env vars.
+    pub fn profile_api_bases(&self) -> Vec<(String, String)> {
+        self.profiles
+            .values()
+            .filter_map(|p| {
+                p.api_base
+                    .as_ref()
+                    .map(|b| b.trim())
+                    .filter(|b| !b.is_empty())
+                    .map(|b| (p.provider.clone(), b.to_owned()))
+            })
+            .collect()
+    }
+
+    /// Build a default fallback-model list from the configured profiles, in
+    /// declaration order, excluding the active profile and any duplicate of
+    /// the primary model string. Each entry is `"provider:model"`.
+    ///
+    /// Lets the gateway recover from one provider's quota / outage without
+    /// the operator pre-setting `ELI_FALLBACK_MODELS` — if there's a second
+    /// profile configured, it's already the obvious next try.
+    pub fn default_fallback_models(&self) -> Vec<String> {
+        let primary = self.resolve_model();
+        let primary_str = primary.as_deref();
+        let active_name = self.active_profile.as_deref();
+        let mut out: Vec<String> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for (name, p) in &self.profiles {
+            if active_name == Some(name.as_str()) {
+                continue;
+            }
+            let id = if p.model.contains(':') {
+                p.model.clone()
+            } else {
+                format!("{}:{}", p.provider, p.model)
+            };
+            if Some(id.as_str()) == primary_str {
+                continue;
+            }
+            if seen.insert(id.clone()) {
+                out.push(id);
+            }
+        }
+        out
+    }
+
     /// Switch the active profile. Returns `true` if the profile exists.
     pub fn set_active(&mut self, name: &str) -> bool {
         if self.profiles.contains_key(name) {
@@ -765,5 +814,93 @@ model = "openai:gpt-5.4-mini"
             config.resolve_model().as_deref(),
             Some("openai:gpt-5-codex-mini")
         );
+    }
+
+    #[test]
+    fn test_default_fallback_models_excludes_active_and_dups() {
+        let mut config = EliConfig::default();
+        config.add_profile(
+            "openai",
+            Profile {
+                provider: "openai".to_string(),
+                model: "openai:gpt-5.4".to_string(),
+                api_base: None,
+            },
+        );
+        config.add_profile(
+            "anthropic",
+            Profile {
+                provider: "anthropic".to_string(),
+                model: "anthropic:claude-sonnet-4-6".to_string(),
+                api_base: None,
+            },
+        );
+        config.add_profile(
+            "deepseek",
+            Profile {
+                provider: "deepseek".to_string(),
+                model: "deepseek:deepseek-v4-pro".to_string(),
+                api_base: Some("https://api.deepseek.com/beta".to_string()),
+            },
+        );
+        config.active_profile = Some("anthropic".to_string());
+
+        let fb = config.default_fallback_models();
+        assert!(!fb.iter().any(|m| m == "anthropic:claude-sonnet-4-6"));
+        assert!(fb.iter().any(|m| m == "openai:gpt-5.4"));
+        assert!(fb.iter().any(|m| m == "deepseek:deepseek-v4-pro"));
+        // Each entry appears once
+        for entry in &fb {
+            assert_eq!(fb.iter().filter(|m| m == &entry).count(), 1);
+        }
+    }
+
+    #[test]
+    fn test_default_fallback_models_empty_when_no_others() {
+        let mut config = EliConfig::default();
+        config.add_profile(
+            "anthropic",
+            Profile {
+                provider: "anthropic".to_string(),
+                model: "anthropic:claude-sonnet-4-6".to_string(),
+                api_base: None,
+            },
+        );
+        config.active_profile = Some("anthropic".to_string());
+        assert!(config.default_fallback_models().is_empty());
+    }
+
+    #[test]
+    fn test_profile_api_bases_only_non_empty() {
+        let mut config = EliConfig::default();
+        config.add_profile(
+            "anthropic",
+            Profile {
+                provider: "anthropic".to_string(),
+                model: "anthropic:claude-sonnet-4-6".to_string(),
+                api_base: None,
+            },
+        );
+        config.add_profile(
+            "deepseek",
+            Profile {
+                provider: "deepseek".to_string(),
+                model: "deepseek:deepseek-v4-pro".to_string(),
+                api_base: Some("https://api.deepseek.com/beta".to_string()),
+            },
+        );
+        config.add_profile(
+            "blanks",
+            Profile {
+                provider: "blanks".to_string(),
+                model: "blanks:noop".to_string(),
+                api_base: Some("   ".to_string()),
+            },
+        );
+
+        let bases = config.profile_api_bases();
+        assert_eq!(bases.len(), 1);
+        assert_eq!(bases[0].0, "deepseek");
+        assert_eq!(bases[0].1, "https://api.deepseek.com/beta");
     }
 }

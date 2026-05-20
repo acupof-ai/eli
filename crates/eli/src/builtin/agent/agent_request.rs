@@ -149,14 +149,16 @@ pub(super) fn create_llm(
 ) -> Result<LLM, ConduitError> {
     let model_str = resolve_model_string(model_override.unwrap_or(&settings.model));
 
-    // Bug 4: warn once at startup when no fallback models are configured so the
-    // operator knows context overflow errors won't automatically fall back.
+    // Warn once at startup when no fallback chain is configured anywhere —
+    // not in ELI_FALLBACK_MODELS and not derivable from the profiles list —
+    // so the operator knows rate-limit / overflow errors won't roll over.
     if settings.fallback_models.is_none() {
         static WARNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
         WARNED.get_or_init(|| {
             tracing::warn!(
-                "ELI_FALLBACK_MODELS is not set — no fallback models configured; \
-                 context overflow errors will not automatically retry on a smaller model"
+                "no fallback models configured (set ELI_FALLBACK_MODELS or add more \
+                 profiles to ~/.eli/config.toml); rate-limit and context-overflow \
+                 errors will not automatically retry on a different model"
             );
         });
     }
