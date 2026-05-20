@@ -1,20 +1,8 @@
 {
   "eli_url": "http://127.0.0.1:3100",
   "port": 3101,
-  "plugins": ["@larksuite/openclaw-lark"],
+  "plugins": [],
   "channels": {
-    "feishu": {
-      "appId": "cli_xxx",
-      "appSecret": "xxx",
-      "domain": "feishu",
-      "accounts": {
-        "default": {
-          "appId": "cli_xxx",
-          "appSecret": "xxx",
-          "domain": "feishu"
-        }
-      }
-    },
     "discord": {
       "enabled": true,
       "token": "your-discord-bot-token",
@@ -24,5 +12,9 @@
         }
       }
     }
+  },
+  "_notes": {
+    "feishu": "Built-in via lark-cli. Run `lark-cli auth login` once; the channel auto-registers if the binary is on PATH. No appId/appSecret needed in this file.",
+    "telegram": "Built-in. Set ELI_TELEGRAM_TOKEN (or SIDECAR_TELEGRAM_TOKEN) in env; the channel auto-registers when a token is present."
   }
 }

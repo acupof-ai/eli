@@ -561,6 +561,23 @@ function loadBuiltinPlugins(config: SidecarConfig): void {
       log.error("failed to load builtin telegram plugin", { err: err.message });
     }
   }
+
+  // Feishu via lark-cli: register if the binary is on PATH. The plugin uses
+  // whatever lark-cli is logged in as (`lark-cli auth status`), so the sidecar
+  // does not need feishu credentials in its own config.
+  if (!registry.channels.has("feishu")) {
+    try {
+      const { feishuCliPlugin, isLarkCliAvailable } = require("../plugins/feishu-cli.js");
+      if (isLarkCliAvailable()) {
+        registry.registerChannel(feishuCliPlugin);
+        log.info("builtin feishu (lark-cli) plugin registered");
+      } else {
+        log.warn("lark-cli not found on PATH; feishu channel disabled");
+      }
+    } catch (err: any) {
+      log.error("failed to load builtin feishu-cli plugin", { err: err.message });
+    }
+  }
 }
 
 /**
