@@ -342,9 +342,13 @@ async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   // matching how the inbound event was delivered. Defaulting to `auto` would
   // resolve to user identity and either impersonate the developer or fail
   // when the user token has expired.
+  //
+  // `--markdown` so Lark renders headings/bold/lists/code blocks instead of
+  // showing the raw `**...**` etc. Plain text also flows through this path
+  // unchanged because the markdown renderer is a superset.
   const args = replyToId
-    ? ["im", "+messages-reply", "--as", "bot", "--message-id", replyToId, "--text", text]
-    : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--text", text];
+    ? ["im", "+messages-reply", "--as", "bot", "--message-id", replyToId, "--markdown", text]
+    : ["im", "+messages-send", "--as", "bot", ...routeArgs(to), "--markdown", text];
 
   return runLarkCli(args);
 }

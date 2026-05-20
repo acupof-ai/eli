@@ -18,12 +18,13 @@ Output formatting, writing style, and reply protocol for messages sent in Lark/F
 lark-cli im +messages-reply \
   --as bot \
   --message-id "<刚收到那条消息的 message_id>" \
-  --text "收到，<一句话说你接下来要做什么>"
+  --markdown "收到，<一句话说你接下来要做什么>"
 ```
 
 - `message_id` 是用户那条消息的 `om_...` 形式，在系统给你的会话上下文 / inbound 信息里能拿到。
 - 如果实在拿不到 `message_id`，退而求其次用 `--chat-id <从 session_id 里取的 oc_...>` 发新消息，不带 reply 引用。
 - 预告**一句话**就够：「收到，我先 X 再 Y」「收到，我去查一下 X」等；不要长。
+- 用 `--markdown` 而非 `--text`，让飞书渲染粗体/代码块/列表等。
 
 **第 2 步 — 做正式工作**：调用工具、检索、推理，全套该干啥干啥。
 
