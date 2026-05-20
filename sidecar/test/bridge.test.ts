@@ -24,8 +24,9 @@ const SIDECAR_PORT = 13101;
 let mockEliServer: Server;
 let sidecarServer: Server | undefined;
 let capturedInbound: any[] = [];
-let sentMessages: Array<{ text: string; chatId: string; accountId: string }> = [];
+let sentMessages: Array<{ text: string; chatId: string; accountId: string; kind?: string }> = [];
 let cleanupCalls: Array<{ typingState: any; accountId: string }> = [];
+let turnEndCalls: Array<{ chatId: string; accountId: string; sessionId: string }> = [];
 
 function fixture(name: string): any {
   const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../contracts/v1");
@@ -61,14 +62,19 @@ const mockChannel: ChannelPlugin = {
   capabilities: { chatTypes: ["direct"] },
   outbound: {
     deliveryMode: "direct",
-    sendText: async ({ text, to, accountId }: any) => {
-      sentMessages.push({ text, chatId: to, accountId });
+    sendText: async ({ text, to, accountId, kind }: any) => {
+      const entry: any = { text, chatId: to, accountId };
+      if (kind !== undefined) entry.kind = kind;
+      sentMessages.push(entry);
       return { ok: true };
     },
   },
   lifecycle: {
     onOutboundReply: async ({ typingState, accountId }: any) => {
       cleanupCalls.push({ typingState, accountId });
+    },
+    onTurnEnd: async ({ chatId, accountId, sessionId }: any) => {
+      turnEndCalls.push({ chatId, accountId, sessionId });
     },
   },
 };
@@ -106,12 +112,16 @@ beforeEach(() => {
   capturedInbound = [];
   sentMessages = [];
   cleanupCalls = [];
+  turnEndCalls = [];
   pendingTyping.clear();
   sessionContexts.clear();
   registry.tools.clear();
   mockChannel.lifecycle = {
     onOutboundReply: async ({ typingState, accountId }: any) => {
       cleanupCalls.push({ typingState, accountId });
+    },
+    onTurnEnd: async ({ chatId, accountId, sessionId }: any) => {
+      turnEndCalls.push({ chatId, accountId, sessionId });
     },
   };
   registry.channels.clear();
@@ -243,6 +253,100 @@ describe("outbound: eli callback", () => {
     expect(cleanupCalls[0].typingState).toEqual({ reaction: "thinking" });
     expect(cleanupCalls[0].accountId).toBe("default");
     expect(pendingTyping.has("mock-channel:default:user_cleanup")).toBe(false);
+  });
+
+  it("cleanup-only outbound invokes channel.lifecycle.onTurnEnd", async () => {
+    // Cleanup-only means the LLM produced no final text (e.g. empty
+    // render_outbound). The plugin's onTurnEnd is the only signal it
+    // gets to drop per-turn state (feishu-cli's inflight FIFO + its
+    // matching Typing reactions). Without this hook, the next real
+    // turn would pop a stale batch.
+    const resp = await fetch(`http://127.0.0.1:${SIDECAR_PORT}/outbound`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contractMessage({
+        session_id: "mock-channel:default:user_endturn",
+        channel: "webhook",
+        content: "",
+        chat_id: "user_endturn",
+        context: {
+          source_channel: "mock-channel",
+          account_id: "default",
+          chat_type: "direct",
+          _eli_cleanup_only: true,
+        },
+        output_channel: "webhook",
+      })),
+    });
+
+    expect(resp.status).toBe(200);
+    expect(sentMessages).toHaveLength(0);
+    expect(turnEndCalls).toHaveLength(1);
+    expect(turnEndCalls[0].chatId).toBe("user_endturn");
+    expect(turnEndCalls[0].accountId).toBe("default");
+    expect(turnEndCalls[0].sessionId).toBe("mock-channel:default:user_endturn");
+  });
+
+  it("final-reply outbound does NOT invoke onTurnEnd (sendText pops state)", async () => {
+    // Symmetric guarantee: the regular reply path already pops the
+    // inflight batch through sendText/takeInflight in the plugin.
+    // Double-firing onTurnEnd here would pop a SECOND batch and
+    // misalign future replies — codex flagged this exact double-pop
+    // hazard in review #4.
+    const resp = await fetch(`http://127.0.0.1:${SIDECAR_PORT}/outbound`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contractMessage({
+        session_id: "mock-channel:default:user_final",
+        channel: "webhook",
+        content: "here is the answer",
+        chat_id: "user_final",
+        context: {
+          source_channel: "mock-channel",
+          account_id: "default",
+          chat_type: "direct",
+        },
+        output_channel: "webhook",
+      })),
+    });
+
+    expect(resp.status).toBe(200);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0].text).toBe("here is the answer");
+    // Default kind: undefined treated as "final" by the bridge.
+    expect(sentMessages[0].kind).toBe("final");
+    expect(turnEndCalls).toHaveLength(0);
+  });
+
+  it("mid-turn outbound forwards kind=notice and does NOT call onTurnEnd", async () => {
+    // message.send and new-session greetings set context._eli_mid_turn.
+    // The plugin sees kind:"notice" so it keeps per-turn state alive;
+    // onTurnEnd is reserved for end-of-turn cleanup-only paths and must
+    // not fire for mid-turn dispatches.
+    const resp = await fetch(`http://127.0.0.1:${SIDECAR_PORT}/outbound`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(contractMessage({
+        session_id: "mock-channel:default:user_midturn",
+        channel: "webhook",
+        content: "working on it…",
+        chat_id: "user_midturn",
+        context: {
+          source_channel: "mock-channel",
+          account_id: "default",
+          chat_type: "direct",
+          _eli_mid_turn: true,
+        },
+        output_channel: "webhook",
+      })),
+    });
+
+    expect(resp.status).toBe(200);
+    expect(sentMessages).toHaveLength(1);
+    expect(sentMessages[0].kind).toBe("notice");
+    expect(turnEndCalls).toHaveLength(0);
+    // Typing state must survive mid-turn notices.
+    expect(cleanupCalls).toHaveLength(0);
   });
 
   it("rejects unsupported contract_version", async () => {
@@ -487,6 +591,7 @@ describe("tool execution", () => {
       text: "查看当前工作目录",
       chatId: "route:user_1",
       accountId: "default",
+      kind: "notice",
     });
   });
 
@@ -533,6 +638,7 @@ describe("tool execution", () => {
       text: "完成 custom_tool",
       chatId: "user_2",
       accountId: "default",
+      kind: "notice",
     });
   });
 
@@ -570,6 +676,7 @@ describe("tool execution", () => {
       text: "正在读取文件",
       chatId: "route:user_3",
       accountId: "default",
+      kind: "notice",
     });
     expect(cleanupCalls).toHaveLength(0);
     expect(pendingTyping.has("mock-channel:default:user_3")).toBe(true);
