@@ -62,6 +62,13 @@ fn parse_args_to_json(tokens: &[String]) -> Value {
     Value::Object(map)
 }
 
+fn command_tool_name(name: &str) -> &str {
+    match name {
+        "handoff" => "tape.handoff",
+        _ => name,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Internal command execution
 // ---------------------------------------------------------------------------
@@ -103,7 +110,7 @@ async fn execute_tool_or_bash(
     tool_state: &HashMap<String, Value>,
 ) -> Result<Value, ConduitError> {
     let ctx = build_tool_context("run_command", tape_name, tool_state);
-    if let Some(tool) = lookup_registered_tool(name) {
+    if let Some(tool) = lookup_registered_tool(command_tool_name(name)) {
         let json_args = parse_args_to_json(arg_tokens);
         let ctx_arg = if tool.context { Some(ctx) } else { None };
         tool.run(json_args, ctx_arg).await

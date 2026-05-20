@@ -215,6 +215,23 @@ mod tests {
         assert!(output.contains("anchors: 1"));
     }
 
+    #[tokio::test]
+    async fn test_run_command_handoff_alias_creates_tape_anchor() {
+        register_builtin_tools();
+        let (_tmp, service, tape_name, tool_state) = test_tape_service();
+        service.ensure_bootstrap_anchor(&tape_name).await.unwrap();
+
+        let output = run_command(&service, &tape_name, "/handoff summary=done", &tool_state)
+            .await
+            .unwrap();
+        let anchors = service.anchors(&tape_name, 10).await.unwrap();
+        let last = anchors.last().unwrap();
+
+        assert!(output.contains("anchor added: handoff"));
+        assert_eq!(last.name, "handoff");
+        assert_eq!(last.state.get("summary"), Some(&json!("done")));
+    }
+
     #[test]
     fn test_build_system_prompt_ignores_workspace_agents_guidance() {
         let tmp = tempfile::tempdir().unwrap();
