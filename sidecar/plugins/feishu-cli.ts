@@ -266,14 +266,14 @@ async function ackInbound(env: InboundEnvelope): Promise<void> {
   const messageId = env.messageId as string | undefined;
   if (!messageId) return;
 
-  // Feishu only accepts a closed enum of reaction emoji_types. Verified
-  // working set includes THUMBSUP / HEART / OK / SMILE / CLAP; values like
-  // EYES / THINKING_FACE / OK_HAND return `[231001] reaction type is invalid`.
+  // Feishu's emoji_type enum is closed and case-sensitive. Full list at
+  // https://open.feishu.cn/document/.../reference/im-v1/message-reaction/emojis-introduce
+  // `Typing` (mixed case) = 正在输入/敲代码中 — fits the "bot is working" cue.
   const result = await runLarkCli([
     "im", "reactions", "create",
     "--as", "bot",
     "--params", JSON.stringify({ message_id: messageId }),
-    "--data", JSON.stringify({ reaction_type: { emoji_type: "THUMBSUP" } }),
+    "--data", JSON.stringify({ reaction_type: { emoji_type: "Typing" } }),
   ]);
   if (!result.ok) {
     log.warn("reaction create failed", { messageId, err: result.error });
@@ -298,6 +298,7 @@ function toEnvelope(
 function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null {
   if (!evt.chat_id || !evt.sender_id) return null;
   const chatType: "direct" | "group" = evt.chat_type === "p2p" ? "direct" : "group";
+  const messageId = evt.message_id ?? evt.id;
   return {
     channel: "feishu",
     accountId,
@@ -305,9 +306,19 @@ function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null
     chatType,
     chatId: evt.chat_id,
     text: typeof evt.content === "string" ? evt.content : "",
-    messageId: evt.message_id ?? evt.id,
+    messageId,
     eventId: evt.event_id,
     rawMessageType: evt.message_type,
+    // The Rust side flattens envelope.context into the user prompt as
+    // `k=v|k=v|...`. Exposing message_id (and a few helpers) here lets the
+    // LLM cite the exact message when sending an upfront reply via
+    // `lark-cli im +messages-reply --message-id ...`.
+    context: {
+      message_id: messageId,
+      sender_id: evt.sender_id,
+      chat_type: chatType,
+      msg_type: evt.message_type,
+    },
   };
 }
 
