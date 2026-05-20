@@ -157,4 +157,31 @@ describe("envelopeToEliMessage", () => {
     const msg = envelopeToEliMessage(env);
     expect(msg.media).toEqual([]);
   });
+
+  it("merges plugin-supplied env.context under fixed routing fields", () => {
+    // Plugins (e.g. feishu-cli) stash domain metadata on env.context so the
+    // LLM's prompt context line carries it through. Routing fields the
+    // bridge depends on must still win on conflict.
+    const env: InboundEnvelope = {
+      channel: "feishu",
+      accountId: "default",
+      senderId: "ou_u1",
+      chatType: "direct",
+      chatId: "oc_c1",
+      text: "hi",
+      context: {
+        message_id: "om_msg_42",
+        msg_type: "text",
+        custom_flag: "yes",
+        // Adversarial: try to overwrite a fixed field — should be ignored.
+        source_channel: "evil_channel",
+      },
+    };
+    const msg = envelopeToEliMessage(env);
+    expect(msg.context.message_id).toBe("om_msg_42");
+    expect(msg.context.msg_type).toBe("text");
+    expect(msg.context.custom_flag).toBe("yes");
+    // Fixed routing field wins.
+    expect(msg.context.source_channel).toBe("feishu");
+  });
 });

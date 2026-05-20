@@ -24,7 +24,13 @@ export function envelopeToEliMessage(env: InboundEnvelope): EliChannelMessage {
   const chatId = env.chatId ?? env.senderId;
   const sessionId = `${env.channel}:${env.accountId}:${chatId}`;
 
+  // Merge plugin-supplied context (e.g. feishu-cli writes message_id,
+  // msg_type, etc. so the LLM's prompt sees them) UNDERNEATH the fixed
+  // fields so a misbehaving plugin can never shadow source_channel /
+  // account_id / chat_type.
+  const extra = (env.context && typeof env.context === "object" ? env.context : {}) as Record<string, any>;
   const context: EliBridgeContext = {
+    ...extra,
     source_channel: env.channel,
     account_id: env.accountId,
     sender_id: env.senderId,

@@ -75,7 +75,12 @@ interface InflightBatch {
 }
 
 const queuedByChat = new Map<string, QueuedBatch>();
-const inflightByChat = new Map<string, InflightBatch>();
+// Per-chat FIFO of dispatched batches awaiting their reply. A queue (not a
+// single slot) is mandatory because eli serializes turns by session_id —
+// rapid messages flush in order and complete in order, so we need batch_1's
+// inflight entry to survive until batch_1's reply lands, even if batch_2
+// is already queued. Single-slot was a P1 bug surfaced by codex review.
+const inflightByChat = new Map<string, InflightBatch[]>();
 
 /** Window during which consecutive messages collapse into one agent turn. */
 const BATCH_DEBOUNCE_MS = 1500;
@@ -307,10 +312,14 @@ function flushBatch(chatId: string): void {
 
   const combined = combineEnvelopes(batch.items);
 
-  // Hand the batch over to the inflight tracker so the outbound path can
-  // pair the reply with the right messages (latest for quote, all for
-  // reaction cleanup).
-  inflightByChat.set(chatId, { items: batch.items, startedAt: Date.now() });
+  // Append to the per-chat inflight FIFO so the outbound path can pair the
+  // reply with the right messages (latest in this batch for quote, all for
+  // reaction cleanup). If a previous batch is still inflight for this chat,
+  // we keep it — sendText shifts from the front so the oldest batch is the
+  // one whose LLM run finishes first.
+  const queue = inflightByChat.get(chatId) ?? [];
+  queue.push({ items: batch.items, startedAt: Date.now() });
+  inflightByChat.set(chatId, queue);
 
   void enrichAndDispatch(combined, batch.onMessage);
 }
@@ -519,15 +528,29 @@ function stopAccount(accountId: string): void {
 // Outbound — `lark-cli im +messages-send` / `+messages-reply`.
 // ---------------------------------------------------------------------------
 
+/**
+ * Pop the oldest inflight batch for this chat — FIFO ordering matches eli's
+ * per-session turn serialization (older batch's LLM finishes first, so its
+ * reply arrives at sendText first). Expired entries at the front are
+ * silently discarded so a long-dead LLM run doesn't poison fresh replies.
+ */
 function takeInflight(chatId: string): InflightBatch | undefined {
-  const inflight = inflightByChat.get(chatId);
-  if (!inflight) return undefined;
-  if (Date.now() - inflight.startedAt > INFLIGHT_TTL_MS) {
-    inflightByChat.delete(chatId);
-    return undefined;
+  const queue = inflightByChat.get(chatId);
+  if (!queue || queue.length === 0) return undefined;
+  const now = Date.now();
+  while (queue.length > 0 && now - queue[0].startedAt > INFLIGHT_TTL_MS) {
+    queue.shift();
   }
-  inflightByChat.delete(chatId);
-  return inflight;
+  const head = queue.shift();
+  if (queue.length === 0) inflightByChat.delete(chatId);
+  return head;
+}
+
+/** For tests — wipes inflight + queued state so each test starts fresh. */
+export function __resetChannelState(): void {
+  for (const batch of queuedByChat.values()) clearTimeout(batch.flushTimer);
+  queuedByChat.clear();
+  inflightByChat.clear();
 }
 
 async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
