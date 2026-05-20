@@ -8,9 +8,11 @@ import {
   alreadySeen,
   chunkText,
   combineEnvelopes,
+  friendlyizeError,
   MAX_CHUNK_CHARS,
   normalizeEscapedWhitespace,
   routeArgs,
+  stripMentions,
   type InboundItem,
 } from "../plugins/feishu-cli.ts";
 import type { InboundEnvelope } from "../src/types.ts";
@@ -240,8 +242,86 @@ describe("inflight FIFO", () => {
     expect(MAX_CHUNK_CHARS).toBeGreaterThan(10_000);
     expect(MAX_CHUNK_CHARS).toBeLessThan(30_000);
   });
+});
 
-  it("onTurnEnd lifecycle pops one head batch and is a no-op when empty", async () => {
+// ---------------------------------------------------------------------------
+// stripMentions — clean inbound @-noise so the LLM prompt isn't polluted
+// ---------------------------------------------------------------------------
+
+describe("stripMentions", () => {
+  it("leaves text without mentions unchanged", () => {
+    expect(stripMentions("你好，能帮我查个东西吗")).toBe("你好，能帮我查个东西吗");
+  });
+
+  it("strips a single leading @name token", () => {
+    expect(stripMentions("@小助手 你好")).toBe("你好");
+  });
+
+  it("strips multiple stacked leading mentions", () => {
+    expect(stripMentions("@小助手 @secondary 帮我看个东西")).toBe("帮我看个东西");
+  });
+
+  it("keeps inline @ references inside the body untouched", () => {
+    // We only peel from the front; talking ABOUT @username is fair text.
+    expect(stripMentions("能找一下 @张三 提到的那个文档吗")).toBe(
+      "能找一下 @张三 提到的那个文档吗",
+    );
+  });
+
+  it("strips raw <at> wrappers if lark-cli didn't pre-render", () => {
+    const raw = '<at user_id="ou_xxx" user_name="bot">@bot</at> 你好';
+    expect(stripMentions(raw)).toBe("你好");
+  });
+
+  it("handles self-closing <at/> tags", () => {
+    expect(stripMentions('<at user_id="ou_xxx"/>你好')).toBe("你好");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// friendlyizeError — soften raw eli error envelopes for end users
+// ---------------------------------------------------------------------------
+
+describe("friendlyizeError", () => {
+  it("passes through non-error text unchanged", () => {
+    const ok = "这是 LLM 的正常回复内容。";
+    expect(friendlyizeError(ok)).toBe(ok);
+  });
+
+  it("does not match text that merely mentions errors casually", () => {
+    const casual = "刚才那个 [Error: ...] 是怎么回事";
+    expect(friendlyizeError(casual)).toBe(casual);
+  });
+
+  it("translates rate-limit errors", () => {
+    const raw =
+      "[Error: run_model failed in plugin 'builtin': [temporary] openai:gpt-5.5: HTTP 429 Too Many Requests]";
+    expect(friendlyizeError(raw)).toContain("限流");
+  });
+
+  it("translates context-overflow errors", () => {
+    const raw =
+      "[Error: run_model failed in plugin 'builtin': context window overflow at 256000 tokens]";
+    expect(friendlyizeError(raw)).toContain("上下文");
+  });
+
+  it("translates timeout errors", () => {
+    const raw =
+      "[Error: run_model failed in plugin 'builtin': request timed out after 120s]";
+    expect(friendlyizeError(raw)).toContain("超时");
+  });
+
+  it("falls back to a generic friendly message for unknown errors", () => {
+    const raw =
+      "[Error: run_model failed in plugin 'builtin': mysterious_failure_xyz]";
+    const out = friendlyizeError(raw);
+    expect(out).not.toContain("[Error:");
+    expect(out.length).toBeLessThan(60);
+  });
+});
+
+describe("onTurnEnd lifecycle hook", () => {
+  it("pops one head batch from the FIFO and is a no-op when empty", async () => {
     // Import lazily so the test stays inside this describe's scope.
     const { feishuCliPlugin } = await import("../plugins/feishu-cli.ts");
     const onTurnEnd = feishuCliPlugin.lifecycle?.onTurnEnd;

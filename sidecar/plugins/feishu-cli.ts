@@ -121,6 +121,40 @@ export function __resetSeenEventIds(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Inbound text cleanup
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove Feishu @-mention noise from inbound text so the LLM prompt isn't
+ * polluted with the bot's own name (or other users') as the leading token.
+ *
+ * Handles two shapes:
+ *  - lark-cli pre-renders mentions as plain `@name ` at the start (most
+ *    common case under our event consume path);
+ *  - raw event payloads can still leak `<at user_id="...">@name</at>` if
+ *    the consumer ever switches to non-rendered mode.
+ *
+ * Conservative: only strips leading mentions (1-3 stacked), never inline
+ * mentions that the user wrote intentionally inside a sentence.
+ */
+export function stripMentions(text: string): string {
+  // Strip raw <at>...</at> wrappers (and self-closing variants) up front.
+  let s = text
+    .replace(/<at\s+[^>]*>[^<]*<\/at>\s*/g, "")
+    .replace(/<at\s+[^/>]*\/>\s*/g, "");
+
+  // Strip leading @name tokens (max 3 to cover "@bot @secondary @third").
+  // Match @ followed by non-whitespace, optional trailing whitespace; loop
+  // so multiple leading mentions all peel.
+  for (let i = 0; i < 3; i++) {
+    const next = s.replace(/^@\S+\s*/, "");
+    if (next === s) break;
+    s = next;
+  }
+  return s.trim();
+}
+
+// ---------------------------------------------------------------------------
 // Long reply chunking
 // ---------------------------------------------------------------------------
 
@@ -152,6 +186,38 @@ export function chunkText(text: string, cap = MAX_CHUNK_CHARS): string[] {
   }
   if (remaining.length > 0) chunks.push(remaining);
   return chunks;
+}
+
+// ---------------------------------------------------------------------------
+// Outbound error friendly-ization
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert raw eli error envelopes into a short human-readable line.
+ *
+ * The framework turns run_model failures into a textual final reply with
+ * shape `[Error: run_model failed in plugin 'builtin': <kind>: <msg>]`.
+ * Sending that verbatim to Feishu leaks provider names, plan tiers,
+ * stack traces, and timestamps — useless to the user and embarrassing
+ * in a group chat.
+ *
+ * Pattern is detected loosely (starts with `[Error:` and contains
+ * `run_model`); when matched, return a friendly message that hints at
+ * the cause (rate limit / overflow / unknown) without dumping internals.
+ */
+export function friendlyizeError(text: string): string {
+  if (!text.startsWith("[Error:") || !text.includes("run_model")) return text;
+  const lower = text.toLowerCase();
+  if (lower.includes("usage_limit") || lower.includes("rate") || lower.includes("429")) {
+    return "抱歉，当前模型限流了，过会儿再试一下。";
+  }
+  if (lower.includes("context") && lower.includes("overflow")) {
+    return "对话太长超出了模型上下文窗口，换条新对话再问吧。";
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return "模型响应超时了，再发一次试试。";
+  }
+  return "抱歉，模型这次没回上来，过会儿再试一下。";
 }
 
 // ---------------------------------------------------------------------------
@@ -250,7 +316,21 @@ function spawnConsumer(
     if (text.includes("[event] ready")) {
       respawnAttempts.delete(key);
     }
-    log.info("lark-cli event stderr", { eventKey, text: text.slice(0, 500) });
+    // Routine lark-cli lifecycle chatter is noise once we trust the bus.
+    // Surface errors / warnings at info; everything else at debug.
+    const isRoutine =
+      text.includes("[event] consuming as") ||
+      text.includes("[event] listening") ||
+      text.includes("[event] to stop gracefully") ||
+      text.includes("[event] ready") ||
+      text.includes("[event] local bus") ||
+      text.includes("[event] started bus daemon") ||
+      text.includes("[event] remote connection check");
+    if (isRoutine) {
+      log.debug("lark-cli event stderr", { eventKey, text: text.slice(0, 500) });
+    } else {
+      log.info("lark-cli event stderr", { eventKey, text: text.slice(0, 500) });
+    }
   });
 
   child.once("exit", (code, signal) => {
@@ -599,13 +679,14 @@ function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null
   if (!String(evt.sender_id).startsWith("ou_")) return null;
   const chatType: "direct" | "group" = evt.chat_type === "p2p" ? "direct" : "group";
   const messageId = evt.message_id ?? evt.id;
+  const rawText = typeof evt.content === "string" ? evt.content : "";
   return {
     channel: "feishu",
     accountId,
     senderId: evt.sender_id,
     chatType,
     chatId: evt.chat_id,
-    text: typeof evt.content === "string" ? evt.content : "",
+    text: stripMentions(rawText),
     messageId,
     eventId: evt.event_id,
     rawMessageType: evt.message_type,
@@ -680,7 +761,28 @@ export type { InflightBatch };
 async function sendText(params: OutboundTextParams): Promise<OutboundResult> {
   const { to, replyToId } = params;
   let text = params.text;
-  if (!text) return { ok: false, error: "empty text" };
+  if (!text || !text.trim()) {
+    // Whitespace-only outbound — the LLM produced effectively nothing.
+    // Treat like a cleanup-only turn so the inflight FIFO doesn't stay
+    // armed forever waiting for a reply that won't carry signal.
+    if (params.kind !== "notice") {
+      const inflight = takeInflight(to);
+      if (inflight) {
+        for (const item of inflight.items) {
+          if (item.reactionId) {
+            void deleteReaction(item.messageId, item.reactionId).catch(() => {});
+          }
+        }
+      }
+    }
+    return { ok: false, error: "empty text" };
+  }
+
+  // Rewrite raw eli error dumps into something humans want to read in chat.
+  // The framework converts run_model failures into a literal final reply
+  // like `[Error: run_model failed in plugin 'builtin': ...]` which leaks
+  // stack traces and provider quotas to the end user. Catch and soften.
+  text = friendlyizeError(text);
 
   // Defuse upstream double-escaping that would otherwise render as literal
   // backslash-n in Feishu (esp. for diagrams / multi-line content).
