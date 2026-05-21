@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
+  __inboundFromReceiveForTest,
   __inflightDepth,
   __resetChannelState,
   __resetSeenEventIds,
   __seedInflight,
+  __setBotIdentity,
   __takeInflightForTest,
   alreadySeen,
   chunkText,
@@ -22,6 +24,7 @@ import type { InboundEnvelope } from "../src/types.ts";
 afterEach(() => {
   __resetSeenEventIds();
   __resetChannelState();
+  __setBotIdentity({ name: null, openId: null });
 });
 
 // ---------------------------------------------------------------------------
@@ -332,6 +335,51 @@ describe("isAppSender", () => {
   it("treats tenant user_id (no prefix) as user (kept)", () => {
     expect(isAppSender("abc123")).toBe(false);
     expect(isAppSender("ckl")).toBe(false);
+  });
+});
+
+describe("bot identity self-loop / group filter", () => {
+  function receive(overrides: Record<string, unknown> = {}) {
+    return __inboundFromReceiveForTest("default", {
+      chat_id: "oc_chat",
+      sender_id: "ou_user",
+      chat_type: "group",
+      message_id: "om_msg",
+      event_id: "evt_msg",
+      message_type: "text",
+      content: "@eli hello",
+      ...overrides,
+    });
+  }
+
+  it("drops messages sent by the bot open_id", () => {
+    __setBotIdentity({ name: "eli", openId: "ou_bot" });
+    expect(receive({ sender_id: "ou_bot" })).toBeNull();
+  });
+
+  it("keeps group messages that mention the known bot name", () => {
+    __setBotIdentity({ name: "eli", openId: "ou_bot" });
+    expect(receive({ content: "@eli help" })?.text).toBe("help");
+  });
+
+  it("drops group messages without a bot mention", () => {
+    __setBotIdentity({ name: "eli", openId: "ou_bot" });
+    expect(receive({ content: "hello everyone" })).toBeNull();
+  });
+
+  it("keeps group messages with any stripped mention when bot name is unknown", () => {
+    __setBotIdentity({ name: null, openId: "ou_bot" });
+    expect(receive({ content: "@someone hello" })?.text).toBe("hello");
+  });
+
+  it("keeps p2p messages without a mention", () => {
+    __setBotIdentity({ name: "eli", openId: "ou_bot" });
+    expect(receive({ chat_type: "p2p", content: "hello" })?.chatType).toBe("direct");
+  });
+
+  it("drops sticker messages", () => {
+    __setBotIdentity({ name: "eli", openId: "ou_bot" });
+    expect(receive({ message_type: "sticker", content: "@eli" })).toBeNull();
   });
 });
 

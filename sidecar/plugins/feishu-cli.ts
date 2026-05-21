@@ -49,6 +49,50 @@ const consumers = new Map<string, ChildProcess>();
 const respawnAttempts = new Map<string, number>();
 
 // ---------------------------------------------------------------------------
+// Bot identity — loaded once at startup so we can:
+//   (1) drop messages the bot sent itself (open_id match)
+//   (2) only respond in group chats when @-mentioned (name match)
+// ---------------------------------------------------------------------------
+
+interface BotIdentity {
+  /** App display name as configured in the Feishu dev console (e.g. "eli"). */
+  name: string | null;
+  /** Bot's open_id, prefixed `ou_…`. */
+  openId: string | null;
+}
+
+let botIdentity: BotIdentity = { name: null, openId: null };
+
+/** Test-only: override / inspect bot identity. */
+export function __setBotIdentity(next: BotIdentity): void {
+  botIdentity = next;
+}
+export function __getBotIdentity(): BotIdentity {
+  return { ...botIdentity };
+}
+
+async function loadBotIdentity(): Promise<void> {
+  const res = await runLarkCli(["api", "GET", "/open-apis/bot/v3/info", "--as", "bot"]);
+  if (!res.ok) {
+    log.warn("could not load bot identity — group @-filter falls back to heuristic", {
+      err: res.error,
+    });
+    return;
+  }
+  const bot = res.result?.bot ?? res.result?.data?.bot;
+  if (bot) {
+    botIdentity = {
+      name: typeof bot.app_name === "string" ? bot.app_name : null,
+      openId: typeof bot.open_id === "string" ? bot.open_id : null,
+    };
+    log.info("bot identity loaded", {
+      name: botIdentity.name,
+      openId: botIdentity.openId,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Per-chat state for batching + reply quoting + reaction cleanup
 // ---------------------------------------------------------------------------
 
@@ -185,6 +229,16 @@ function utf8ByteLength(s: string): number {
  */
 export function isAppSender(senderId: string): boolean {
   return senderId.startsWith("cli_") || senderId.startsWith("app_");
+}
+
+function isSelfSender(senderId: string): boolean {
+  return botIdentity.openId !== null && senderId === botIdentity.openId;
+}
+
+function groupMentionsBot(rawText: string): boolean {
+  const name = botIdentity.name?.trim();
+  if (name) return rawText.includes(`@${name}`);
+  return stripMentions(rawText).length !== rawText.length;
 }
 
 /**
@@ -334,6 +388,7 @@ async function startGateway(params: GatewayStartParams): Promise<void> {
   // Each gateway restart could leave a stale upstream subscription with
   // Feishu, manifesting as `online_instance_cnt > 1` and silent event drops.
   await resetEventBus();
+  await loadBotIdentity();
 
   for (const eventKey of EVENT_KEYS) {
     spawnConsumer(accountId, eventKey, onMessage);
@@ -758,36 +813,44 @@ function toEnvelope(
   }
 }
 
+export function __inboundFromReceiveForTest(accountId: string, evt: any): InboundEnvelope | null {
+  return toEnvelope(accountId, "im.message.receive_v1", evt);
+}
+
 function inboundFromReceive(accountId: string, evt: any): InboundEnvelope | null {
   if (!evt.chat_id || !evt.sender_id) return null;
+  const senderId = String(evt.sender_id);
   // Anti-loop: reject messages whose sender is clearly an app/bot.
   // Feishu user senders use one of `ou_` (open_id), `on_` (union_id),
   // or a tenant `user_id`; apps/bots use `cli_<app_id>`. Filtering OUT
   // app ids (instead of allow-listing one user prefix) keeps the bot
   // safe from self-loops while still working under tenant_user_id /
   // union_id deployments.
-  if (isAppSender(String(evt.sender_id))) return null;
+  if (isSelfSender(senderId) || isAppSender(senderId)) return null;
   const chatType: "direct" | "group" = evt.chat_type === "p2p" ? "direct" : "group";
+  const messageType = evt.message_type ?? evt.msg_type;
+  if (messageType === "sticker") return null;
   const messageId = evt.message_id ?? evt.id;
   const rawText = typeof evt.content === "string" ? evt.content : "";
+  if (chatType === "group" && !groupMentionsBot(rawText)) return null;
   return {
     channel: "feishu",
     accountId,
-    senderId: evt.sender_id,
+    senderId,
     chatType,
     chatId: evt.chat_id,
     text: stripMentions(rawText),
     messageId,
     eventId: evt.event_id,
-    rawMessageType: evt.message_type,
+    rawMessageType: messageType,
     // Rust side flattens envelope.context into the user prompt as
     // `k=v|k=v|...`. Exposing message_id (and a few helpers) lets the
     // LLM cite the exact message when sending an upfront reply.
     context: {
       message_id: messageId,
-      sender_id: evt.sender_id,
+      sender_id: senderId,
       chat_type: chatType,
-      msg_type: evt.message_type,
+      msg_type: messageType,
     },
   };
 }
