@@ -33,6 +33,21 @@ view must still spill full output to disk), and #13 (spill GC conflicts — rede
 - nexil: provider-agnostic transport (Completion/Messages/Responses), streaming delta assembly,
   250-iter tool loop, OAuth single-flight, 7-kind error taxonomy
 
+## Results log
+
+### Tier 1 — DONE (2026-06-04), all eval-driven, all pushed to main
+
+| # | Change | Before → After | Tests |
+|---|--------|----------------|-------|
+| 1 | model-tools cache | post-init tool invisible → fingerprint memoization auto-reflects REGISTRY | regression test red→green |
+| 4 | backoff jitter | fixed 1/2/4/8s lockstep → full jitter `[0,ceiling]`, 256 samples >16 distinct | 4 unit tests |
+| 3 | budget breaker | 250-round loop, no cost gate → stops at `ELI_MAX_TURN_BUDGET` (first round always runs) | 5 unit tests + `text_result` dedup |
+| 2 | prompt caching | no cache breakpoints → `cache_control` on last system+tool; `UsageEvent` cache tokens; streaming usage merge | 6 unit tests |
+| 5 | tool-result signal | bare error blob, catch-all `Tool` → `is_error` marker + `NotFound`/`Timeout` kinds + grounded recovery nudge | executor + nudge + serde tests |
+
+Commits: fd10be0 (roadmap), 15203ed, 27b67d2, 1190011, 040bdc6, 3b21a0a.
+All preserve the infinite-context invariant (view-layer / additive only).
+
 ## Roadmap (best-first, by impact / (effort+risk))
 
 ### Tier 1 — cheap, high-ROI, low-risk, reversible
