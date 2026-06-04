@@ -48,6 +48,16 @@ view must still spill full output to disk), and #13 (spill GC conflicts — rede
 Commits: fd10be0 (roadmap), 15203ed, 27b67d2, 1190011, 040bdc6, 3b21a0a.
 All preserve the infinite-context invariant (view-layer / additive only).
 
+### Tier 2 — DONE (2026-06-04)
+
+| # | Change | Before → After | Tests |
+|---|--------|----------------|-------|
+| 7 | tool-output spill | web.fetch flooded context with under-cap pages → reuse bash spill (`maybe_spill_output`), preview+path, `fs.read` recovers | 3 unit |
+| 6 | compaction | auto-handoff summary = 500-char prefix → real LLM distillation since last anchor (`ELI_CONTEXT_COMPACTION=1`, reuses anchor+summary machinery, fallback to prefix) | 4 pure-digest unit |
+| 8 | recitation | active tasks only via `task.list` → session tasks recited at context tail (`tail_reminder`, ephemeral, no cache/tape impact); dropped redundant memory.* file tool | 2 unit |
+
+Commits: 96ed787 (#7), b0d01f2 (#6), f5d42f6 (#8). Scoping calls: #7 spill-reuse not enum-bloat; #8 recitation-only (memory.* redundant with Decisions).
+
 ## Roadmap (best-first, by impact / (effort+risk))
 
 ### Tier 1 — cheap, high-ROI, low-risk, reversible
