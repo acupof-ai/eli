@@ -273,6 +273,7 @@ impl MiddlewareChain {
                     handler: wrapped_handler.or_else(|| tool.handler.clone()),
                     context: tool.context,
                     timeout: tool.timeout,
+                    read_only: tool.read_only,
                 }
             })
             .collect()

@@ -327,8 +327,37 @@ fn builtin_tools() -> Vec<Tool> {
     if crate::tools::SIDECAR_URL.lock().is_some() {
         tools.push(tool_sidecar());
     }
+    // Tag read-only tools (MCP behavior hint) from a single auditable list, so
+    // a read-only / plan mode can gate everything else. Anything not listed is
+    // treated as potentially mutating (the safe default).
+    for tool in &mut tools {
+        if READ_ONLY_TOOLS.contains(&tool.name.as_str()) {
+            tool.read_only = true;
+        }
+    }
     tools
 }
+
+/// Builtin tools that only read state — never mutate the workspace or session.
+/// Single source of truth for the read-only behavior hint and plan-mode gating.
+const READ_ONLY_TOOLS: &[&str] = &[
+    "bash.output",
+    "fs.read",
+    "web.fetch",
+    "help",
+    "skill",
+    "tape.search",
+    "tape.info",
+    "tape.anchors",
+    "decision.list",
+    "task.list",
+    "task.status",
+    "evolution.list",
+    "evolution.show",
+    "evolution.history",
+    "agent.status",
+    "agent.result",
+];
 
 fn resolve_path(state: &HashMap<String, Value>, raw_path: &str) -> Result<PathBuf, ConduitError> {
     let path = PathBuf::from(shellexpand::tilde(raw_path).as_ref());
@@ -3549,6 +3578,19 @@ mod tests {
         assert!(view.chars().count() < big.chars().count());
         assert!(view.contains("fs.read"));
         assert!(view.contains(&format!("{} chars", big.chars().count())));
+    }
+
+    #[test]
+    fn read_only_tools_are_tagged_mutating_are_not() {
+        let tools = builtin_tools();
+        let by_name = |n: &str| tools.iter().find(|t| t.name == n);
+        // Read-only tools carry the hint; mutating ones do not.
+        assert!(by_name("fs.read").is_some_and(|t| t.read_only));
+        assert!(by_name("tape.search").is_some_and(|t| t.read_only));
+        assert!(by_name("web.fetch").is_some_and(|t| t.read_only));
+        assert!(by_name("fs.write").is_some_and(|t| !t.read_only));
+        assert!(by_name("fs.edit").is_some_and(|t| !t.read_only));
+        assert!(by_name("bash").is_some_and(|t| !t.read_only));
     }
 
     #[test]

@@ -32,6 +32,10 @@ pub struct Tool {
     pub context: bool,
     /// Per-tool wall-clock timeout. `None` means use the executor default (60s).
     pub timeout: Option<std::time::Duration>,
+    /// MCP-style behavior hint: the tool only reads state and never mutates the
+    /// workspace/session. Lets callers auto-approve safe reads and gate mutating
+    /// tools (e.g. a read-only "plan" mode). Defaults to `false` (assume unsafe).
+    pub read_only: bool,
 }
 
 impl fmt::Debug for Tool {
@@ -43,6 +47,7 @@ impl fmt::Debug for Tool {
             .field("handler", &self.handler.is_some())
             .field("context", &self.context)
             .field("timeout", &self.timeout)
+            .field("read_only", &self.read_only)
             .finish()
     }
 }
@@ -67,6 +72,7 @@ impl Clone for Tool {
             handler: self.handler.clone(),
             context: self.context,
             timeout: self.timeout,
+            read_only: self.read_only,
         }
     }
 }
@@ -85,6 +91,7 @@ impl Tool {
             handler: None,
             context: false,
             timeout: None,
+            read_only: false,
         }
     }
 
@@ -105,6 +112,7 @@ impl Tool {
             handler: Some(Arc::new(handler)),
             context: false,
             timeout: None,
+            read_only: false,
         }
     }
 
@@ -125,7 +133,15 @@ impl Tool {
             handler: Some(Arc::new(handler)),
             context: true,
             timeout: None,
+            read_only: false,
         }
+    }
+
+    /// Mark this tool as read-only (never mutates workspace/session state).
+    /// Used by callers to auto-approve safe reads or gate mutating tools.
+    pub fn read_only(mut self) -> Self {
+        self.read_only = true;
+        self
     }
 
     /// Produce the OpenAI-compatible tool schema.
@@ -428,6 +444,13 @@ mod tests {
             json!({"type": "object", "properties": {"msg": {"type": "string"}}}),
             |args, _ctx| Box::pin(async move { Ok(args) }),
         )
+    }
+
+    #[test]
+    fn read_only_defaults_false_and_builder_sets_it() {
+        let tool = make_echo_tool("x", "x");
+        assert!(!tool.read_only, "tools default to mutating (safe default)");
+        assert!(tool.read_only().read_only, "builder marks read-only");
     }
 
     fn make_schema_only_tool(name: &str) -> Tool {

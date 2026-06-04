@@ -257,6 +257,15 @@ pub(super) fn system_prompt_for_turn(
     })
 }
 
+/// Read-only / plan mode (`ELI_PLAN_MODE=1`): the agent may call only read-only
+/// tools — it can explore, read, and plan, but not mutate the workspace or
+/// session. Enforces CLAUDE.md's Phase 1/2 (Explore/Plan) posture.
+fn plan_mode_enabled() -> bool {
+    std::env::var("ELI_PLAN_MODE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 /// Max active tasks surfaced in the tail recitation.
 const MAX_RECITED_TASKS: usize = 12;
 
@@ -335,8 +344,15 @@ pub(super) async fn run_tools_once(
         tools = wf(tools);
     }
 
-    // Use cached model tools when no filtering or wrapping was applied.
-    let model_tool_list = if !has_filter && wrap_fn.is_none() {
+    // Read-only / plan mode: gate out every tool not marked read_only so the
+    // agent can explore and plan but not mutate (CLAUDE.md Phase 1/2 posture).
+    let plan_mode = plan_mode_enabled();
+    if plan_mode {
+        tools.retain(|t| t.read_only);
+    }
+
+    // Use cached model tools only when nothing narrowed the set.
+    let model_tool_list = if !has_filter && wrap_fn.is_none() && !plan_mode {
         model_tools_cached()
     } else {
         model_tools(&tools)
@@ -356,7 +372,15 @@ pub(super) async fn run_tools_once(
     let tool_ctx = build_tool_context("agent_loop", tape_name, tool_state);
 
     let cancellation = crate::control_plane::turn_cancellation();
-    let tail_reminder = build_task_recitation(session_id).await;
+    let mut tail_reminder = build_task_recitation(session_id).await;
+    if plan_mode {
+        let note = "[Plan mode: read-only. Mutating tools (fs.write, fs.edit, bash, etc.) \
+                    are disabled — explore, read, and propose a plan; do not attempt changes.]";
+        tail_reminder = Some(match tail_reminder {
+            Some(r) => format!("{note}\n{r}"),
+            None => note.to_owned(),
+        });
+    }
 
     let result = llm
         .run_tools(ChatRequest {
