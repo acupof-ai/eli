@@ -33,10 +33,12 @@ const DEFAULT_REQUEST_TIMEOUT_SECONDS: u64 = 10;
 const MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024; // 10MB
 const DEFAULT_READ_LINE_LIMIT: usize = 500;
 
-/// Bash output above this char count gets spilled to a file with a preview.
-const BASH_OUTPUT_LARGE_THRESHOLD: usize = 30_000;
+/// Tool output above this char count gets spilled to a file with a preview,
+/// keeping the context window lean while the full output stays on disk
+/// (recoverable via `fs.read` — the infinite-context view/store split).
+const TOOL_OUTPUT_LARGE_THRESHOLD: usize = 30_000;
 /// How many characters of preview to show for spilled output.
-const BASH_OUTPUT_PREVIEW_CHARS: usize = 2_000;
+const TOOL_OUTPUT_PREVIEW_CHARS: usize = 2_000;
 
 static HTTP_CLIENT: std::sync::LazyLock<reqwest::Client> =
     std::sync::LazyLock::new(reqwest::Client::new);
@@ -816,49 +818,52 @@ fn render_search_entry(entry: &TapeEntry) -> String {
 // bash — helpers
 // ---------------------------------------------------------------------------
 
-/// Write large bash output to a spill file and return a preview + path.
-fn spill_large_bash_output(output: &str) -> String {
+/// Inline preview fallback used when the spill file can't be written. Keeps the
+/// model moving with a truncated view rather than failing the tool.
+fn spill_preview_fallback(output: &str) -> String {
+    let preview: String = output.chars().take(TOOL_OUTPUT_PREVIEW_CHARS).collect();
+    format!(
+        "{preview}\n\n[Output truncated — {total} chars total, showing first ~{shown}]",
+        total = output.chars().count(),
+        shown = TOOL_OUTPUT_PREVIEW_CHARS,
+    )
+}
+
+/// Write large tool output to a spill file and return a preview + path. `label`
+/// names the producing tool (e.g. "bash", "web") for the spill filename.
+fn spill_large_output(output: &str, label: &str) -> String {
     let dir = eli_home().join("tool-results");
     if let Err(e) = std::fs::create_dir_all(&dir) {
-        tracing::warn!("bash spill: failed to create {}: {e}", dir.display());
-        // Fall back to returning the raw output truncated inline
-        let preview: String = output.chars().take(BASH_OUTPUT_PREVIEW_CHARS).collect();
-        return format!(
-            "{preview}\n\n[Output truncated — {total} chars total, showing first ~{shown}]",
-            total = output.chars().count(),
-            shown = BASH_OUTPUT_PREVIEW_CHARS,
-        );
+        tracing::warn!("{label} spill: failed to create {}: {e}", dir.display());
+        return spill_preview_fallback(output);
     }
 
-    let filename = format!("bash-{}.txt", &uuid::Uuid::new_v4().to_string()[..8]);
+    let filename = format!("{label}-{}.txt", &uuid::Uuid::new_v4().to_string()[..8]);
     let path = dir.join(&filename);
     if let Err(e) = std::fs::write(&path, output) {
-        tracing::warn!("bash spill: failed to write {}: {e}", path.display());
-        let preview: String = output.chars().take(BASH_OUTPUT_PREVIEW_CHARS).collect();
-        return format!(
-            "{preview}\n\n[Output truncated — {total} chars total, showing first ~{shown}]",
-            total = output.chars().count(),
-            shown = BASH_OUTPUT_PREVIEW_CHARS,
-        );
+        tracing::warn!("{label} spill: failed to write {}: {e}", path.display());
+        return spill_preview_fallback(output);
     }
 
     let total = output.chars().count();
-    let preview: String = output.chars().take(BASH_OUTPUT_PREVIEW_CHARS).collect();
+    let preview: String = output.chars().take(TOOL_OUTPUT_PREVIEW_CHARS).collect();
     let abs = path.canonicalize().unwrap_or(path);
     format!(
         "[Output: {total} chars — showing first ~{shown}, full output saved to {path}]\n\n\
          {preview}\n\n\
          ...\n\n\
          [Use fs.read(path=\"{path}\") to read more]",
-        shown = BASH_OUTPUT_PREVIEW_CHARS,
+        shown = TOOL_OUTPUT_PREVIEW_CHARS,
         path = abs.display(),
     )
 }
 
-/// Return the output as-is or spill if it exceeds the large threshold.
-fn maybe_spill_bash_output(output: &str) -> String {
-    if output.chars().count() > BASH_OUTPUT_LARGE_THRESHOLD {
-        spill_large_bash_output(output)
+/// Return the output as-is, or spill to disk (preview + path) if it exceeds the
+/// large threshold. Full output stays recoverable on disk — only the *view* is
+/// trimmed, preserving the infinite-context design.
+fn maybe_spill_output(output: &str, label: &str) -> String {
+    if output.chars().count() > TOOL_OUTPUT_LARGE_THRESHOLD {
+        spill_large_output(output, label)
     } else {
         output.to_owned()
     }
@@ -947,7 +952,7 @@ fn tool_bash() -> Tool {
                                     } else {
                                         format!("exit code {code}: {msg}\n{trimmed}")
                                     };
-                                    return ok_val(maybe_spill_bash_output(&body));
+                                    return ok_val(maybe_spill_output(&body, "bash"));
                                 }
                                 ExitOutcome::Error => {
                                     let body = if trimmed.is_empty() {
@@ -974,7 +979,7 @@ fn tool_bash() -> Tool {
                                 "(command succeeded, no output)"
                             });
                         }
-                        ok_val(maybe_spill_bash_output(trimmed))
+                        ok_val(maybe_spill_output(trimmed, "bash"))
                     }
                     Ok(Err(e)) => Err(ConduitError::new(ErrorKind::Tool, format!("{e}"))),
                     Err(_) => {
@@ -2349,7 +2354,10 @@ fn tool_web_fetch() -> Tool {
                     ));
                 }
                 let text = String::from_utf8_lossy(&bytes).into_owned();
-                ok_val(text)
+                // Spill large pages to disk (preview + path) so a big-but-under-cap
+                // response doesn't flood the context window; full content stays
+                // recoverable via fs.read, exactly like bash output.
+                ok_val(maybe_spill_output(&text, "web"))
             })
         },
     )
@@ -3524,6 +3532,33 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     const LARGE_FILE_BYTES: u64 = 50 * 1024 * 1024;
+
+    // -- tool-output spill (view-layer trim, full content recoverable) --------
+
+    #[test]
+    fn small_output_passes_through_unspilled() {
+        let out = "short output";
+        assert_eq!(maybe_spill_output(out, "bash"), out);
+    }
+
+    #[test]
+    fn large_output_spills_to_preview_with_steering() {
+        let big = "x".repeat(TOOL_OUTPUT_LARGE_THRESHOLD + 1);
+        let view = maybe_spill_output(&big, "web");
+        // The view is trimmed (not the full output) but steers to the full copy.
+        assert!(view.chars().count() < big.chars().count());
+        assert!(view.contains("fs.read"));
+        assert!(view.contains(&format!("{} chars", big.chars().count())));
+    }
+
+    #[test]
+    fn spill_preview_fallback_reports_total_and_truncation() {
+        let big = "y".repeat(TOOL_OUTPUT_PREVIEW_CHARS + 500);
+        let fallback = spill_preview_fallback(&big);
+        assert!(fallback.contains("truncated"));
+        assert!(fallback.contains(&format!("{} chars total", big.chars().count())));
+        assert!(fallback.chars().count() < big.chars().count());
+    }
 
     fn test_tape_service() -> (tempfile::TempDir, TapeService, String) {
         let tmp = tempfile::tempdir().unwrap();
