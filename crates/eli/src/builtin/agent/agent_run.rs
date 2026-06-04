@@ -738,6 +738,126 @@ fn record_run_event(
 }
 
 // ---------------------------------------------------------------------------
+// Verify / self-correct (opt-in, hard-signal grounded)
+// ---------------------------------------------------------------------------
+
+/// Hard-signal verification command (`ELI_VERIFY_CMD`, e.g. "cargo test").
+/// `None` (default) disables the whole verify loop, so behavior is unchanged.
+fn verify_command() -> Option<String> {
+    std::env::var("ELI_VERIFY_CMD")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+}
+
+/// Max self-correction re-runs after a failing verification (`ELI_VERIFY_MAX_RETRIES`, default 1).
+fn verify_max_retries() -> u32 {
+    std::env::var("ELI_VERIFY_MAX_RETRIES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1)
+}
+
+/// Run the verification command in `workspace`. `Ok(())` on exit 0; otherwise
+/// `Err` with a tail-capped stdout+stderr the model can act on.
+async fn run_verify_command(cmd: &str, workspace: &Path) -> Result<(), String> {
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(cmd)
+        .current_dir(workspace)
+        .output()
+        .await
+        .map_err(|e| format!("verify command failed to start: {e}"))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    Err(tail_chars(&format!("{stdout}\n{stderr}"), 4000))
+}
+
+/// Reflexion-style verify loop: when `ELI_VERIFY_CMD` is set, run it after a
+/// successful, tool-using turn and — on failure — feed the failure back as a
+/// follow-up turn for the model to fix, bounded by `ELI_VERIFY_MAX_RETRIES`.
+/// Grounded in a hard external signal (build/test), not LLM self-judgment.
+#[allow(clippy::too_many_arguments)]
+async fn verify_and_correct(
+    llm: &mut LLM,
+    tapes: &TapeService,
+    tape_name: &str,
+    system_prompt: &str,
+    tool_state: &HashMap<String, Value>,
+    settings: &AgentSettings,
+    allowed_tools: Option<&HashSet<String>>,
+    tape_ctx: Option<&TapeContext>,
+    session_id: &str,
+    workspace: &Path,
+    mut result: Result<ToolAutoResult, ConduitError>,
+) -> Result<ToolAutoResult, ConduitError> {
+    let Some(cmd) = verify_command() else {
+        return result;
+    };
+    let max_retries = verify_max_retries();
+    let mut attempt = 0;
+    loop {
+        // Only verify successful turns that actually used tools (a pure-chat
+        // turn changed nothing to verify).
+        let verifiable = matches!(&result,
+            Ok(o) if o.kind == ToolAutoResultKind::Text && !o.tool_calls.is_empty());
+        if !verifiable {
+            return result;
+        }
+        match run_verify_command(&cmd, workspace).await {
+            Ok(()) => {
+                tracing::info!(tape = tape_name, attempt, "verify passed");
+                return result;
+            }
+            Err(failure) if attempt < max_retries => {
+                attempt += 1;
+                tracing::warn!(
+                    tape = tape_name,
+                    attempt,
+                    "verify failed — re-running for self-correction"
+                );
+                let _ = tapes
+                    .append_event(
+                        tape_name,
+                        "agent.verify.failed",
+                        serde_json::json!({ "attempt": attempt, "cmd": cmd }),
+                    )
+                    .await;
+                let followup = PromptValue::Text(format!(
+                    "Verification failed. The command `{cmd}` reported:\n\n{failure}\n\n\
+                     Fix the cause and continue. Do not claim success until it passes."
+                ));
+                result = with_tape_runtime(
+                    tapes.clone(),
+                    run_tools_once(
+                        llm,
+                        system_prompt,
+                        tape_name,
+                        &followup,
+                        tool_state,
+                        settings,
+                        allowed_tools,
+                        tape_ctx,
+                        session_id,
+                    ),
+                )
+                .await;
+            }
+            Err(_failure) => {
+                tracing::warn!(
+                    tape = tape_name,
+                    attempt,
+                    "verify still failing after max retries"
+                );
+                return result;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Agent loop
 // ---------------------------------------------------------------------------
 
@@ -787,6 +907,23 @@ pub(super) async fn agent_loop(
             tape_ctx_override.as_ref(),
             session_id,
         ),
+    )
+    .await;
+
+    // Hard-signal verify / self-correct loop (opt-in via ELI_VERIFY_CMD; a no-op
+    // otherwise, so normal turns are unaffected).
+    let result = verify_and_correct(
+        &mut llm,
+        tapes,
+        tape_name,
+        &system_prompt,
+        tool_state,
+        settings,
+        allowed_tools,
+        tape_ctx_override.as_ref(),
+        session_id,
+        workspace,
+        result,
     )
     .await;
 
@@ -947,6 +1084,21 @@ mod tests {
         assert!(digest.contains("AFTER one"));
         assert!(digest.contains("AFTER two"));
         assert!(digest.contains("user:") && digest.contains("assistant:"));
+    }
+
+    // -- verify command (hard-signal) -----------------------------------------
+
+    #[tokio::test]
+    async fn verify_command_passes_on_zero_exit() {
+        assert!(run_verify_command("true", Path::new(".")).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn verify_command_reports_output_on_nonzero_exit() {
+        let err = run_verify_command("echo boom 1>&2; exit 1", Path::new("."))
+            .await
+            .unwrap_err();
+        assert!(err.contains("boom"), "err was: {err}");
     }
 
     fn make_tape_service() -> (tempfile::TempDir, TapeService) {
