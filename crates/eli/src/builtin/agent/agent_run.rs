@@ -6,7 +6,11 @@ use std::time::Instant;
 
 use chrono::Utc;
 use nexil::core::results::ToolAutoResultKind;
-use nexil::{AnchorSelector, ConduitError, ErrorKind, TapeContext, TapeEntry, ToolAutoResult};
+use nexil::llm::{ChatRequest, LLM};
+use nexil::{
+    AnchorSelector, ConduitError, ErrorKind, TapeContext, TapeEntry, TapeEntryKind, TapeQuery,
+    ToolAutoResult,
+};
 use serde_json::Value;
 
 use crate::builtin::settings::AgentSettings;
@@ -241,7 +245,11 @@ async fn maybe_auto_handoff(
     output: &ToolAutoResult,
     response_text: &str,
     settings: &AgentSettings,
+    compaction_summary: Option<String>,
 ) {
+    // Prefer a real LLM distillation (when compaction is enabled and one was
+    // produced); otherwise fall back to the historical 500-char-prefix summary.
+    let summary = compaction_summary.unwrap_or_else(|| response_text.chars().take(500).collect());
     if try_decrement_grace(tapes, tape_name).await {
         // Bug B: new tool results appended during grace can push context over the
         // threshold again. If that happens, don't wait for grace to expire — fire a
@@ -253,12 +261,12 @@ async fn maybe_auto_handoff(
                 "auto-handoff: context re-exceeded threshold during grace period, \
                  triggering immediate handoff"
             );
-            place_handoff_anchor(tapes, tape_name, response_text, input_tokens, settings).await;
+            place_handoff_anchor(tapes, tape_name, &summary, input_tokens, settings).await;
         }
         return;
     }
     if let Some(input_tokens) = should_handoff(output, settings) {
-        place_handoff_anchor(tapes, tape_name, response_text, input_tokens, settings).await;
+        place_handoff_anchor(tapes, tape_name, &summary, input_tokens, settings).await;
     }
 }
 
@@ -435,10 +443,172 @@ fn is_cjk_char(c: char) -> bool {
     )
 }
 
+/// Opt-in (`ELI_CONTEXT_COMPACTION=1`): when set, auto-handoff summaries are a
+/// real LLM distillation of the work since the last anchor instead of a 500-char
+/// prefix of the last reply. Off by default, so behavior is unchanged.
+fn compaction_enabled() -> bool {
+    std::env::var("ELI_CONTEXT_COMPACTION")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+const COMPACTION_SYSTEM_PROMPT: &str = "\
+You are compacting an agent's working context before older turns leave the \
+window. Summarize the transcript below into a dense handoff note so work can \
+continue without re-reading it. Preserve, in priority order: (1) architecture / \
+design decisions; (2) files modified and their key changes; (3) current \
+verification status (build/test pass or fail); (4) open TODOs and next steps; \
+(5) important facts, constraints, and identifiers. Drop chit-chat and verbose \
+tool output, keeping only pass/fail and key values. The full history stays \
+retrievable via tape.search. Output only the summary.";
+
+/// Char cap on the digest fed to the summarizer so the compaction call itself
+/// can't overflow the window. The most recent content is kept (tail).
+const COMPACTION_INPUT_CHAR_CAP: usize = 120_000;
+/// Output token budget for the compaction summary.
+const COMPACTION_MAX_TOKENS: u32 = 1024;
+
+/// Flatten a message `content` (string or multimodal block array) to text.
+fn content_to_text(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::String(s)) => s.clone(),
+        Some(Value::Array(parts)) => parts
+            .iter()
+            .map(|p| {
+                p.get("text")
+                    .and_then(|t| t.as_str())
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| p.to_string())
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
+        Some(other) => other.to_string(),
+        None => String::new(),
+    }
+}
+
+/// Keep at most the last `max` chars, prefixing a marker when truncated.
+fn tail_chars(s: &str, max: usize) -> String {
+    let count = s.chars().count();
+    if count <= max {
+        return s.to_owned();
+    }
+    let kept: String = s.chars().skip(count - max).collect();
+    format!("[... earlier detail omitted from summary input ...]\n{kept}")
+}
+
+/// Render one digest line for an entry that carries summarizable content.
+fn entry_digest_line(entry: &TapeEntry) -> Option<String> {
+    match entry.kind {
+        TapeEntryKind::Message => {
+            let role = entry
+                .payload
+                .get("role")
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            let content = content_to_text(entry.payload.get("content"));
+            (!content.trim().is_empty()).then(|| format!("{role}: {content}"))
+        }
+        TapeEntryKind::ToolCall => {
+            let names: Vec<&str> = entry
+                .payload
+                .get("calls")
+                .and_then(|c| c.as_array())
+                .map(|calls| {
+                    calls
+                        .iter()
+                        .filter_map(|c| {
+                            c.get("function")
+                                .and_then(|f| f.get("name"))
+                                .and_then(|n| n.as_str())
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            (!names.is_empty()).then(|| format!("assistant called tools: {}", names.join(", ")))
+        }
+        TapeEntryKind::ToolResult => {
+            let preview = content_to_text(entry.payload.get("results"));
+            let preview: String = preview.chars().take(500).collect();
+            (!preview.trim().is_empty()).then(|| format!("tool result: {preview}"))
+        }
+        _ => None,
+    }
+}
+
+/// Build a text digest of the work recorded since the last anchor, capped to the
+/// most recent [`COMPACTION_INPUT_CHAR_CAP`] chars.
+fn digest_since_last_anchor(entries: &[TapeEntry]) -> String {
+    let start = entries
+        .iter()
+        .rposition(|e| e.kind == TapeEntryKind::Anchor)
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let mut out = String::new();
+    for entry in &entries[start..] {
+        if let Some(line) = entry_digest_line(entry) {
+            out.push_str(&line);
+            out.push('\n');
+        }
+    }
+    tail_chars(&out, COMPACTION_INPUT_CHAR_CAP)
+}
+
+/// Summarize the work since the last anchor via a single model call. Returns
+/// `None` on any failure (empty span, read error, model error) so the caller
+/// falls back to the prefix summary.
+async fn summarize_since_anchor(
+    llm: &mut LLM,
+    tapes: &TapeService,
+    tape_name: &str,
+) -> Option<String> {
+    let entries = tapes
+        .store()
+        .fetch_all(&TapeQuery::new(tape_name))
+        .await
+        .ok()?;
+    let digest = digest_since_last_anchor(&entries);
+    if digest.trim().is_empty() {
+        return None;
+    }
+    let summary = llm
+        .chat_async(ChatRequest {
+            system_prompt: Some(COMPACTION_SYSTEM_PROMPT),
+            prompt: Some(&digest),
+            max_tokens: Some(COMPACTION_MAX_TOKENS),
+            ..Default::default()
+        })
+        .await
+        .ok()?;
+    let trimmed = summary.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+/// When compaction is enabled and a handoff will fire this turn, produce a real
+/// LLM summary of the since-anchor span. `None` ⇒ caller uses the prefix summary.
+async fn maybe_make_compaction_summary(
+    llm: &mut LLM,
+    tapes: &TapeService,
+    tape_name: &str,
+    result: &Result<ToolAutoResult, ConduitError>,
+    settings: &AgentSettings,
+) -> Option<String> {
+    if !compaction_enabled() {
+        return None;
+    }
+    let output = match result {
+        Ok(o) if o.kind == ToolAutoResultKind::Text => o,
+        _ => return None,
+    };
+    // Only spend a summarization call when a handoff is actually going to fire.
+    should_handoff(output, settings)?;
+    summarize_since_anchor(llm, tapes, tape_name).await
+}
+
 async fn place_handoff_anchor(
     tapes: &TapeService,
     tape_name: &str,
-    response_text: &str,
+    summary: &str,
     input_tokens: usize,
     settings: &AgentSettings,
 ) {
@@ -449,9 +619,8 @@ async fn place_handoff_anchor(
         .flatten()
         .unwrap_or_default();
 
-    let summary: String = response_text.chars().take(500).collect();
-    write_handoff_anchor(tapes, tape_name, &summary, input_tokens, settings).await;
-    write_handoff_summary(tapes, tape_name, &summary).await;
+    write_handoff_anchor(tapes, tape_name, summary, input_tokens, settings).await;
+    write_handoff_summary(tapes, tape_name, summary).await;
     write_handoff_grace(tapes, tape_name, &prev_anchor_name).await;
 
     tracing::info!(
@@ -589,8 +758,22 @@ pub(super) async fn agent_loop(
     )
     .await;
 
+    // Generate the LLM compaction summary here, where `llm` is in scope, before
+    // the result is moved into process_agent_result. No-op unless compaction is
+    // enabled and a handoff will fire this turn.
+    let compaction_summary =
+        maybe_make_compaction_summary(&mut llm, tapes, tape_name, &result, settings).await;
+
     let elapsed_ms = start.elapsed().as_millis() as i64;
-    process_agent_result(tapes, tape_name, result, elapsed_ms, settings).await
+    process_agent_result(
+        tapes,
+        tape_name,
+        result,
+        elapsed_ms,
+        settings,
+        compaction_summary,
+    )
+    .await
 }
 
 async fn process_agent_result(
@@ -599,6 +782,7 @@ async fn process_agent_result(
     result: Result<ToolAutoResult, ConduitError>,
     elapsed_ms: i64,
     settings: &AgentSettings,
+    compaction_summary: Option<String>,
 ) -> Result<String, ConduitError> {
     match result {
         Err(e) => {
@@ -625,7 +809,15 @@ async fn process_agent_result(
             );
             extract_outbound_media(&output.tool_results);
             record_run_event(elapsed_ms, "ok", None, &output.usage);
-            maybe_auto_handoff(tapes, tape_name, output, &text, settings).await;
+            maybe_auto_handoff(
+                tapes,
+                tape_name,
+                output,
+                &text,
+                settings,
+                compaction_summary,
+            )
+            .await;
             Ok(text)
         }
         Ok(ref output) => {
@@ -658,6 +850,60 @@ mod tests {
 
     const OVERFLOW_SUMMARY: &str = "[auto-handoff triggered by context overflow or timeout]";
     const SUMMARY_PREFIX: &str = "[Context summary from auto-handoff]\n";
+
+    // -- compaction digest helpers (pure) -------------------------------------
+
+    #[test]
+    fn content_to_text_handles_string_array_and_none() {
+        assert_eq!(content_to_text(Some(&serde_json::json!("hi"))), "hi");
+        let blocks = serde_json::json!([{"type":"text","text":"a"},{"type":"text","text":"b"}]);
+        assert_eq!(content_to_text(Some(&blocks)), "a b");
+        assert_eq!(content_to_text(None), "");
+    }
+
+    #[test]
+    fn tail_chars_keeps_recent_and_marks_truncation() {
+        assert_eq!(tail_chars("short", 100), "short");
+        let big = "z".repeat(200);
+        let tail = tail_chars(&big, 50);
+        assert!(tail.contains("earlier detail omitted"));
+        assert!(tail.ends_with(&"z".repeat(50)));
+    }
+
+    #[test]
+    fn entry_digest_line_renders_messages_skips_anchors() {
+        let msg = TapeEntry::message(
+            serde_json::json!({"role": "user", "content": "hello"}),
+            serde_json::json!({}),
+        );
+        assert_eq!(entry_digest_line(&msg).as_deref(), Some("user: hello"));
+        let anchor = TapeEntry::anchor("a", None, serde_json::json!({}));
+        assert!(entry_digest_line(&anchor).is_none());
+    }
+
+    #[test]
+    fn digest_covers_only_work_since_last_anchor() {
+        let entries = vec![
+            TapeEntry::message(
+                serde_json::json!({"role": "user", "content": "BEFORE the anchor"}),
+                serde_json::json!({}),
+            ),
+            TapeEntry::anchor("a1", None, serde_json::json!({})),
+            TapeEntry::message(
+                serde_json::json!({"role": "user", "content": "AFTER one"}),
+                serde_json::json!({}),
+            ),
+            TapeEntry::message(
+                serde_json::json!({"role": "assistant", "content": "AFTER two"}),
+                serde_json::json!({}),
+            ),
+        ];
+        let digest = digest_since_last_anchor(&entries);
+        assert!(!digest.contains("BEFORE the anchor"));
+        assert!(digest.contains("AFTER one"));
+        assert!(digest.contains("AFTER two"));
+        assert!(digest.contains("user:") && digest.contains("assistant:"));
+    }
 
     fn make_tape_service() -> (tempfile::TempDir, TapeService) {
         let tmp = tempfile::tempdir().unwrap();
@@ -723,7 +969,7 @@ mod tests {
     {
         let tape_context = resolve_tape_context_override(tapes, tape_name).await;
         let result = injected(tape_context.as_ref());
-        let text = process_agent_result(tapes, tape_name, result, 1, settings).await;
+        let text = process_agent_result(tapes, tape_name, result, 1, settings, None).await;
         (tape_context, text)
     }
 
@@ -987,7 +1233,7 @@ mod tests {
             });
 
             let settings = AgentSettings::from_env();
-            let text = process_agent_result(&tapes, tape_name, result, 100, &settings)
+            let text = process_agent_result(&tapes, tape_name, result, 100, &settings, None)
                 .await
                 .unwrap();
             assert_eq!(text, "hello");
@@ -1188,7 +1434,7 @@ mod tests {
             });
 
             let settings = AgentSettings::from_env();
-            let text = process_agent_result(&tapes, tape_name, result, 100, &settings)
+            let text = process_agent_result(&tapes, tape_name, result, 100, &settings, None)
                 .await
                 .unwrap();
             assert_eq!(text, "Generated an image");
