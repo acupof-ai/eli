@@ -681,10 +681,24 @@ fn record_run_event(
     status: &str,
     error: Option<&str>,
     usage: &[nexil::UsageEvent],
+    tool_calls: usize,
 ) {
     let total_input: u64 = usage.iter().map(|u| u.input_tokens).sum();
     let total_output: u64 = usage.iter().map(|u| u.output_tokens).sum();
     let total_tokens = total_input + total_output;
+    let cache_read: u64 = usage.iter().map(|u| u.cache_read_input_tokens).sum();
+    let cache_write: u64 = usage.iter().map(|u| u.cache_creation_input_tokens).sum();
+    // Fraction of prompt tokens served from cache — the prompt-caching win (#2)
+    // made observable per turn. Denominator includes cache reads since the
+    // provider reports them separately from `input_tokens`.
+    let cache_hit_ratio = {
+        let prompt = total_input + cache_read + cache_write;
+        if prompt == 0 {
+            0.0
+        } else {
+            cache_read as f64 / prompt as f64
+        }
+    };
 
     crate::control_plane::record_turn_usage(total_input, total_output);
 
@@ -697,11 +711,29 @@ fn record_run_event(
             "output_tokens": total_output,
             "total_tokens": total_tokens,
             "rounds": usage.len(),
+            "cache_read_tokens": cache_read,
+            "cache_write_tokens": cache_write,
+            "cache_hit_ratio": cache_hit_ratio,
         },
+        "tool_calls": tool_calls,
     });
     if let Some(err) = error {
         event["error"] = Value::String(err.to_owned());
     }
+    // Structured per-turn summary: also emit to tracing so cache savings and
+    // tool activity are visible in logs without reading the tape.
+    tracing::info!(
+        status,
+        elapsed_ms,
+        input_tokens = total_input,
+        output_tokens = total_output,
+        cache_read_tokens = cache_read,
+        cache_write_tokens = cache_write,
+        cache_hit_ratio = format!("{:.2}", cache_hit_ratio),
+        tool_calls,
+        rounds = usage.len(),
+        "agent.run summary"
+    );
     crate::control_plane::push_save_event("agent.run", event);
 }
 
@@ -792,7 +824,7 @@ async fn process_agent_result(
                 error = %e.message,
                 "agent.run finished with error"
             );
-            record_run_event(elapsed_ms, "error", Some(&e.message), &[]);
+            record_run_event(elapsed_ms, "error", Some(&e.message), &[], 0);
             // Bug 2: context overflow and SSE timeouts never reach the success
             // branch, so check them here and trigger handoff if needed.
             maybe_auto_handoff_on_error(tapes, tape_name, &e, settings).await;
@@ -808,7 +840,13 @@ async fn process_agent_result(
                 "agent.run finished ok"
             );
             extract_outbound_media(&output.tool_results);
-            record_run_event(elapsed_ms, "ok", None, &output.usage);
+            record_run_event(
+                elapsed_ms,
+                "ok",
+                None,
+                &output.usage,
+                output.tool_calls.len(),
+            );
             maybe_auto_handoff(
                 tapes,
                 tape_name,
@@ -833,7 +871,13 @@ async fn process_agent_result(
                 kind = ?output.kind,
                 "agent.run finished with non-text result"
             );
-            record_run_event(elapsed_ms, "error", Some(&error_msg), &output.usage);
+            record_run_event(
+                elapsed_ms,
+                "error",
+                Some(&error_msg),
+                &output.usage,
+                output.tool_calls.len(),
+            );
             Err(ConduitError::new(ErrorKind::Unknown, error_msg))
         }
     }
@@ -1164,7 +1208,7 @@ mod tests {
     #[tokio::test]
     async fn test_record_run_event_pushes_save_event() {
         with_turn_context(test_turn_context(), async {
-            record_run_event(500, "ok", None, &make_usage(1000, 200));
+            record_run_event(500, "ok", None, &make_usage(1000, 200), 0);
 
             let events = drain_save_events();
             assert_eq!(events.len(), 1);
@@ -1203,7 +1247,7 @@ mod tests {
                     timestamp: "2026-01-01T00:00:01Z".into(),
                 },
             ];
-            record_run_event(1000, "ok", None, &usage);
+            record_run_event(1000, "ok", None, &usage, 0);
 
             let events = drain_save_events();
             assert_eq!(events.len(), 1);
@@ -1212,6 +1256,34 @@ mod tests {
             assert_eq!(data["usage"]["output_tokens"], 250);
             assert_eq!(data["usage"]["total_tokens"], 1550);
             assert_eq!(data["usage"]["rounds"], 2);
+        })
+        .await;
+    }
+
+    #[tokio::test]
+    async fn test_record_run_event_surfaces_cache_and_tool_metrics() {
+        with_turn_context(test_turn_context(), async {
+            let usage = vec![UsageEvent {
+                model: "m".into(),
+                input_tokens: 200,
+                output_tokens: 50,
+                cache_creation_input_tokens: 100,
+                cache_read_input_tokens: 700,
+                attempt: 0,
+                success: true,
+                timestamp: "2026-01-01T00:00:00Z".into(),
+            }];
+            record_run_event(42, "ok", None, &usage, 3);
+
+            let events = drain_save_events();
+            let data = &events[0].1;
+            assert_eq!(data["usage"]["cache_read_tokens"], 700);
+            assert_eq!(data["usage"]["cache_write_tokens"], 100);
+            assert_eq!(data["tool_calls"], 3);
+            // hit ratio = cache_read / (input + cache_read + cache_write)
+            //           = 700 / (200 + 700 + 100) = 0.7
+            let ratio = data["usage"]["cache_hit_ratio"].as_f64().unwrap();
+            assert!((ratio - 0.7).abs() < 1e-9, "ratio was {ratio}");
         })
         .await;
     }
