@@ -58,6 +58,38 @@ All preserve the infinite-context invariant (view-layer / additive only).
 
 Commits: 96ed787 (#7), b0d01f2 (#6), f5d42f6 (#8). Scoping calls: #7 spill-reuse not enum-bloat; #8 recitation-only (memory.* redundant with Decisions).
 
+### Tier 3 — partial (2026-06-04)
+
+| # | Change | Before → After | Tests |
+|---|--------|----------------|-------|
+| 11 | observability | per-turn event had no cache tokens/tool count → cache read/write tokens, hit ratio, tool_calls on the tape event + `agent.run summary` log | 1 unit |
+| 10 | tool annotations / plan mode | all tools equal, no plan mode → `Tool.read_only` MCP hint + auditable `READ_ONLY_TOOLS` list + `ELI_PLAN_MODE=1` keeps only read-only tools (+ tail note) | 3 unit |
+| 9 | verify loop | once/turn, recovery nudge cap 1 → opt-in `ELI_VERIFY_CMD` runs after tool-using turns, feeds failure back for bounded self-correction (`ELI_VERIFY_MAX_RETRIES`) | 2 unit |
+
+Commits: 0e7579b (#11), 8dad470 (#10), b83ee7e (#9). All default-off ⇒ no regression.
+
+### Tier 3 — DEFERRED with rationale (ckl decision, 2026-06-04)
+
+- **#12 Deferred/retrieval tool loading — DEFERRED.** The real token win needs the
+  *active schema set to grow mid-loop* as the model calls a `tools.search` meta-tool,
+  but nexil's `run_tools` fixes the schema set at loop start; supporting dynamic
+  growth is a high-risk tool-loop rewrite. At eli's current 40 tools the flat list is
+  still healthy (research: degradation bites past ~100), so the architectural risk
+  isn't justified yet. Revisit if the tool count approaches ~100. A discovery-only
+  `tools.search` was rejected as low-value while all tools are already loaded.
+- **#13 Spill GC / lifecycle — DROPPED (design conflict).** Spill files ARE the
+  recoverable durable store in the infinite-context design ([[project_eli_infinite_context]]);
+  in an append-only tape every spill stays referenced, so there is nothing safe to
+  delete. The only non-conflicting option (gzip cold spills) is low-value and would
+  complicate the `fs.read` recovery path. Not worth it.
+
+## Outcome
+
+11/13 implemented (Tier-1 + Tier-2 + 3/5 of Tier-3), all eval-driven with before/after
+tests, all pushed to main, all preserving the infinite-context invariant, all the
+opt-in features default-off (zero regression). #12 deferred, #13 dropped — both with
+rationale above, per the "concise/elegant, don't over-engineer" bar.
+
 ## Roadmap (best-first, by impact / (effort+risk))
 
 ### Tier 1 — cheap, high-ROI, low-risk, reversible
