@@ -204,15 +204,51 @@ impl LLMCore {
         0..self.max_attempts()
     }
 
-    /// Exponential backoff delay for retry attempt `n` (0-indexed).
-    /// attempt 0 = no delay, attempt 1 = 1s, attempt 2 = 2s, attempt 3 = 4s, capped at 8s.
+    /// Hard cap on the exponential backoff ceiling, in seconds.
+    const BACKOFF_CAP_SECS: u64 = 8;
+
+    /// Exponential backoff ceiling for retry `attempt` (0-indexed): 0s, 1s, 2s,
+    /// 4s, then capped at [`BACKOFF_CAP_SECS`]. Overflow-safe (no large shifts).
+    fn backoff_ceiling_secs(attempt: u32) -> u64 {
+        match attempt {
+            0 => 0,
+            // 1 << 3 == 8 already reaches the cap, so anything ≥4 saturates.
+            n if n >= 4 => Self::BACKOFF_CAP_SECS,
+            n => 1u64 << (n - 1),
+        }
+    }
+
+    /// Full-jitter backoff (AWS "Exponential Backoff And Jitter"): a `jitter`
+    /// fraction in `[0, 1]` of the exponential ceiling. Pure and deterministic
+    /// for testing. Concurrent retriers (e.g. many sessions hitting one 429)
+    /// sample independent fractions and so spread out instead of retrying in
+    /// lockstep, which avoids self-inflicted thundering-herd retry storms.
+    fn backoff_duration(attempt: u32, jitter: f64) -> Duration {
+        let ceiling = Self::backoff_ceiling_secs(attempt);
+        if ceiling == 0 {
+            return Duration::ZERO;
+        }
+        Duration::from_secs_f64(ceiling as f64 * jitter.clamp(0.0, 1.0))
+    }
+
+    /// Sample a full-jitter backoff duration using the thread RNG (live path).
+    fn sample_backoff(attempt: u32) -> Duration {
+        use rand::Rng;
+        Self::backoff_duration(attempt, rand::thread_rng().gen_range(0.0..1.0))
+    }
+
+    /// Sleep for a full-jitter exponential backoff before retry `attempt`.
     async fn backoff_delay(attempt: u32) {
         if attempt == 0 {
             return;
         }
-        let secs = (1u64 << (attempt - 1)).min(8);
-        warn!(attempt, delay_secs = secs, "retrying after backoff");
-        tokio::time::sleep(Duration::from_secs(secs)).await;
+        let delay = Self::sample_backoff(attempt);
+        warn!(
+            attempt,
+            delay_ms = delay.as_millis() as u64,
+            "retrying after backoff (full jitter)"
+        );
+        tokio::time::sleep(delay).await;
     }
 
     /// Delegate to the custom error classifier, if set.
@@ -876,6 +912,57 @@ mod tests {
             Some(ErrorKind::Provider)
         );
         assert_eq!(LLMCore::classify_http_status(200), None);
+    }
+
+    // -- backoff (full jitter) ------------------------------------------------
+
+    #[test]
+    fn backoff_ceiling_is_capped_exponential() {
+        assert_eq!(LLMCore::backoff_ceiling_secs(0), 0);
+        assert_eq!(LLMCore::backoff_ceiling_secs(1), 1);
+        assert_eq!(LLMCore::backoff_ceiling_secs(2), 2);
+        assert_eq!(LLMCore::backoff_ceiling_secs(3), 4);
+        assert_eq!(LLMCore::backoff_ceiling_secs(4), 8);
+        // Large attempts saturate at the cap without shift overflow.
+        assert_eq!(LLMCore::backoff_ceiling_secs(40), 8);
+    }
+
+    #[test]
+    fn backoff_duration_scales_with_jitter_fraction() {
+        // attempt 3 → 4s ceiling. Full jitter scales linearly in [0, ceiling],
+        // replacing the old fixed lockstep 4s that made concurrent retriers
+        // collide.
+        let ceiling = Duration::from_secs(4);
+        assert_eq!(LLMCore::backoff_duration(3, 0.0), Duration::ZERO);
+        assert_eq!(LLMCore::backoff_duration(3, 0.5), Duration::from_secs(2));
+        assert_eq!(LLMCore::backoff_duration(3, 1.0), ceiling);
+        // Out-of-range fractions are clamped; never exceeds the ceiling.
+        assert_eq!(LLMCore::backoff_duration(3, 2.0), ceiling);
+        assert_eq!(LLMCore::backoff_duration(3, -1.0), Duration::ZERO);
+        assert!(LLMCore::backoff_duration(3, 0.99) < ceiling);
+    }
+
+    #[test]
+    fn backoff_attempt_zero_has_no_delay() {
+        assert_eq!(LLMCore::backoff_duration(0, 1.0), Duration::ZERO);
+    }
+
+    #[test]
+    fn sampled_backoff_decorrelates_concurrent_retriers() {
+        // The point of jitter: the live RNG path yields a spread within the
+        // ceiling, not a single lockstep value (the pre-jitter behavior).
+        let ceiling = Duration::from_secs(4);
+        let mut distinct = std::collections::HashSet::new();
+        for _ in 0..256 {
+            let d = LLMCore::sample_backoff(3);
+            assert!(d <= ceiling, "sampled delay {d:?} exceeded ceiling");
+            distinct.insert(d.as_millis());
+        }
+        assert!(
+            distinct.len() > 16,
+            "full jitter should spread delays; got {} distinct values",
+            distinct.len()
+        );
     }
 
     #[test]
