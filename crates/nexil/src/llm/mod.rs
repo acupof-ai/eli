@@ -84,6 +84,11 @@ pub struct ChatRequest<'a> {
     /// adapter maps it to `metadata.user_id`; OpenAI keeps it local because the
     /// public API rejects a top-level `session_id`.
     pub session_id: Option<&'a str>,
+    /// Optional per-turn token budget (input + output, summed across every
+    /// tool-loop round). When set, the loop stops cleanly once accumulated usage
+    /// reaches the budget — a cost circuit breaker against runaway tool loops.
+    /// `None` (default) means unlimited, preserving prior behavior.
+    pub token_budget: Option<u64>,
 }
 
 // ---------------------------------------------------------------------------

@@ -182,6 +182,7 @@ mod tests {
             model_timeout_seconds: None,
             verbose: 0,
             context_window: 128_000,
+            max_turn_tokens: None,
         }
     }
 

@@ -329,6 +329,7 @@ fn evaluation_settings(home: &std::path::Path) -> AgentSettings {
         model_timeout_seconds: None,
         verbose: 0,
         context_window: DEFAULT_CONTEXT_WINDOW,
+        max_turn_tokens: None,
     }
 }
 

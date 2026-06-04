@@ -323,6 +323,7 @@ pub(super) async fn run_tools_once(
             cancellation,
             context_window: Some(settings.context_window),
             session_id: Some(session_id),
+            token_budget: settings.max_turn_tokens,
             ..Default::default()
         })
         .await?;
@@ -352,6 +353,7 @@ mod tests {
             model_timeout_seconds: None,
             verbose: 0,
             context_window: 128_000,
+            max_turn_tokens: None,
         }
     }
 

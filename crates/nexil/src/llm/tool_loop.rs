@@ -53,6 +53,41 @@ pub(super) enum ToolRoundOutcome {
 }
 
 // ---------------------------------------------------------------------------
+// run_tools helpers (shared across the loop's exit points)
+// ---------------------------------------------------------------------------
+
+/// Build a terminal text [`ToolAutoResult`], carrying the tool calls/results
+/// and usage accumulated so far. Shared by normal text completion and every
+/// early clean stop (cancellation, context-window limit, budget exhaustion) so
+/// the loop has exactly one way to finish with text.
+fn text_result(
+    text: impl Into<String>,
+    tool_calls: Vec<Value>,
+    tool_results: Vec<Value>,
+    usage: Vec<UsageEvent>,
+) -> ToolAutoResult {
+    ToolAutoResult {
+        kind: ToolAutoResultKind::Text,
+        text: Some(text.into()),
+        tool_calls,
+        tool_results,
+        error: None,
+        usage,
+    }
+}
+
+/// Total input+output tokens recorded across all usage events this turn.
+fn tokens_spent(usage: &[UsageEvent]) -> u64 {
+    usage.iter().map(UsageEvent::total_tokens).sum()
+}
+
+/// Whether this turn's accumulated usage has reached the optional token
+/// `budget`. A `None` budget is unlimited and never trips (the sum is skipped).
+fn turn_budget_exhausted(usage: &[UsageEvent], budget: Option<u64>) -> bool {
+    budget.is_some_and(|limit| tokens_spent(usage) >= limit)
+}
+
+// ---------------------------------------------------------------------------
 // impl LLM — tool calling
 // ---------------------------------------------------------------------------
 
@@ -126,6 +161,7 @@ impl LLM {
             context_window,
             max_tool_iterations,
             session_id,
+            token_budget,
         } = req;
         let tools = tools.ok_or_else(|| {
             ConduitError::new(ErrorKind::InvalidInput, "run_tools requires tools")
@@ -174,20 +210,41 @@ impl LLM {
 
             if cancellation.as_ref().is_some_and(|t| t.is_cancelled()) {
                 tracing::info!(iteration, "run_tools cancelled");
-                return Ok(ToolAutoResult {
-                    kind: ToolAutoResultKind::Text,
-                    text: Some("[Cancelled]".to_owned()),
-                    tool_calls: all_tool_calls,
-                    tool_results: all_tool_results,
-                    error: None,
-                    usage: usage_events,
-                });
+                return Ok(text_result(
+                    "[Cancelled]",
+                    all_tool_calls,
+                    all_tool_results,
+                    usage_events,
+                ));
             }
 
             if iteration > max_iterations {
                 return Err(ConduitError::new(
                     ErrorKind::Unknown,
                     format!("run_tools exceeded max iterations ({})", max_iterations),
+                ));
+            }
+
+            // Cost circuit breaker: stop before the next model call once this
+            // turn's accumulated token usage reaches the budget. The first round
+            // always runs (no prior usage); later rounds are gated by the cost of
+            // earlier ones, bounding a runaway loop's spend.
+            if turn_budget_exhausted(&usage_events, token_budget) {
+                let spent = tokens_spent(&usage_events);
+                tracing::warn!(
+                    iteration,
+                    spent,
+                    budget = ?token_budget,
+                    "tool loop stopped: per-turn token budget reached"
+                );
+                return Ok(text_result(
+                    format!(
+                        "Tool loop stopped: per-turn token budget reached \
+                         ({spent} tokens used). Please continue in a new turn or session."
+                    ),
+                    all_tool_calls,
+                    all_tool_results,
+                    usage_events,
                 ));
             }
 
@@ -248,14 +305,12 @@ impl LLM {
                             .await?;
                     }
 
-                    return Ok(ToolAutoResult {
-                        kind: ToolAutoResultKind::Text,
-                        text: Some(content),
-                        tool_calls: all_tool_calls,
-                        tool_results: all_tool_results,
-                        error: None,
-                        usage: usage_events,
-                    });
+                    return Ok(text_result(
+                        content,
+                        all_tool_calls,
+                        all_tool_results,
+                        usage_events,
+                    ));
                 }
                 ToolRoundOutcome::Tools {
                     response,
@@ -287,18 +342,13 @@ impl LLM {
                                 context_window = cw,
                                 "tool loop stopped: approaching context window limit"
                             );
-                            return Ok(ToolAutoResult {
-                                kind: ToolAutoResultKind::Text,
-                                text: Some(
-                                    "Tool loop stopped: approaching context window limit. \
-                                     Please continue in a new turn or session."
-                                        .to_owned(),
-                                ),
-                                tool_calls: all_tool_calls,
-                                tool_results: all_tool_results,
-                                error: None,
-                                usage: usage_events,
-                            });
+                            return Ok(text_result(
+                                "Tool loop stopped: approaching context window limit. \
+                                 Please continue in a new turn or session.",
+                                all_tool_calls,
+                                all_tool_results,
+                                usage_events,
+                            ));
                         }
                     }
                 }
@@ -616,5 +666,66 @@ impl LLM {
             }
             None => call.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn usage(input: u64, output: u64) -> UsageEvent {
+        UsageEvent {
+            model: "test".to_owned(),
+            input_tokens: input,
+            output_tokens: output,
+            attempt: 0,
+            success: true,
+            timestamp: String::new(),
+        }
+    }
+
+    #[test]
+    fn tokens_spent_sums_input_and_output() {
+        assert_eq!(tokens_spent(&[]), 0);
+        assert_eq!(tokens_spent(&[usage(10, 5), usage(3, 2)]), 20);
+    }
+
+    #[test]
+    fn unlimited_budget_never_trips() {
+        // None budget is the default; behavior must match the pre-circuit-breaker
+        // loop exactly, even at absurd usage.
+        assert!(!turn_budget_exhausted(&[usage(1_000_000, 1_000_000)], None));
+    }
+
+    #[test]
+    fn first_round_always_runs_under_budget() {
+        // No usage recorded yet ⇒ never exhausted, so the first model call is
+        // never blocked regardless of how small the budget is.
+        assert!(!turn_budget_exhausted(&[], Some(1)));
+    }
+
+    #[test]
+    fn budget_trips_at_or_above_limit() {
+        let events = [usage(10, 5)]; // 15 tokens spent
+        assert!(!turn_budget_exhausted(&events, Some(16)));
+        assert!(turn_budget_exhausted(&events, Some(15))); // reached
+        assert!(turn_budget_exhausted(&events, Some(10))); // exceeded
+    }
+
+    #[test]
+    fn text_result_carries_accumulated_work() {
+        let r = text_result(
+            "done",
+            vec![json!({"call": 1})],
+            vec![json!({"res": 1})],
+            vec![usage(2, 3)],
+        );
+        assert_eq!(r.kind, ToolAutoResultKind::Text);
+        assert_eq!(r.text.as_deref(), Some("done"));
+        assert_eq!(r.tool_calls.len(), 1);
+        assert_eq!(r.tool_results.len(), 1);
+        assert_eq!(r.usage.len(), 1);
+        assert!(r.error.is_none());
     }
 }

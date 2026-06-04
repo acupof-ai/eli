@@ -72,6 +72,7 @@ fn parse_fallback_models() -> Option<Vec<String>> {
 /// | `ELI_MAX_TOKENS`               | Max output tokens (auto-detected from model)   |
 /// | `ELI_MODEL_TIMEOUT_SECONDS`    | HTTP timeout for model calls                   |
 /// | `ELI_CONTEXT_WINDOW`           | Context window override (auto-detected)        |
+/// | `ELI_MAX_TURN_BUDGET`          | Per-turn token budget; loop stops when reached |
 /// | `ELI_VERBOSE`                  | Verbosity level (0–2)                          |
 /// | `ELI_TELEGRAM_TOKEN`           | Telegram bot token (gateway mode)              |
 pub struct EnvConfig;
@@ -245,6 +246,10 @@ pub struct AgentSettings {
     /// Context window size in tokens. Auto-detected from model name if not set
     /// via `ELI_CONTEXT_WINDOW`.
     pub context_window: usize,
+    /// Optional per-turn token budget (input + output across all tool-loop
+    /// rounds). Set via `ELI_MAX_TURN_BUDGET`; `None` (default) means unlimited.
+    /// Acts as a cost circuit breaker against runaway tool loops.
+    pub max_turn_tokens: Option<u64>,
 }
 
 impl AgentSettings {
@@ -316,6 +321,7 @@ impl AgentSettings {
             model_timeout_seconds: env_parse("ELI_MODEL_TIMEOUT_SECONDS"),
             verbose: env_parse::<u8>("ELI_VERBOSE").unwrap_or(0).min(2),
             context_window,
+            max_turn_tokens: env_parse("ELI_MAX_TURN_BUDGET"),
             api_key,
             api_base,
             model,
@@ -472,6 +478,7 @@ mod tests {
             model_timeout_seconds: Some(30),
             verbose: 1,
             context_window: 128_000,
+            max_turn_tokens: None,
         };
         let cloned = settings.clone();
         assert_eq!(cloned.model, "test-model");
