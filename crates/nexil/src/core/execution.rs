@@ -422,6 +422,9 @@ impl LLMCore {
             kwargs: kwargs.clone(),
             is_anthropic_oauth: runtime.is_anthropic_oauth(),
             session_id: session_id.map(|s| s.to_owned()),
+            // Prompt caching is a safe default: only the Anthropic adapter acts
+            // on it, and below the cacheable threshold it is silently ignored.
+            prompt_cache: true,
         }
     }
 
@@ -1120,6 +1123,7 @@ mod tests {
             kwargs: serde_json::Map::new(),
             is_anthropic_oauth: false,
             session_id: None,
+            prompt_cache: false,
         };
 
         let body = LLMCore::build_messages_body(&request).unwrap();

@@ -179,6 +179,11 @@ pub struct TransportCallRequest {
     /// local because the public API rejects a top-level `session_id`; Anthropic
     /// maps it to `metadata.user_id`.
     pub session_id: Option<String>,
+    /// Request prompt caching (Anthropic `cache_control`). When true, the
+    /// Anthropic adapter marks the stable prefix (system + tool schemas) as
+    /// ephemerally cacheable so repeat turns re-read it at ~0.1x cost instead of
+    /// re-paying full input. Ignored by providers that don't support caching.
+    pub prompt_cache: bool,
 }
 
 impl LLMCore {

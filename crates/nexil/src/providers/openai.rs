@@ -170,6 +170,7 @@ mod tests {
             kwargs: serde_json::Map::new(),
             is_anthropic_oauth: false,
             session_id,
+            prompt_cache: false,
         }
     }
 

@@ -165,8 +165,18 @@ impl MessagesAccumulator {
             "content_block_start" => self.handle_block_start(event),
             "content_block_delta" => self.handle_block_delta(event),
             "content_block_stop" => self.handle_block_stop(),
+            // message_start carries input + cache-read/write tokens; message_delta
+            // carries the final output_tokens. Merge both so the assembled usage
+            // is complete (a replace would drop input/cache counts).
+            "message_start" => {
+                if let Some(usage) = event.pointer("/message/usage") {
+                    self.merge_usage(usage);
+                }
+            }
             "message_delta" => {
-                self.usage = event.get("usage").cloned();
+                if let Some(usage) = event.get("usage") {
+                    self.merge_usage(usage);
+                }
             }
             "error" => {
                 let msg = event
@@ -182,6 +192,23 @@ impl MessagesAccumulator {
                 self.error = Some(format!("{kind}: {msg}"));
             }
             _ => {}
+        }
+    }
+
+    /// Merge an incoming `usage` object into the accumulated one, with incoming
+    /// keys taking precedence (so message_delta's final output_tokens overwrites
+    /// message_start's initial value while input/cache counts are preserved).
+    fn merge_usage(&mut self, incoming: &Value) {
+        let Some(incoming) = incoming.as_object() else {
+            return;
+        };
+        let target = self
+            .usage
+            .get_or_insert_with(|| Value::Object(serde_json::Map::new()));
+        if let Value::Object(map) = target {
+            for (key, value) in incoming {
+                map.insert(key.clone(), value.clone());
+            }
         }
     }
 
@@ -361,5 +388,22 @@ data: [DONE]\n";
         assert_eq!(tool_calls[0]["function"]["arguments"], "{\"a\": 1}");
         assert_eq!(tool_calls[1]["function"]["name"], "bar");
         assert_eq!(tool_calls[1]["function"]["arguments"], "{\"b\": 2}");
+    }
+
+    #[test]
+    fn messages_stream_merges_message_start_and_delta_usage() {
+        // message_start carries input + cache-read/write tokens; message_delta
+        // carries the final output_tokens. The assembled usage must keep both —
+        // a plain replace (the old behavior) would have dropped input/cache.
+        let sse = "\
+data: {\"type\":\"message_start\",\"message\":{\"usage\":{\"input_tokens\":100,\"cache_creation_input_tokens\":20,\"cache_read_input_tokens\":80,\"output_tokens\":1}}}\n\
+data: {\"type\":\"message_delta\",\"delta\":{},\"usage\":{\"output_tokens\":42}}\n";
+
+        let result = parse_sse_buffer(sse, TransportKind::Messages).unwrap();
+        let usage = &result["usage"];
+        assert_eq!(usage["input_tokens"], 100);
+        assert_eq!(usage["cache_creation_input_tokens"], 20);
+        assert_eq!(usage["cache_read_input_tokens"], 80);
+        assert_eq!(usage["output_tokens"], 42, "delta output_tokens should win");
     }
 }

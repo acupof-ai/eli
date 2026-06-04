@@ -254,6 +254,16 @@ pub struct UsageEvent {
     pub model: String,
     pub input_tokens: u64,
     pub output_tokens: u64,
+    /// Prompt-cache *write* tokens (Anthropic `cache_creation_input_tokens`):
+    /// fresh tokens billed at ~1.25x while the cache entry is created. 0 when
+    /// caching is off or unsupported.
+    #[serde(default)]
+    pub cache_creation_input_tokens: u64,
+    /// Prompt-cache *read* tokens (Anthropic `cache_read_input_tokens`): tokens
+    /// served from cache at ~0.1x cost. This is the prompt-caching win — high
+    /// read counts on repeat turns mean the stable prefix is being reused.
+    #[serde(default)]
+    pub cache_read_input_tokens: u64,
     pub attempt: u32,
     pub success: bool,
     pub timestamp: String,
@@ -263,23 +273,22 @@ impl UsageEvent {
     /// Extract a `UsageEvent` from a raw API response's `"usage"` field.
     pub fn from_raw(raw: &Value, model: &str, attempt: u32, success: bool) -> Option<Self> {
         let usage = raw.as_object()?;
+        let field = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
         Some(Self {
             model: model.to_owned(),
-            input_tokens: usage
-                .get("input_tokens")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0),
-            output_tokens: usage
-                .get("output_tokens")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0),
+            input_tokens: field("input_tokens"),
+            output_tokens: field("output_tokens"),
+            cache_creation_input_tokens: field("cache_creation_input_tokens"),
+            cache_read_input_tokens: field("cache_read_input_tokens"),
             attempt,
             success,
             timestamp: chrono::Utc::now().to_rfc3339(),
         })
     }
 
-    /// Total tokens for this event.
+    /// Total non-cached tokens billed for this event (input + output). Cache
+    /// reads/writes are tracked separately and excluded so budget accounting
+    /// stays on the primary billed counters.
     pub fn total_tokens(&self) -> u64 {
         self.input_tokens + self.output_tokens
     }
@@ -353,5 +362,36 @@ impl ToolAutoResult {
     /// Total input + output tokens across all usage events.
     pub fn total_tokens(&self) -> u64 {
         self.usage.iter().map(|u| u.total_tokens()).sum()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn usage_event_from_raw_parses_cache_tokens() {
+        let raw = json!({
+            "input_tokens": 100,
+            "output_tokens": 42,
+            "cache_creation_input_tokens": 20,
+            "cache_read_input_tokens": 80,
+        });
+        let ev = UsageEvent::from_raw(&raw, "claude", 0, true).unwrap();
+        assert_eq!(ev.input_tokens, 100);
+        assert_eq!(ev.output_tokens, 42);
+        assert_eq!(ev.cache_creation_input_tokens, 20);
+        assert_eq!(ev.cache_read_input_tokens, 80);
+        // Cache tokens are tracked but excluded from the billed input+output total.
+        assert_eq!(ev.total_tokens(), 142);
+    }
+
+    #[test]
+    fn usage_event_from_raw_defaults_cache_tokens_to_zero() {
+        let raw = json!({"input_tokens": 10, "output_tokens": 5});
+        let ev = UsageEvent::from_raw(&raw, "gpt", 0, true).unwrap();
+        assert_eq!(ev.cache_creation_input_tokens, 0);
+        assert_eq!(ev.cache_read_input_tokens, 0);
     }
 }
