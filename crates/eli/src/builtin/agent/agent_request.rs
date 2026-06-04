@@ -257,6 +257,53 @@ pub(super) fn system_prompt_for_turn(
     })
 }
 
+/// Max active tasks surfaced in the tail recitation.
+const MAX_RECITED_TASKS: usize = 12;
+
+/// Build an ephemeral active-task recitation for this session, surfaced at the
+/// context tail (see `ChatRequest.tail_reminder`) to counter lost-in-the-middle
+/// drift. Returns `None` when the session has no active tasks, so it's a no-op
+/// for sessions that don't use the taskboard.
+async fn build_task_recitation(session_id: &str) -> Option<String> {
+    let store = crate::taskboard::task_store()?;
+    let filter = crate::taskboard::TaskFilter {
+        status: None,
+        kind: None,
+        parent: None,
+        session_origin: Some(session_id.to_owned()),
+        limit: Some(50),
+    };
+    let active: Vec<_> = store
+        .list(filter)
+        .await
+        .into_iter()
+        .filter(|t| !t.status.is_terminal())
+        .collect();
+    if active.is_empty() {
+        return None;
+    }
+    let mut out = String::from(
+        "[Active tasks — keep these in focus and update their status as you progress:]",
+    );
+    for t in active.iter().take(MAX_RECITED_TASKS) {
+        let brief: String = t
+            .context
+            .get("prompt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .chars()
+            .take(60)
+            .collect();
+        out.push_str(&format!(
+            "\n- {} [{}] {}: {brief}",
+            &t.id.to_string()[..8],
+            t.status.label(),
+            t.kind,
+        ));
+    }
+    Some(out)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run_tools_once(
     llm: &mut LLM,
@@ -309,6 +356,7 @@ pub(super) async fn run_tools_once(
     let tool_ctx = build_tool_context("agent_loop", tape_name, tool_state);
 
     let cancellation = crate::control_plane::turn_cancellation();
+    let tail_reminder = build_task_recitation(session_id).await;
 
     let result = llm
         .run_tools(ChatRequest {
@@ -324,6 +372,7 @@ pub(super) async fn run_tools_once(
             context_window: Some(settings.context_window),
             session_id: Some(session_id),
             token_budget: settings.max_turn_tokens,
+            tail_reminder,
             ..Default::default()
         })
         .await?;

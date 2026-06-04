@@ -89,6 +89,12 @@ pub struct ChatRequest<'a> {
     /// reaches the budget — a cost circuit breaker against runaway tool loops.
     /// `None` (default) means unlimited, preserving prior behavior.
     pub token_budget: Option<u64>,
+    /// Optional ephemeral reminder appended at the *tail* of the context each
+    /// round (e.g. an active-task recitation). Merged into the trailing user
+    /// message; never persisted to the tape, and placed after the cached system
+    /// prefix so it doesn't affect prompt caching. Re-surfacing the live plan at
+    /// the tail counters lost-in-the-middle drift on long contexts.
+    pub tail_reminder: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

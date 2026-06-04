@@ -87,6 +87,21 @@ fn turn_budget_exhausted(usage: &[UsageEvent], budget: Option<u64>) -> bool {
     budget.is_some_and(|limit| tokens_spent(usage) >= limit)
 }
 
+/// Append an ephemeral tail reminder to the round's messages. Merges into a
+/// trailing plain-text user message when present (avoids illegal consecutive
+/// user turns), otherwise pushes a new user message. Operates on the transient
+/// per-round message list only — never the tape.
+fn append_tail_reminder(msgs: &mut Vec<Value>, reminder: &str) {
+    if let Some(last) = msgs.last_mut()
+        && last.get("role").and_then(|r| r.as_str()) == Some("user")
+        && let Some(content) = last.get("content").and_then(|c| c.as_str())
+    {
+        last["content"] = Value::String(format!("{content}\n\n{reminder}"));
+        return;
+    }
+    msgs.push(serde_json::json!({"role": "user", "content": reminder}));
+}
+
 /// Recovery prompt injected when the model gives up right after a tool error.
 /// Grounding it in the actual error (kind + message) gives the model a concrete
 /// signal to self-correct instead of a generic "try again".
@@ -178,6 +193,7 @@ impl LLM {
             max_tool_iterations,
             session_id,
             token_budget,
+            tail_reminder,
         } = req;
         let tools = tools.ok_or_else(|| {
             ConduitError::new(ErrorKind::InvalidInput, "run_tools requires tools")
@@ -277,6 +293,11 @@ impl LLM {
                 && let Some(ref parts) = user_content
             {
                 restore_last_user_content(&mut msgs, parts);
+            }
+            // Re-surface the live plan at the tail every round (ephemeral; not
+            // persisted), so it stays in the model's most-attended position.
+            if let Some(ref reminder) = tail_reminder {
+                append_tail_reminder(&mut msgs, reminder);
             }
 
             let round = self._execute_tool_round(&msgs, &round_params).await?;
@@ -729,6 +750,30 @@ mod tests {
         assert!(!turn_budget_exhausted(&events, Some(16)));
         assert!(turn_budget_exhausted(&events, Some(15))); // reached
         assert!(turn_budget_exhausted(&events, Some(10))); // exceeded
+    }
+
+    #[test]
+    fn tail_reminder_merges_into_trailing_user_text() {
+        let mut msgs = vec![
+            json!({"role": "system", "content": "sys"}),
+            json!({"role": "user", "content": "do the thing"}),
+        ];
+        append_tail_reminder(&mut msgs, "[Active tasks: #1]");
+        assert_eq!(msgs.len(), 2, "should merge, not push");
+        let content = msgs[1]["content"].as_str().unwrap();
+        assert!(content.contains("do the thing"));
+        assert!(content.contains("[Active tasks: #1]"));
+    }
+
+    #[test]
+    fn tail_reminder_pushes_when_trailing_not_user_text() {
+        // Trailing assistant message (or array content) ⇒ push a fresh user
+        // message rather than create an illegal consecutive-user merge target.
+        let mut msgs = vec![json!({"role": "assistant", "content": "ok"})];
+        append_tail_reminder(&mut msgs, "[Active tasks: #1]");
+        assert_eq!(msgs.len(), 2);
+        assert_eq!(msgs[1]["role"], "user");
+        assert_eq!(msgs[1]["content"], "[Active tasks: #1]");
     }
 
     #[test]
