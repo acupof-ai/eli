@@ -87,6 +87,22 @@ fn turn_budget_exhausted(usage: &[UsageEvent], budget: Option<u64>) -> bool {
     budget.is_some_and(|limit| tokens_spent(usage) >= limit)
 }
 
+/// Recovery prompt injected when the model gives up right after a tool error.
+/// Grounding it in the actual error (kind + message) gives the model a concrete
+/// signal to self-correct instead of a generic "try again".
+fn recovery_nudge_text(last_error: Option<&str>) -> String {
+    match last_error {
+        Some(err) => format!(
+            "The previous tool call failed with: {err}\n\nFix the cause — check the \
+             arguments and tool name, or use an alternative tool — then continue. \
+             Do not give up."
+        ),
+        None => "The previous tool call failed. Try a different approach or use \
+                 alternative tools to accomplish the task. Do not give up."
+            .to_owned(),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // impl LLM — tool calling
 // ---------------------------------------------------------------------------
@@ -202,6 +218,7 @@ impl LLM {
         let effective_context_window = context_window.or(self.context_window);
         let mut iteration: usize = 0;
         let mut last_round_had_errors = false;
+        let mut last_error: Option<String> = None;
         let mut recovery_nudges: u8 = 0;
         const MAX_RECOVERY_NUDGES: u8 = 1;
 
@@ -282,9 +299,7 @@ impl LLM {
                         );
                         let nudge = serde_json::json!({
                             "role": "user",
-                            "content": "The previous tool call failed. \
-                                Try a different approach or use alternative tools \
-                                to accomplish the task. Do not give up."
+                            "content": recovery_nudge_text(last_error.as_deref()),
                         });
                         in_memory_msgs.push(nudge.clone());
                         if let Some(tape_name) = tape {
@@ -317,6 +332,7 @@ impl LLM {
                     execution,
                 } => {
                     last_round_had_errors = execution.error.is_some();
+                    last_error = execution.error.as_ref().map(|e| e.to_string());
                     all_tool_calls.extend(execution.tool_calls.clone());
                     all_tool_results.extend(execution.tool_results.clone());
                     self._persist_round(tape, &response, &execution, &mut in_memory_msgs)
@@ -713,6 +729,17 @@ mod tests {
         assert!(!turn_budget_exhausted(&events, Some(16)));
         assert!(turn_budget_exhausted(&events, Some(15))); // reached
         assert!(turn_budget_exhausted(&events, Some(10))); // exceeded
+    }
+
+    #[test]
+    fn recovery_nudge_grounds_in_the_actual_error() {
+        let grounded = recovery_nudge_text(Some("[tool] Tool 'bash' execution failed: boom"));
+        assert!(grounded.contains("execution failed: boom"));
+        assert!(grounded.contains("Do not give up"));
+        // Falls back to a generic prompt when no error text is available.
+        let generic = recovery_nudge_text(None);
+        assert!(!generic.contains("failed with:"));
+        assert!(generic.contains("Do not give up"));
     }
 
     #[test]

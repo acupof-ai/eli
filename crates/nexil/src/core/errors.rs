@@ -11,6 +11,10 @@ pub enum ErrorKind {
     Config,
     Provider,
     Tool,
+    /// A tool call exceeded its wall-clock timeout. Distinguished from the
+    /// generic `Tool` (execution) failure so callers can react specifically
+    /// (e.g. retry with a narrower scope) instead of string-matching messages.
+    Timeout,
     Temporary,
     NotFound,
     Unknown,
@@ -24,6 +28,7 @@ impl ErrorKind {
             ErrorKind::Config => "config",
             ErrorKind::Provider => "provider",
             ErrorKind::Tool => "tool",
+            ErrorKind::Timeout => "timeout",
             ErrorKind::Temporary => "temporary",
             ErrorKind::NotFound => "not_found",
             ErrorKind::Unknown => "unknown",
@@ -64,5 +69,19 @@ impl ConduitError {
             message: self.message,
             cause: Some(Box::new(cause)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn timeout_kind_serializes_to_snake_case() {
+        assert_eq!(ErrorKind::Timeout.as_str(), "timeout");
+        let json = serde_json::to_string(&ErrorKind::Timeout).unwrap();
+        assert_eq!(json, "\"timeout\"");
+        let parsed: ErrorKind = serde_json::from_str("\"timeout\"").unwrap();
+        assert_eq!(parsed, ErrorKind::Timeout);
     }
 }

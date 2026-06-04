@@ -105,7 +105,13 @@ impl ToolExecutor {
                 Ok(value) => results.push(value),
                 Err(err) => {
                     let payload = ErrorPayload::new(err.kind, &err.message);
-                    let err_value = serde_json::to_value(&payload).unwrap_or(Value::Null);
+                    let mut err_value = serde_json::to_value(&payload).unwrap_or(Value::Null);
+                    // MCP-style `is_error`: lets the model and callers tell a tool
+                    // failure from an empty-but-successful result without parsing
+                    // the message, so in-loop self-correction has a hard signal.
+                    if let Value::Object(map) = &mut err_value {
+                        map.insert("is_error".to_owned(), Value::Bool(true));
+                    }
                     if first_error.is_none() {
                         first_error = Some(payload);
                     }
@@ -149,7 +155,7 @@ impl ToolExecutor {
             })?;
 
         let tool = self.resolve_tool(name, tool_map).ok_or_else(|| {
-            ConduitError::new(ErrorKind::Tool, format!("Unknown tool name: {name}."))
+            ConduitError::new(ErrorKind::NotFound, format!("Unknown tool name: {name}."))
         })?;
         let resolved_name = tool.name.as_str();
 
@@ -216,7 +222,7 @@ impl ToolExecutor {
                 )
             }),
             Err(_elapsed) => Err(ConduitError::new(
-                ErrorKind::Tool,
+                ErrorKind::Timeout,
                 format!("Tool '{}' timed out after {}s", name, timeout.as_secs()),
             )),
         }
@@ -475,9 +481,12 @@ mod tests {
             .await
             .unwrap();
 
-        // Should have an error for the unknown tool
+        // Unknown tool is now a specific NotFound (not the catch-all Tool), and
+        // the result carries the MCP-style is_error marker.
         assert!(result.error.is_some());
-        assert_eq!(result.error.unwrap().kind, ErrorKind::Tool);
+        assert_eq!(result.error.unwrap().kind, ErrorKind::NotFound);
+        assert_eq!(result.tool_results[0]["is_error"], true);
+        assert_eq!(result.tool_results[0]["kind"], "not_found");
     }
 
     #[tokio::test]
@@ -566,6 +575,25 @@ mod tests {
         let err = result.error.unwrap();
         assert_eq!(err.kind, ErrorKind::Tool);
         assert!(err.message.contains("execution failed"));
+        // The failing call's result is flagged so the model can self-correct.
+        assert_eq!(result.tool_results[0]["is_error"], true);
+        assert_eq!(result.tool_results[0]["kind"], "tool");
+    }
+
+    #[tokio::test]
+    async fn test_successful_tool_result_has_no_is_error_marker() {
+        // Success results stay the raw tool output — only failures are flagged.
+        let executor = ToolExecutor::new();
+        let echo = make_echo_tool();
+        let call = tool_call_json("echo", json!({"message": "hi"}));
+
+        let result = executor
+            .execute_async(ToolCallResponse::List(vec![call]), &[echo], None)
+            .await
+            .unwrap();
+
+        assert!(result.error.is_none());
+        assert!(result.tool_results[0].get("is_error").is_none());
     }
 
     // ----- normalize_response -----
