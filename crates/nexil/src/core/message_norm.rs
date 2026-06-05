@@ -190,10 +190,10 @@ pub(crate) fn enforce_anthropic_message_rules(messages: Vec<Value>) -> Vec<Value
                 let new_content = msg.get("content").and_then(|c| c.as_str()).unwrap_or("");
                 if !new_content.is_empty() {
                     let merged = format!("{prev_content}\n\n{new_content}");
-                    if let Some(last_mut) = result.last_mut() {
-                        if let Some(obj) = last_mut.as_object_mut() {
-                            obj.insert("content".to_owned(), Value::String(merged));
-                        }
+                    if let Some(last_mut) = result.last_mut()
+                        && let Some(obj) = last_mut.as_object_mut()
+                    {
+                        obj.insert("content".to_owned(), Value::String(merged));
                     }
                 }
                 continue;
@@ -207,13 +207,13 @@ pub(crate) fn enforce_anthropic_message_rules(messages: Vec<Value>) -> Vec<Value
     let first_non_system = result
         .iter()
         .position(|m| m.get("role").and_then(|r| r.as_str()) != Some("system"));
-    if let Some(idx) = first_non_system {
-        if result[idx].get("role").and_then(|r| r.as_str()) != Some("user") {
-            result.insert(
-                idx,
-                serde_json::json!({"role": "user", "content": "Continue."}),
-            );
-        }
+    if let Some(idx) = first_non_system
+        && result[idx].get("role").and_then(|r| r.as_str()) != Some("user")
+    {
+        result.insert(
+            idx,
+            serde_json::json!({"role": "user", "content": "Continue."}),
+        );
     }
 
     // Ensure last message is "user" (but NOT if it ends with tool results, which is valid)

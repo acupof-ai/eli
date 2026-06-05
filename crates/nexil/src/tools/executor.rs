@@ -400,7 +400,7 @@ mod tests {
     #[test]
     fn test_executor_creation() {
         let executor = ToolExecutor::new();
-        let default_executor = ToolExecutor::default();
+        let default_executor = ToolExecutor;
         // Both should be usable; ToolExecutor is a unit struct
         let _ = format!("{:?}", executor);
         let _ = format!("{:?}", default_executor);

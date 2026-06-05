@@ -453,7 +453,11 @@ mod tests {
         assert!(!DEFAULT_MODEL.is_empty());
     }
 
+    // Documentary guard that the default stays positive. The value is a
+    // compile-time constant, so the assert is constant by nature — allow the
+    // lint rather than drop the invariant check.
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_default_max_output_tokens_constant() {
         assert!(DEFAULT_MAX_OUTPUT_TOKENS > 0);
     }
