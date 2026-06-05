@@ -187,9 +187,27 @@ pub type InjectInboundFn =
 static INBOUND_INJECTOR: std::sync::LazyLock<Mutex<Option<InjectInboundFn>>> =
     std::sync::LazyLock::new(|| Mutex::new(None));
 
-/// Register the global inbound injector. Called once at startup.
+/// Register the global inbound injector. Called once at startup by the
+/// chat/gateway entry point.
+///
+/// There is a single global slot, so a second registrant silently reroutes all
+/// background result delivery (e.g. async subagent completions) through whatever
+/// transport registered last. Today chat and gateway are mutually-exclusive
+/// subcommands, so this never fires — but if a second inbound source ever shares
+/// the process it is a latent foot-gun. We warn-and-overwrite (rather than
+/// refuse) so the currently-working last-write-wins behaviour is preserved while
+/// the collision is surfaced loudly; a true source-keyed registry is deferred to
+/// the multi-source (Phase 3) work.
 pub fn set_inbound_injector(f: InjectInboundFn) {
-    *INBOUND_INJECTOR.lock() = Some(f);
+    let mut slot = INBOUND_INJECTOR.lock();
+    if slot.is_some() {
+        tracing::warn!(
+            "inbound injector already registered — overwriting. If two inbound \
+             sources are active in one process, background result delivery may \
+             route through the wrong transport."
+        );
+    }
+    *slot = Some(f);
 }
 
 /// Clone the current inbound injector, if set.
