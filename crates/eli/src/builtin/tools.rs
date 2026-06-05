@@ -246,22 +246,43 @@ fn build_completion_message(
         None => "running (no exit code yet)".to_owned(),
     };
 
-    let output_section = if output.trim().is_empty() {
-        "(sub-agent produced no output)".to_owned()
+    // The git changes string (commits / working tree / diff stat from
+    // `collect_artifacts`) is the lossless, authoritative record of what the
+    // subagent actually did — it survives the subprocess boundary intact. The
+    // captured stdout is only a tail-truncated *preview* (the subagent's own tape
+    // is the full record). So when there are real file changes we lead with them
+    // and label the stdout a preview, rather than presenting a truncated blob as
+    // the primary result (the telephone-game the inter-agent design warns about).
+    let has_changes = !matches!(artifacts.trim(), "(no changes)" | "(not a git repo)" | "");
+
+    let (output_label, output_section) = if output.trim().is_empty() {
+        ("output", "(sub-agent produced no output)".to_owned())
     } else if output.len() > SUBAGENT_OUTPUT_TAIL {
         let tail_start = output.len() - SUBAGENT_OUTPUT_TAIL;
         let boundary = output.ceil_char_boundary(tail_start);
-        format!("...(truncated)\n{}", &output[boundary..])
+        (
+            "output preview (last 2000 chars; not the full record)",
+            format!("...(truncated)\n{}", &output[boundary..]),
+        )
     } else {
-        output.to_owned()
+        ("output", output.to_owned())
     };
 
-    format!(
-        "[subagent {agent_id} completed ({cli_name})]\n\n\
-         status: {status}\n\n\
-         output:\n{output_section}\n\n\
-         changes:\n{artifacts}"
-    )
+    if has_changes {
+        format!(
+            "[subagent {agent_id} completed ({cli_name})]\n\n\
+             status: {status}\n\n\
+             changes (git — authoritative record of what changed):\n{artifacts}\n\n\
+             {output_label}:\n{output_section}"
+        )
+    } else {
+        format!(
+            "[subagent {agent_id} completed ({cli_name})]\n\n\
+             status: {status}\n\n\
+             {output_label}:\n{output_section}\n\n\
+             changes:\n{artifacts}"
+        )
+    }
 }
 
 tokio::task_local! {
@@ -2747,6 +2768,12 @@ fn tool_agent() -> Tool {
                         ctx.insert("source".to_owned(), serde_json::json!("subagent"));
                         ctx.insert("agent_id".to_owned(), serde_json::json!(monitor_agent_id));
                         ctx.insert("exit_code".to_owned(), serde_json::json!(exit_code));
+                        // Additive inter-agent correlation fields (optional; no
+                        // consumer requires them yet). task_id = the subagent's
+                        // own id (its work-unit key); intent marks this envelope
+                        // as a delegated-work result for future routing.
+                        ctx.insert("task_id".to_owned(), serde_json::json!(monitor_agent_id));
+                        ctx.insert("intent".to_owned(), serde_json::json!("result"));
 
                         inject(serde_json::json!({
                             "session_id": session_id,
@@ -4000,13 +4027,38 @@ mod tests {
     #[test]
     fn test_build_completion_message_truncates_long_output() {
         let long_output = "x".repeat(5000);
-        let msg =
-            build_completion_message("agent-trunc", "claude", Some(0), &long_output, "(clean)");
+        let msg = build_completion_message(
+            "agent-trunc",
+            "claude",
+            Some(0),
+            &long_output,
+            "(no changes)",
+        );
         assert!(msg.contains("(truncated)"));
-        // The output section should be at most SUBAGENT_OUTPUT_TAIL chars + overhead
-        let output_section = msg.split("output:\n").nth(1).unwrap_or("");
-        let output_before_changes = output_section.split("\n\nchanges:").next().unwrap_or("");
-        assert!(output_before_changes.len() <= SUBAGENT_OUTPUT_TAIL + 20);
+        // A truncated stdout is labeled a preview, not presented as the full record.
+        assert!(
+            msg.contains("preview"),
+            "long stdout must be labeled a preview"
+        );
+        // At most SUBAGENT_OUTPUT_TAIL of the original output chars are retained
+        // (+overhead for incidental 'x' in labels like "exit").
+        assert!(msg.matches('x').count() <= SUBAGENT_OUTPUT_TAIL + 20);
+    }
+
+    #[test]
+    fn test_build_completion_message_leads_with_git_changes() {
+        // When the subagent made real file changes, the git record (authoritative,
+        // lossless) must precede the truncated stdout preview — not the reverse.
+        let long_output = "y".repeat(5000);
+        let artifacts = "commits:\nabc123 fix bug\n\n M src/foo.rs";
+        let msg = build_completion_message("agent-w", "claude", Some(0), &long_output, artifacts);
+        let changes_pos = msg.find("src/foo.rs").expect("git changes present");
+        let preview_pos = msg.find("preview").expect("stdout labeled preview");
+        assert!(
+            changes_pos < preview_pos,
+            "git changes must precede the stdout preview"
+        );
+        assert!(msg.matches('y').count() <= SUBAGENT_OUTPUT_TAIL);
     }
 
     #[test]
