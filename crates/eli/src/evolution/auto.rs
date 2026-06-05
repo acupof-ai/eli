@@ -764,7 +764,7 @@ mod tests {
         assert!(
             promoted
                 .target
-                .ends_with(&format!(".agents/evolution/rules/{}.md", candidate.id))
+                .ends_with(format!(".agents/evolution/rules/{}.md", candidate.id))
         );
         assert!(
             store(&tmp)

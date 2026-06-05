@@ -1544,7 +1544,7 @@ mod tests {
         assert!(
             outcome
                 .target
-                .ends_with(&format!(".agents/evolution/rules/{}.md", candidate.id))
+                .ends_with(format!(".agents/evolution/rules/{}.md", candidate.id))
         );
         let fragment = fs::read_to_string(&outcome.target).unwrap();
         let bundle =

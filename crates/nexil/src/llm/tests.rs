@@ -861,7 +861,7 @@ fn test_builder_explicit_key_overrides_resolver() {
 
 #[test]
 fn test_builder_with_stream_filter() {
-    let filter: StreamEventFilter = Arc::new(|event| Some(event));
+    let filter: StreamEventFilter = Arc::new(Some);
 
     let llm = LLM::builder()
         .model("openai:gpt-4o")
@@ -1004,10 +1004,10 @@ fn test_stream_filter_drops_events() {
 fn test_stream_filter_transforms_events() {
     // Filter that uppercases text deltas
     let filter: StreamEventFilter = Arc::new(|mut event| {
-        if event.kind == StreamEventKind::Text {
-            if let Some(delta) = event.data.get("delta").and_then(|d| d.as_str()) {
-                event.data = json!({"delta": delta.to_uppercase()});
-            }
+        if event.kind == StreamEventKind::Text
+            && let Some(delta) = event.data.get("delta").and_then(|d| d.as_str())
+        {
+            event.data = json!({"delta": delta.to_uppercase()});
         }
         Some(event)
     });
@@ -1019,7 +1019,7 @@ fn test_stream_filter_transforms_events() {
 
 #[test]
 fn test_stream_filter_passthrough() {
-    let filter: StreamEventFilter = Arc::new(|event| Some(event));
+    let filter: StreamEventFilter = Arc::new(Some);
 
     let event = StreamEvent::new(StreamEventKind::Final, json!({"ok": true}));
     let result = filter(event);
@@ -1038,7 +1038,7 @@ fn test_with_stream_filter_set_and_clear() {
 
     assert!(llm.stream_filter().is_none());
 
-    let filter: StreamEventFilter = Arc::new(|event| Some(event));
+    let filter: StreamEventFilter = Arc::new(Some);
     llm.with_stream_filter(filter);
     assert!(llm.stream_filter().is_some());
 

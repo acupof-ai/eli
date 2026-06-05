@@ -740,7 +740,7 @@ mod tests {
     async fn test_framework_creation_default() {
         let fw = EliFramework::new();
         let ws = fw.workspace.read().await;
-        assert!(ws.is_absolute() || *ws == std::path::PathBuf::from("."));
+        assert!(ws.is_absolute() || ws.as_path() == std::path::Path::new("."));
     }
 
     #[tokio::test]

@@ -64,36 +64,36 @@ async fn worker_executes_task_via_claude_code() {
             panic!("task did not complete within 120 seconds");
         }
 
-        if let Some(task) = store.get(task_id).await {
-            if task.status.is_terminal() {
-                // Task finished
-                println!("Task status: {}", task.status.label());
-                println!(
-                    "Result: {}",
-                    task.result
-                        .as_ref()
-                        .map(|r| serde_json::to_string_pretty(r).unwrap_or_default())
-                        .unwrap_or_else(|| "(none)".into())
-                );
-
-                assert_eq!(
-                    task.status.label(),
-                    "done",
-                    "task should complete successfully"
-                );
-                let output = task
-                    .result
+        if let Some(task) = store.get(task_id).await
+            && task.status.is_terminal()
+        {
+            // Task finished
+            println!("Task status: {}", task.status.label());
+            println!(
+                "Result: {}",
+                task.result
                     .as_ref()
-                    .and_then(|r| r.get("output"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                // The model should respond with something containing "pong"
-                assert!(
-                    output.to_lowercase().contains("pong"),
-                    "output should contain 'pong', got: {output}"
-                );
-                break;
-            }
+                    .map(|r| serde_json::to_string_pretty(r).unwrap_or_default())
+                    .unwrap_or_else(|| "(none)".into())
+            );
+
+            assert_eq!(
+                task.status.label(),
+                "done",
+                "task should complete successfully"
+            );
+            let output = task
+                .result
+                .as_ref()
+                .and_then(|r| r.get("output"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            // The model should respond with something containing "pong"
+            assert!(
+                output.to_lowercase().contains("pong"),
+                "output should contain 'pong', got: {output}"
+            );
+            break;
         }
 
         tokio::time::sleep(Duration::from_secs(2)).await;
