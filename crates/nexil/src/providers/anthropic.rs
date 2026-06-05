@@ -37,7 +37,7 @@ impl ProviderAdapter for AnthropicAdapter {
         let max_tokens = request.max_tokens.unwrap_or(4096);
         body.insert("max_tokens".to_owned(), Value::Number(max_tokens.into()));
 
-        let (system_parts, messages) =
+        let (system_parts, mut messages) =
             anthropic_messages::split_system_and_conversation(&request.messages_payload);
 
         if let Some(system_val) = build_system_value(
@@ -46,6 +46,22 @@ impl ProviderAdapter for AnthropicAdapter {
             request.prompt_cache,
         ) {
             body.insert("system".to_owned(), system_val);
+        }
+
+        // Rolling history cache breakpoint: anchor the *second-to-last*
+        // conversation message. The last message is treated as volatile — in the
+        // agentic tool loop it carries the ephemeral tail reminder (merged into the
+        // trailing user message on the first round, pushed as a fresh user message
+        // afterwards) or the current turn's not-yet-persisted content — so caching
+        // up to the message *before* it keeps the cached prefix byte-stable
+        // turn-to-turn (a mis-placed breakpoint on volatile content would self-
+        // invalidate: 1.25x write, 0 read). system + last tool already use 2 of
+        // Anthropic's 4 breakpoints; this is the 3rd. Below the model's
+        // min-cacheable size Anthropic silently ignores it; with <2 messages there
+        // is nothing stable to anchor yet.
+        if request.prompt_cache && messages.len() >= 2 {
+            let anchor = messages.len() - 2;
+            mark_message_block_cached(&mut messages[anchor]);
         }
 
         body.insert("messages".to_owned(), Value::Array(messages));
@@ -94,6 +110,35 @@ fn mark_cached(block: &mut Value) {
             "cache_control".to_owned(),
             serde_json::json!({"type": "ephemeral"}),
         );
+    }
+}
+
+/// Mark a whole conversation message as a cache anchor. `cache_control` attaches
+/// to a content *block*, so for block-array content we mark the final block, and
+/// for string content we lower it to a single text block carrying the marker.
+/// Anthropic treats `"s"` and `[{"type":"text","text":"s"}]` as equivalent for
+/// prefix matching, so the same message stays cache-stable when it later appears
+/// unmarked (string form) deeper in the prefix. Empty content is left untouched.
+fn mark_message_block_cached(message: &mut Value) {
+    let Value::Object(map) = message else { return };
+    match map.get_mut("content") {
+        Some(Value::Array(blocks)) => {
+            if let Some(last) = blocks.last_mut() {
+                mark_cached(last);
+            }
+        }
+        Some(content @ Value::String(_)) => {
+            let text = content.as_str().unwrap_or_default().to_owned();
+            if text.is_empty() {
+                return;
+            }
+            *content = serde_json::json!([{
+                "type": "text",
+                "text": text,
+                "cache_control": {"type": "ephemeral"},
+            }]);
+        }
+        _ => {}
     }
 }
 
@@ -269,5 +314,91 @@ mod tests {
         assert!(body["system"].is_string());
         let tools = body["tools"].as_array().unwrap();
         assert!(tools.iter().all(|t| t.get("cache_control").is_none()));
+    }
+
+    /// A multi-message conversation: system + 3 conversation turns. After the
+    /// system split, the conversation is [user, assistant, user]; the rolling
+    /// history breakpoint must land on the second-to-last (the assistant), never
+    /// the last (volatile) message.
+    fn history_request(prompt_cache: bool) -> TransportCallRequest {
+        let mut req = make_request(None);
+        req.prompt_cache = prompt_cache;
+        req.messages_payload = vec![
+            serde_json::json!({"role": "system", "content": "stable system rules"}),
+            serde_json::json!({"role": "user", "content": "first question"}),
+            serde_json::json!({"role": "assistant", "content": "stable prior answer"}),
+            serde_json::json!({"role": "user", "content": "current volatile turn"}),
+        ];
+        req
+    }
+
+    #[test]
+    fn prompt_cache_marks_second_to_last_conversation_message() {
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&history_request(true), TransportKind::Messages)
+            .unwrap();
+        let messages = body["messages"].as_array().unwrap();
+        // Conversation is [user, assistant, user] (system split out; the adapter
+        // always emits block-array content). The anchor is the assistant at index
+        // 1; the marker lands on its final block.
+        let anchor_blocks = messages[1]["content"].as_array().unwrap();
+        assert!(
+            anchor_blocks.last().unwrap().get("cache_control").is_some(),
+            "second-to-last message must carry the history cache breakpoint"
+        );
+        // The last (volatile) message must NOT be cached — that would self-invalidate.
+        assert!(
+            blocks_uncached(&messages[2]),
+            "last message stays volatile and uncached"
+        );
+    }
+
+    /// True if no content block of `msg` carries a `cache_control` marker.
+    fn blocks_uncached(msg: &Value) -> bool {
+        msg["content"]
+            .as_array()
+            .is_none_or(|blocks| blocks.iter().all(|b| b.get("cache_control").is_none()))
+    }
+
+    #[test]
+    fn prompt_cache_marks_last_block_of_array_content_message() {
+        let mut req = history_request(true);
+        // Make the anchor (second-to-last) already block-form; the marker should
+        // land on its final block, not convert anything.
+        req.messages_payload[2] = serde_json::json!({
+            "role": "assistant",
+            "content": [
+                {"type": "text", "text": "a"},
+                {"type": "text", "text": "b"},
+            ],
+        });
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&req, TransportKind::Messages)
+            .unwrap();
+        let blocks = body["messages"][1]["content"].as_array().unwrap();
+        assert!(blocks[0].get("cache_control").is_none());
+        assert!(blocks[1].get("cache_control").is_some());
+    }
+
+    #[test]
+    fn no_prompt_cache_leaves_history_unmarked() {
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&history_request(false), TransportKind::Messages)
+            .unwrap();
+        let messages = body["messages"].as_array().unwrap();
+        // With caching off, no message carries a cache_control marker.
+        assert!(messages.iter().all(blocks_uncached));
+    }
+
+    #[test]
+    fn prompt_cache_single_message_has_no_history_breakpoint() {
+        // cache_request has only one conversation message ([user "hi"]); the
+        // history breakpoint needs >=2, so it must be a no-op there.
+        let body = ANTHROPIC_ADAPTER
+            .build_request_body(&cache_request(true), TransportKind::Messages)
+            .unwrap();
+        let messages = body["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 1);
+        assert!(blocks_uncached(&messages[0]));
     }
 }
