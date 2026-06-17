@@ -1,7 +1,7 @@
 {
   "suite": "eli-model-comparison-hard-tail",
   "version": 3,
-  "run_at": "2026-05-19T12:43:20.785752+00:00",
+  "run_at": "2026-06-17T06:47:57.799107+00:00",
   "selection_policy": {
     "name": "frontier-agent-hard-tail-10pct",
     "method": "Remove saturated prompt-keyword cases. Keep only Eli-facing tasks whose answer must be derived from hidden-ish fixture evidence, numeric gates, multi-turn state, or tool/tape behavior. Reported totals use the raw first answer; repair is recorded only as compatibility telemetry.",
@@ -31,35 +31,35 @@
   "scores": {
     "total": {
       "dsv4": {
+        "score": 70,
+        "max": 100,
+        "percent": 70.0
+      },
+      "gpt55": {
+        "score": 73,
+        "max": 100,
+        "percent": 73.0
+      }
+    },
+    "compat_total": {
+      "dsv4": {
         "score": 72,
         "max": 100,
         "percent": 72.0
       },
       "gpt55": {
-        "score": 81,
+        "score": 75,
         "max": 100,
-        "percent": 81.0
+        "percent": 75.0
       }
     },
-    "compat_total": {
-      "dsv4": {
-        "score": 74,
-        "max": 100,
-        "percent": 74.0
-      },
-      "gpt55": {
-        "score": 83,
-        "max": 100,
-        "percent": 83.0
-      }
-    },
-    "delta_a_minus_b": -9,
+    "delta_a_minus_b": -3,
     "by_capability": {
       "programming": {
         "dsv4": {
-          "score": 7,
+          "score": 6,
           "max": 10,
-          "percent": 70.0
+          "percent": 60.0
         },
         "gpt55": {
           "score": 6,
@@ -69,9 +69,9 @@
       },
       "frontier_science": {
         "dsv4": {
-          "score": 18,
+          "score": 19,
           "max": 20,
-          "percent": 90.0
+          "percent": 95.0
         },
         "gpt55": {
           "score": 19,
@@ -81,38 +81,38 @@
       },
       "metal_performance": {
         "dsv4": {
-          "score": 8,
-          "max": 10,
-          "percent": 80.0
-        },
-        "gpt55": {
-          "score": 9,
-          "max": 10,
-          "percent": 90.0
-        }
-      },
-      "analysis": {
-        "dsv4": {
-          "score": 10,
-          "max": 10,
-          "percent": 100.0
-        },
-        "gpt55": {
-          "score": 9,
-          "max": 10,
-          "percent": 90.0
-        }
-      },
-      "exploration": {
-        "dsv4": {
           "score": 5,
           "max": 10,
           "percent": 50.0
         },
         "gpt55": {
+          "score": 5,
+          "max": 10,
+          "percent": 50.0
+        }
+      },
+      "analysis": {
+        "dsv4": {
+          "score": 8,
+          "max": 10,
+          "percent": 80.0
+        },
+        "gpt55": {
+          "score": 8,
+          "max": 10,
+          "percent": 80.0
+        }
+      },
+      "exploration": {
+        "dsv4": {
           "score": 7,
           "max": 10,
           "percent": 70.0
+        },
+        "gpt55": {
+          "score": 6,
+          "max": 10,
+          "percent": 60.0
         }
       },
       "writing": {
@@ -134,9 +134,9 @@
           "percent": 70.0
         },
         "gpt55": {
-          "score": 10,
+          "score": 8,
           "max": 10,
-          "percent": 100.0
+          "percent": 80.0
         }
       },
       "memory_handoff": {
@@ -153,9 +153,9 @@
       },
       "subagent_management": {
         "dsv4": {
-          "score": 6,
+          "score": 7,
           "max": 10,
-          "percent": 60.0
+          "percent": 70.0
         },
         "gpt55": {
           "score": 8,
@@ -171,8 +171,8 @@
       "/Users/bytedance/code/eli/target/debug/eli"
     ],
     "eli_homes": {
-      "dsv4": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli",
-      "gpt55": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli"
+      "dsv4": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli",
+      "gpt55": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli"
     },
     "output_compat": true,
     "reported_total": "raw_first_answer",
@@ -183,15 +183,15 @@
       "id": "swe_issue_tool_patch_plan",
       "capability": "programming",
       "max_points": 10,
-      "delta_a_minus_b": 1,
-      "winner": "dsv4",
+      "delta_a_minus_b": 0,
+      "winner": "tie",
       "results": {
         "dsv4": {
           "id": "swe_issue_tool_patch_plan",
           "capability": "programming",
-          "score": 7,
+          "score": 6,
           "max_points": 10,
-          "passed": true,
+          "passed": false,
           "details": [
             {
               "kind": "returncode",
@@ -201,15 +201,15 @@
             },
             {
               "kind": "tool_name_count",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
               "kind": "tool_result_contains",
               "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_json_keys",
@@ -218,10 +218,10 @@
               "passed": true
             },
             {
-              "kind": "stdout_contains_all",
+              "kind": "json_field_contains_all",
               "points": 1,
-              "earned": 0,
-              "passed": false
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "stdout_contains_all",
@@ -236,7 +236,13 @@
               "passed": false
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "json_field_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "json_field_contains_all",
               "points": 1,
               "earned": 1,
               "passed": true
@@ -248,7 +254,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-swe_issue_tool_patch_plan",
+          "session_id": "eli-ab-20260617064008-dsv4-swe_issue_tool_patch_plan",
           "runs": [
             {
               "command": [
@@ -256,11 +262,11 @@
                 "run",
                 "Use fs.read exactly once to read tests/fixtures/model_compare_repo_issue_fixture.txt. Then answer only: ISSUE_FIXTURE_READ. Do not call any other tool.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-swe_issue_tool_patch_plan"
+                "eli-ab-20260617064008-dsv4-swe_issue_tool_patch_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 8459,
+              "elapsed_ms": 5106,
               "stdout_tail": "ISSUE_FIXTURE_READ\n",
               "stderr_tail": ""
             },
@@ -268,25 +274,25 @@
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:215 chars>",
+                "<prompt:309 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-swe_issue_tool_patch_plan"
+                "eli-ab-20260617064008-dsv4-swe_issue_tool_patch_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 21052,
-              "stdout_tail": "{\"root_cause\":\"OpenAI-compatible chat completions reject top-level `session_id` in the request body. The Eli CLI passes `session_id` as a provider-agnostic request parameter, but OpenAI's API does not support it.\",\"patch_files\":[\"src/providers/openai_compat.py\"],\"tests\":[\"test_openai_compat_chat_completions_rejects_top_level_session_id\",\"test_anthropic_sanitized_session_hint_still_in_metadata\",\"test_local_tape_session_id_still_selects_same_tape\"],\"risk\":\"Minimal — fix strips session_id from OpenAI request body only. Local tape session selection and Anthropic metadata mapping are unchanged. No second provider stack introduced.\"}\n",
+              "elapsed_ms": 18875,
+              "stdout_tail": "d ab-123: must still include session hint in request metadata\",\n    \"eli run --session-id ab-123 then eli run --session-id ab-123 again: must resume same tape file (continuity preserved)\",\n    \"eli run --model openai:gpt-5.5 (no --session-id): must not regress; implicit session path still works\"\n  ],\n  \"non_goals\": [\n    \"Do not rename or remove --session-id from the CLI\",\n    \"Do not change how tape files are selected or named\",\n    \"Do not add a second provider abstraction layer or request-builder stack\",\n    \"Do not alter Anthropic request serialization at all\"\n  ],\n  \"risk\": \"A global strip of session_id breaks Anthropic metadata and tape trace correlation. A provider-forked request builder without shared serialization logic drifts over time and hides the coupling. The safe path is a single, explicit, provider-gated field exclusion in the existing request serialization layer.\"\n}\n```\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "ISSUE_FIXTURE_READ\n\n{\"root_cause\":\"OpenAI-compatible chat completions reject top-level `session_id` in the request body. The Eli CLI passes `session_id` as a provider-agnostic request parameter, but OpenAI's API does not support it.\",\"patch_files\":[\"src/providers/openai_compat.py\"],\"tests\":[\"test_openai_compat_chat_completions_rejects_top_level_session_id\",\"test_anthropic_sanitized_session_hint_still_in_metadata\",\"test_local_tape_session_id_still_selects_same_tape\"],\"risk\":\"Minimal — fix strips session_id from OpenAI request body only. Local tape session selection and Anthropic metadata mapping are unchanged. No second provider stack introduced.\"}\n",
+          "stdout_tail": "t\"\n    },\n    \"anthropic\": {\n      \"accepts_session_id_in_body\": true,\n      \"needs_session_id\": true,\n      \"usage\": \"stable sanitized session hint in request metadata for trace/debug correlation\"\n    },\n    \"eli_local\": {\n      \"accepts_session_id_in_body\": false,\n      \"needs_session_id\": true,\n      \"usage\": \"CLI flag selects the tape file on disk; session_id is runtime state, never an API concept\"\n    }\n  },\n  \"minimal_patch\": \"In the provider request builder, conditionally strip session_id from the serialized body before sending to OpenAI-compatible backends. Keep session_id in the Anthropic path unchanged. No changes to CLI parsing, tape file selection, or session state management.\",\n  \"regression_tests\": [\n    \"eli run --model openai:gpt-5.5 --session-id ab-123: must reach first assistant token without HTTP 400\",\n    \"eli run --model anthropic:claude-sonnet-4-20250514 --session-id ab-123: must still include session hint in request metadata\",\n    \"eli run --session-id ab-123 then eli run --session-id ab-123 again: must resume same tape file (continuity preserved)\",\n    \"eli run --model openai:gpt-5.5 (no --session-id): must not regress; implicit session path still works\"\n  ],\n  \"non_goals\": [\n    \"Do not rename or remove --session-id from the CLI\",\n    \"Do not change how tape files are selected or named\",\n    \"Do not add a second provider abstraction layer or request-builder stack\",\n    \"Do not alter Anthropic request serialization at all\"\n  ],\n  \"risk\": \"A global strip of session_id breaks Anthropic metadata and tape trace correlation. A provider-forked request builder without shared serialization logic drifts over time and hides the coupling. The safe path is a single, explicit, provider-gated field exclusion in the existing request serialization layer.\"\n}\n```\n",
           "stderr_tail": "\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__3e0781475c6f17e0.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__24063671c6d96fbb.jsonl",
             "entry_count": 12,
             "events": [
               "agent.run.start",
@@ -301,9 +307,9 @@
               "session/start"
             ]
           },
-          "raw_score": 7,
-          "compat_score": 7,
-          "compat_passed": true,
+          "raw_score": 6,
+          "compat_score": 6,
+          "compat_passed": false,
           "compat_diagnostics": {
             "status": "ok",
             "compat": true
@@ -324,15 +330,15 @@
             },
             {
               "kind": "tool_name_count",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
               "kind": "tool_result_contains",
               "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_json_keys",
@@ -341,10 +347,10 @@
               "passed": true
             },
             {
-              "kind": "stdout_contains_all",
+              "kind": "json_field_contains_all",
               "points": 1,
-              "earned": 0,
-              "passed": false
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "stdout_contains_all",
@@ -359,10 +365,16 @@
               "passed": false
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "json_field_contains_all",
               "points": 1,
               "earned": 0,
               "passed": false
+            },
+            {
+              "kind": "json_field_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "forbid_tool_names",
@@ -371,7 +383,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-swe_issue_tool_patch_plan",
+          "session_id": "eli-ab-20260617064008-gpt55-swe_issue_tool_patch_plan",
           "runs": [
             {
               "command": [
@@ -379,37 +391,37 @@
                 "run",
                 "Use fs.read exactly once to read tests/fixtures/model_compare_repo_issue_fixture.txt. Then answer only: ISSUE_FIXTURE_READ. Do not call any other tool.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-swe_issue_tool_patch_plan"
+                "eli-ab-20260617064008-gpt55-swe_issue_tool_patch_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 4356,
+              "elapsed_ms": 8504,
               "stdout_tail": "ISSUE_FIXTURE_READ\n",
-              "stderr_tail": "\u001b[2m[tokens: 12122 in + 43 out = 12165]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 12914 in + 43 out = 12957]\u001b[0m\n"
             },
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:215 chars>",
+                "<prompt:309 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-swe_issue_tool_patch_plan"
+                "eli-ab-20260617064008-gpt55-swe_issue_tool_patch_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 5582,
-              "stdout_tail": "y as a top-level provider parameter, which OpenAI rejects with HTTP 400. The session_id must remain local runtime state for tape selection and should only be mapped where supported, e.g. Anthropic metadata/session hint behavior.\",\"patch_files\":[\"Provider request construction code that builds OpenAI-compatible chat completion payloads: omit or strip session_id from the OpenAI request-body extras only.\",\"Existing session/CLI/tape handling code: leave intact unless tests show it was already coupling provider extras to local tape state.\"],\"tests\":[\"test_openai_payload_omits_session_id\",\"test_anthropic_payload_keeps_sanitized_session_hint\",\"test_local_tape_session_id_still_selects_same_tape\"],\"risk\":\"Low if scoped to OpenAI payload serialization only. Main regression risk is accidentally removing local session_id handling or breaking Anthropic metadata mapping; cover with the listed tests.\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6313 in + 205 out = 6518]\u001b[0m\n"
+              "elapsed_ms": 9520,
+              "stdout_tail": " contain top-level `session_id`.\",\"The same command still selects/continues the tape associated with local session id `ab-123`.\",\"Anthropic-compatible profiles still include the stable sanitized session hint expected by existing metadata behavior.\",\"No second provider stack is introduced; shared request construction remains unified except for provider-specific serialization filtering.\"],\"non_goals\":[\"Do not remove `session_id` globally.\",\"Do not change tape file naming or session continuity semantics.\",\"Do not add a parallel provider implementation to hide the bug.\",\"Do not change Anthropic metadata behavior except to verify it remains intact.\"],\"risk\":\"Filtering too early breaks Eli tape continuity or Anthropic metadata; filtering too late still sends `session_id` to OpenAI. The safe boundary is provider-specific request-body serialization for OpenAI-compatible chat completions only.\"}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6731 in + 406 out = 7137]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "ISSUE_FIXTURE_READ\n\n{\"root_cause\":\"The local Eli session_id was being forwarded into the OpenAI-compatible chat completions request body as a top-level provider parameter, which OpenAI rejects with HTTP 400. The session_id must remain local runtime state for tape selection and should only be mapped where supported, e.g. Anthropic metadata/session hint behavior.\",\"patch_files\":[\"Provider request construction code that builds OpenAI-compatible chat completion payloads: omit or strip session_id from the OpenAI request-body extras only.\",\"Existing session/CLI/tape handling code: leave intact unless tests show it was already coupling provider extras to local tape state.\"],\"tests\":[\"test_openai_payload_omits_session_id\",\"test_anthropic_payload_keeps_sanitized_session_hint\",\"test_local_tape_session_id_still_selects_same_tape\"],\"risk\":\"Low if scoped to OpenAI payload serialization only. Main regression risk is accidentally removing local session_id handling or breaking Anthropic metadata mapping; cover with the listed tests.\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 12122 in + 43 out = 12165]\u001b[0m\n\n\u001b[2m[tokens: 6313 in + 205 out = 6518]\u001b[0m\n",
+          "stdout_tail": "enai_compatible\":{\"request_body\":\"Must not include top-level session_id.\",\"local_state\":\"Must still use the Eli session id to select and continue the same tape file.\",\"metadata\":\"No provider metadata session hint required from the fixture evidence.\"},\"anthropic_compatible\":{\"request_body\":\"Must preserve the existing provider-compatible behavior.\",\"local_state\":\"Must still use the Eli session id to select and continue the same tape file.\",\"metadata\":\"Still needs a stable sanitized session hint.\"}},\"minimal_patch\":\"Strip session_id only at the OpenAI-compatible request serialization boundary. Do not remove session_id from CLI parsing, runtime state, tape selection, or generic session handling. Keep Anthropic-compatible metadata/session hint generation intact and sanitized.\",\"regression_tests\":[\"OpenAI-compatible request body for `eli run --model openai:gpt-5.5 --session-id ab-123` does not contain top-level `session_id`.\",\"The same command still selects/continues the tape associated with local session id `ab-123`.\",\"Anthropic-compatible profiles still include the stable sanitized session hint expected by existing metadata behavior.\",\"No second provider stack is introduced; shared request construction remains unified except for provider-specific serialization filtering.\"],\"non_goals\":[\"Do not remove `session_id` globally.\",\"Do not change tape file naming or session continuity semantics.\",\"Do not add a parallel provider implementation to hide the bug.\",\"Do not change Anthropic metadata behavior except to verify it remains intact.\"],\"risk\":\"Filtering too early breaks Eli tape continuity or Anthropic metadata; filtering too late still sends `session_id` to OpenAI. The safe boundary is provider-specific request-body serialization for OpenAI-compatible chat completions only.\"}\n",
+          "stderr_tail": "\u001b[2m[tokens: 12914 in + 43 out = 12957]\u001b[0m\n\n\u001b[2m[tokens: 6731 in + 406 out = 7137]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__f36f3d243da417a4.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__c29c4a34c7a6e7e4.jsonl",
             "entry_count": 12,
             "events": [
               "agent.run.start",
@@ -438,13 +450,13 @@
       "id": "paperbench_replication_blocker",
       "capability": "frontier_science",
       "max_points": 10,
-      "delta_a_minus_b": -1,
-      "winner": "gpt55",
+      "delta_a_minus_b": 0,
+      "winner": "tie",
       "results": {
         "dsv4": {
           "id": "paperbench_replication_blocker",
           "capability": "frontier_science",
-          "score": 9,
+          "score": 10,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -462,14 +474,26 @@
             },
             {
               "kind": "json_field_number_between",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
               "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -487,8 +511,8 @@
             {
               "kind": "json_field_contains_any",
               "points": 1,
-              "earned": 0,
-              "passed": false
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "no_tool_calls",
@@ -497,31 +521,31 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-paperbench_replication_blocker",
+          "session_id": "eli-ab-20260617064008-dsv4-paperbench_replication_blocker",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:681 chars>",
+                "<prompt:893 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-paperbench_replication_blocker"
+                "eli-ab-20260617064008-dsv4-paperbench_replication_blocker"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 55534,
-              "stdout_tail": "{\"corrected_speedup\": 1.12, \"blockers\": [\"P50 speedup is 1.12x, not 1.8x — off by over 60%.\", \"P95 latency regresses 41% (92.0→130.0 ms) instead of improving.\", \"Energy is worse: 15.2 J vs 12.4 J baseline, contradicting 'lower-energy' claim.\", \"Cherry-picked seed 7 as best of 5 seeds — inflates results via selection bias.\", \"Post-hoc filtering of evaluation tasks after seeing failures — inflates metrics artificially.\", \"Success rate drops from 98.1% to 96.8%.\"], \"minimal_experiments\": [\"Run all 5 seeds, report mean ± std of p50/p95/energy/success.\", \"Report on the full evaluation set without post-hoc task filtering.\", \"Measure p99 tail latency to quantify how far the new router's regression extends.\", \"Profile the new router under load — ablation isolates it as the p95 regression source (new_router+old_kernel p95=128.7 ms).\"], \"decision\": \"NOT_REPRODUCIBLE\"}\n",
+              "elapsed_ms": 29184,
+              "stdout_tail": "ian improvement for severe tail degradation; kernel adds energy with no latency benefit.\", \"blockers\": [\"Seed cherry-picking: best-of-5 reported without distribution; failed seed with sub-95% success omitted\", \"Post-hoc task filtering after observing failures invalidates statistical claims\", \"p95 regressed 41.3% (92.0→130.0 ms) contradicting production-readiness\", \"Energy increased 22.6% (12.4→15.2 J) contradicting lower-energy claim\", \"Measured speedup 1.12x versus claimed 1.8x — factor of 1.6x overstatement\", \"Success rate dropped from 98.1% to 96.8%\"], \"minimal_experiments\": [\"Full 5-seed report with latency distributions, energy, and success per seed including the omitted failure seed\", \"All evaluation tasks reported without post-hoc filtering; pre-register task set\", \"Independent reproduction with pre-registered seeds, tasks, metrics, and success thresholds\"], \"decision\": \"REJECT\"}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "{\"corrected_speedup\": 1.12, \"blockers\": [\"P50 speedup is 1.12x, not 1.8x — off by over 60%.\", \"P95 latency regresses 41% (92.0→130.0 ms) instead of improving.\", \"Energy is worse: 15.2 J vs 12.4 J baseline, contradicting 'lower-energy' claim.\", \"Cherry-picked seed 7 as best of 5 seeds — inflates results via selection bias.\", \"Post-hoc filtering of evaluation tasks after seeing failures — inflates metrics artificially.\", \"Success rate drops from 98.1% to 96.8%.\"], \"minimal_experiments\": [\"Run all 5 seeds, report mean ± std of p50/p95/energy/success.\", \"Report on the full evaluation set without post-hoc task filtering.\", \"Measure p99 tail latency to quantify how far the new router's regression extends.\", \"Profile the new router under load — ablation isolates it as the p95 regression source (new_router+old_kernel p95=128.7 ms).\"], \"decision\": \"NOT_REPRODUCIBLE\"}\n",
+          "stdout_tail": "{\"corrected_speedup\": 1.12, \"p95_regression_pct\": 41.3, \"energy_delta_pct\": 22.6, \"causal_read\": \"Router is sole source of p50 gain (new_router+old_kernel p50=36.1) and sole source of p95 regression (same config p95=128.7). Kernel contributes no meaningful speedup (old_router+new_kernel p50=39.5, p95=91.8) but drives energy cost. Net effect: router trades modest median improvement for severe tail degradation; kernel adds energy with no latency benefit.\", \"blockers\": [\"Seed cherry-picking: best-of-5 reported without distribution; failed seed with sub-95% success omitted\", \"Post-hoc task filtering after observing failures invalidates statistical claims\", \"p95 regressed 41.3% (92.0→130.0 ms) contradicting production-readiness\", \"Energy increased 22.6% (12.4→15.2 J) contradicting lower-energy claim\", \"Measured speedup 1.12x versus claimed 1.8x — factor of 1.6x overstatement\", \"Success rate dropped from 98.1% to 96.8%\"], \"minimal_experiments\": [\"Full 5-seed report with latency distributions, energy, and success per seed including the omitted failure seed\", \"All evaluation tasks reported without post-hoc filtering; pre-register task set\", \"Independent reproduction with pre-registered seeds, tasks, metrics, and success thresholds\"], \"decision\": \"REJECT\"}\n",
           "stderr_tail": "",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__574455fc3876659a.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__b5f259b1f1f42b09.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -532,8 +556,8 @@
               "session/start"
             ]
           },
-          "raw_score": 9,
-          "compat_score": 9,
+          "raw_score": 10,
+          "compat_score": 10,
           "compat_passed": true,
           "compat_diagnostics": {
             "status": "ok",
@@ -561,14 +585,26 @@
             },
             {
               "kind": "json_field_number_between",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
               "kind": "stdout_contains_all",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -596,31 +632,31 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-paperbench_replication_blocker",
+          "session_id": "eli-ab-20260617064008-gpt55-paperbench_replication_blocker",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:681 chars>",
+                "<prompt:893 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-paperbench_replication_blocker"
+                "eli-ab-20260617064008-gpt55-paperbench_replication_blocker"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 7846,
-              "stdout_tail": "regresses badly: p95 increases from 92.0 ms to 130.0 ms.\",\"Success rate drops from 98.1% to 96.8%.\",\"Reported seed 7 is cherry-picked as best of 5 seeds.\",\"Evaluation tasks were filtered after observing failures, invalidating the comparison.\",\"Ablation points to the new router as the regression source: new_router+old_kernel keeps bad p95, while old_router+new_kernel matches baseline p95.\"],\"minimal_experiments\":[\"Re-run all 5 seeds and report mean, median, variance, and confidence intervals without selecting the best seed.\",\"Evaluate on the full pre-registered task set with no post-hoc filtering.\",\"Report p50, p95, p99, energy, and success jointly, including failure handling cost.\",\"Run router/kernel ablations across all seeds to isolate the p95 and energy regressions.\",\"Compare energy normalized by successful task, not just aggregate energy.\"],\"decision\":\"reject: claim not reproduced\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6037 in + 335 out = 6372]\u001b[0m\n"
+              "elapsed_ms": 8822,
+              "stdout_tail": "lower-energy claim.\",\"Success drops from 98.1% to 96.8%, and one omitted seed fell below 95%.\",\"Paper cherry-picks seed 7 as best of 5 seeds.\",\"Evaluation tasks were filtered after observing failures.\",\"Failed seed omission invalidates the reported aggregate.\"],\"minimal_experiments\":[\"Report all 5 seeds with mean, median, confidence intervals, and no post-hoc task filtering.\",\"Run a locked pre-registered evaluation set including previously failed tasks.\",\"Measure p50, p95, p99, energy, and success under identical load and hardware conditions.\",\"Isolate router versus kernel with the two ablations already shown, then add statistical tests across seeds.\",\"Include the failed seed and analyze failure modes below 95% success.\"],\"decision\":\"Reject the reproduction claim: corrected speedup is only 1.12x, energy is worse, tail latency is worse, and reporting practices are not production-grade.\"}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6475 in + 404 out = 6879]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\"corrected_speedup\":1.12,\"blockers\":[\"Claimed 1.8x speedup is not supported; observed p50 speedup is only 1.12x.\",\"Lower-energy claim is contradicted: energy increases from 12.4 J to 15.2 J.\",\"Tail latency regresses badly: p95 increases from 92.0 ms to 130.0 ms.\",\"Success rate drops from 98.1% to 96.8%.\",\"Reported seed 7 is cherry-picked as best of 5 seeds.\",\"Evaluation tasks were filtered after observing failures, invalidating the comparison.\",\"Ablation points to the new router as the regression source: new_router+old_kernel keeps bad p95, while old_router+new_kernel matches baseline p95.\"],\"minimal_experiments\":[\"Re-run all 5 seeds and report mean, median, variance, and confidence intervals without selecting the best seed.\",\"Evaluate on the full pre-registered task set with no post-hoc filtering.\",\"Report p50, p95, p99, energy, and success jointly, including failure handling cost.\",\"Run router/kernel ablations across all seeds to isolate the p95 and energy regressions.\",\"Compare energy normalized by successful task, not just aggregate energy.\"],\"decision\":\"reject: claim not reproduced\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 6037 in + 335 out = 6372]\u001b[0m\n",
+          "stdout_tail": "{\"corrected_speedup\":1.12,\"p95_regression_pct\":41.3,\"energy_delta_pct\":22.6,\"causal_read\":\"The p50 gain is small and appears attributable to the new router, not the kernel: new_router+old_kernel matches new runtime p50 while preserving the same p95 regression, and old_router+new_kernel looks like baseline. The claimed 1.8x speedup is unsupported by the provided logs.\",\"blockers\":[\"p95 latency regresses by 41.3%, contradicting production-ready latency claims.\",\"Energy increases by 22.6%, contradicting lower-energy claim.\",\"Success drops from 98.1% to 96.8%, and one omitted seed fell below 95%.\",\"Paper cherry-picks seed 7 as best of 5 seeds.\",\"Evaluation tasks were filtered after observing failures.\",\"Failed seed omission invalidates the reported aggregate.\"],\"minimal_experiments\":[\"Report all 5 seeds with mean, median, confidence intervals, and no post-hoc task filtering.\",\"Run a locked pre-registered evaluation set including previously failed tasks.\",\"Measure p50, p95, p99, energy, and success under identical load and hardware conditions.\",\"Isolate router versus kernel with the two ablations already shown, then add statistical tests across seeds.\",\"Include the failed seed and analyze failure modes below 95% success.\"],\"decision\":\"Reject the reproduction claim: corrected speedup is only 1.12x, energy is worse, tail latency is worse, and reporting practices are not production-grade.\"}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6475 in + 404 out = 6879]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__06ec4ed3220aeb1d.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__0c3c20f3db9e6ee4.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -645,15 +681,15 @@
       "id": "metal_mlx_correctness_speed_gate",
       "capability": "metal_performance",
       "max_points": 10,
-      "delta_a_minus_b": -1,
-      "winner": "gpt55",
+      "delta_a_minus_b": 0,
+      "winner": "tie",
       "results": {
         "dsv4": {
           "id": "metal_mlx_correctness_speed_gate",
           "capability": "metal_performance",
-          "score": 8,
+          "score": 5,
           "max_points": 10,
-          "passed": true,
+          "passed": false,
           "details": [
             {
               "kind": "returncode",
@@ -663,18 +699,24 @@
             },
             {
               "kind": "tool_name_count",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "tool_result_contains",
               "points": 1,
               "earned": 1,
               "passed": true
             },
             {
+              "kind": "tool_result_contains",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
               "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
               "points": 1,
               "earned": 1,
               "passed": true
@@ -694,14 +736,14 @@
             {
               "kind": "stdout_contains_any",
               "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_contains_all",
               "points": 1,
-              "earned": 1,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_contains_all",
@@ -710,7 +752,7 @@
               "passed": false
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-metal_mlx_correctness_speed_gate",
+          "session_id": "eli-ab-20260617064008-dsv4-metal_mlx_correctness_speed_gate",
           "runs": [
             {
               "command": [
@@ -718,11 +760,11 @@
                 "run",
                 "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer only: METAL_FIXTURE_READ. Do not call any other tool.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-metal_mlx_correctness_speed_gate"
+                "eli-ab-20260617064008-dsv4-metal_mlx_correctness_speed_gate"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 7918,
+              "elapsed_ms": 3939,
               "stdout_tail": "METAL_FIXTURE_READ\n",
               "stderr_tail": ""
             },
@@ -730,25 +772,25 @@
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:261 chars>",
+                "<prompt:352 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-metal_mlx_correctness_speed_gate"
+                "eli-ab-20260617064008-dsv4-metal_mlx_correctness_speed_gate"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 11859,
-              "stdout_tail": "{\"normalized_speedup\": 0.866, \"correctness\": false, \"decision\": \"do_not_merge\", \"next_patch\": \"global_reload_no_threadgroup_tiling\", \"mac_only\": true}\n",
+              "elapsed_ms": 25371,
+              "stdout_tail": "{\"normalized_speedup\": 0.866, \"p95_speedup\": 0.788, \"correctness\": 0.96875, \"decision\": \"max\", \"patch_order\": \"fix_threadgroup_tiling_then_barrier_then_benchmark\", \"anti_goal\": \"do_not_lower_correctness_threshold\", \"mac_only\": true}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "METAL_FIXTURE_READ\n\n{\"normalized_speedup\": 0.866, \"correctness\": false, \"decision\": \"do_not_merge\", \"next_patch\": \"global_reload_no_threadgroup_tiling\", \"mac_only\": true}\n",
+          "stdout_tail": "METAL_FIXTURE_READ\n\n{\"normalized_speedup\": 0.866, \"p95_speedup\": 0.788, \"correctness\": 0.96875, \"decision\": \"max\", \"patch_order\": \"fix_threadgroup_tiling_then_barrier_then_benchmark\", \"anti_goal\": \"do_not_lower_correctness_threshold\", \"mac_only\": true}\n",
           "stderr_tail": "\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__8ea0a460091701b2.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__d9a59559a95a5691.jsonl",
             "entry_count": 12,
             "events": [
               "agent.run.start",
@@ -759,6 +801,249 @@
             "tool_calls": [
               "fs_read"
             ],
+            "anchors": [
+              "session/start"
+            ]
+          },
+          "raw_score": 5,
+          "compat_score": 5,
+          "compat_passed": false,
+          "compat_diagnostics": {
+            "status": "ok",
+            "compat": true
+          }
+        },
+        "gpt55": {
+          "id": "metal_mlx_correctness_speed_gate",
+          "capability": "metal_performance",
+          "score": 5,
+          "max_points": 10,
+          "passed": false,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "tool_name_count",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "tool_result_contains",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_number_between",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            }
+          ],
+          "session_id": "eli-ab-20260617064008-gpt55-metal_mlx_correctness_speed_gate",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer only: METAL_FIXTURE_READ. Do not call any other tool.",
+                "--session-id",
+                "eli-ab-20260617064008-gpt55-metal_mlx_correctness_speed_gate"
+              ],
+              "returncode": 0,
+              "repair": false,
+              "elapsed_ms": 13160,
+              "stdout_tail": "METAL_FIXTURE_READ\n",
+              "stderr_tail": "\u001b[2m[tokens: 12816 in + 42 out = 12858]\u001b[0m\n"
+            },
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:352 chars>",
+                "--session-id",
+                "eli-ab-20260617064008-gpt55-metal_mlx_correctness_speed_gate"
+              ],
+              "returncode": 0,
+              "repair": false,
+              "elapsed_ms": 7248,
+              "stdout_tail": "{\"normalized_speedup\":0.866,\"p95_speedup\":0.788,\"correctness\":\"metal_error=0.03125 max\",\"decision\":\"MLX faster than Metal\",\"patch_order\":\"fix_threadgroup_tiling_then_barrier_then_benchmark\",\"anti_goal\":\"do_not_lower_correctness_threshold\",\"mac_only\":true}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6653 in + 183 out = 6836]\u001b[0m\n"
+            }
+          ],
+          "stdout_tail": "METAL_FIXTURE_READ\n\n{\"normalized_speedup\":0.866,\"p95_speedup\":0.788,\"correctness\":\"metal_error=0.03125 max\",\"decision\":\"MLX faster than Metal\",\"patch_order\":\"fix_threadgroup_tiling_then_barrier_then_benchmark\",\"anti_goal\":\"do_not_lower_correctness_threshold\",\"mac_only\":true}\n",
+          "stderr_tail": "\u001b[2m[tokens: 12816 in + 42 out = 12858]\u001b[0m\n\n\u001b[2m[tokens: 6653 in + 183 out = 6836]\u001b[0m\n",
+          "diagnostics": {
+            "status": "ok",
+            "compat": false
+          },
+          "tape": {
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__5a392bdcf84086bf.jsonl",
+            "entry_count": 12,
+            "events": [
+              "agent.run.start",
+              "agent.run",
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [
+              "fs_read"
+            ],
+            "anchors": [
+              "session/start"
+            ]
+          },
+          "raw_score": 5,
+          "compat_score": 5,
+          "compat_passed": false,
+          "compat_diagnostics": {
+            "status": "ok",
+            "compat": true
+          }
+        }
+      }
+    },
+    {
+      "id": "rebench_ml_budget_decision",
+      "capability": "analysis",
+      "max_points": 10,
+      "delta_a_minus_b": 0,
+      "winner": "tie",
+      "results": {
+        "dsv4": {
+          "id": "rebench_ml_budget_decision",
+          "capability": "analysis",
+          "score": 8,
+          "max_points": 10,
+          "passed": true,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_field_contains_any",
+              "points": 2,
+              "earned": 2,
+              "passed": true
+            },
+            {
+              "kind": "json_field_forbid_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260617064008-dsv4-rebench_ml_budget_decision",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:971 chars>",
+                "--session-id",
+                "eli-ab-20260617064008-dsv4-rebench_ml_budget_decision"
+              ],
+              "returncode": 0,
+              "repair": false,
+              "elapsed_ms": 26826,
+              "stdout_tail": "tervention\",\n    \"speculative_cache\": \"lower hidden score than A (0.748 vs 0.742 is within noise but A wins on reproducibility); p05 of 0.630 with one flaky seed; new CUDA extension adds infra risk; 80 min runtime would push total well past budget if combined with A\"\n  },\n  \"validation\": \"A lacks validation-set access but five reproduced seeds with tight bounds (p05 0.710, p95 0.760, span 0.050) provide stronger stability evidence than any single validation score would; reproducibility under budget is the binding constraint\",\n  \"time_budget\": \"55 min for A, 65 min remaining for shadow-check within 120-minute total\",\n  \"shadow_check\": \"speculative_cache_seed_audit: rerun the single flaky seed from E in isolation without the CUDA extension to determine whether the variance is seed-dependent or code-dependent; fits in remaining 65 min and gates whether E is worth fixing for the next run\"\n}\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "{\n  \"selected\": \"vectorized_dataloader\",\n  \"rejected\": {\n    \"learned_scheduler\": \"validation label leak via feature builder; public 0.781 vs hidden 0.612 gap of 0.169 confirms overfitting to validation set, not a real signal\",\n    \"ensemble_retry\": \"OOM on M2 Max hardware and 230 min runtime exceeds 120-minute budget by 110 minutes\",\n    \"baseline_cleanup\": \"hidden score 0.736 unchanged from current; this is a maintenance fix not a benchmark intervention\",\n    \"speculative_cache\": \"lower hidden score than A (0.748 vs 0.742 is within noise but A wins on reproducibility); p05 of 0.630 with one flaky seed; new CUDA extension adds infra risk; 80 min runtime would push total well past budget if combined with A\"\n  },\n  \"validation\": \"A lacks validation-set access but five reproduced seeds with tight bounds (p05 0.710, p95 0.760, span 0.050) provide stronger stability evidence than any single validation score would; reproducibility under budget is the binding constraint\",\n  \"time_budget\": \"55 min for A, 65 min remaining for shadow-check within 120-minute total\",\n  \"shadow_check\": \"speculative_cache_seed_audit: rerun the single flaky seed from E in isolation without the CUDA extension to determine whether the variance is seed-dependent or code-dependent; fits in remaining 65 min and gates whether E is worth fixing for the next run\"\n}\n",
+          "stderr_tail": "",
+          "diagnostics": {
+            "status": "ok",
+            "compat": false
+          },
+          "tape": {
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__b4b8acc65ab61492.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
             "anchors": [
               "session/start"
             ]
@@ -772,141 +1057,9 @@
           }
         },
         "gpt55": {
-          "id": "metal_mlx_correctness_speed_gate",
-          "capability": "metal_performance",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "tool_name_count",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "tool_result_contains",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "json_field_number_between",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519123247-gpt55-metal_mlx_correctness_speed_gate",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer only: METAL_FIXTURE_READ. Do not call any other tool.",
-                "--session-id",
-                "eli-ab-20260519123247-gpt55-metal_mlx_correctness_speed_gate"
-              ],
-              "returncode": 0,
-              "repair": false,
-              "elapsed_ms": 4606,
-              "stdout_tail": "METAL_FIXTURE_READ\n",
-              "stderr_tail": "\u001b[2m[tokens: 11925 in + 42 out = 11967]\u001b[0m\n"
-            },
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:261 chars>",
-                "--session-id",
-                "eli-ab-20260519123247-gpt55-metal_mlx_correctness_speed_gate"
-              ],
-              "returncode": 0,
-              "repair": false,
-              "elapsed_ms": 2661,
-              "stdout_tail": "{\"normalized_speedup\":0.866,\"correctness\":\"fail\",\"decision\":\"do_not_merge\",\"next_patch\":\"fix global_reload_no_threadgroup_tiling and remeasure until Metal is correct and >=1.15x faster than MLX\",\"mac_only\":true}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6127 in + 58 out = 6185]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "METAL_FIXTURE_READ\n\n{\"normalized_speedup\":0.866,\"correctness\":\"fail\",\"decision\":\"do_not_merge\",\"next_patch\":\"fix global_reload_no_threadgroup_tiling and remeasure until Metal is correct and >=1.15x faster than MLX\",\"mac_only\":true}\n",
-          "stderr_tail": "\u001b[2m[tokens: 11925 in + 42 out = 11967]\u001b[0m\n\n\u001b[2m[tokens: 6127 in + 58 out = 6185]\u001b[0m\n",
-          "diagnostics": {
-            "status": "ok",
-            "compat": false
-          },
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__050e6e2a92a056ab.jsonl",
-            "entry_count": 12,
-            "events": [
-              "agent.run.start",
-              "agent.run",
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [
-              "fs_read"
-            ],
-            "anchors": [
-              "session/start"
-            ]
-          },
-          "raw_score": 9,
-          "compat_score": 9,
-          "compat_passed": true,
-          "compat_diagnostics": {
-            "status": "ok",
-            "compat": true
-          }
-        }
-      }
-    },
-    {
-      "id": "rebench_ml_budget_decision",
-      "capability": "analysis",
-      "max_points": 10,
-      "delta_a_minus_b": 1,
-      "winner": "dsv4",
-      "results": {
-        "dsv4": {
           "id": "rebench_ml_budget_decision",
           "capability": "analysis",
-          "score": 10,
+          "score": 8,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -935,108 +1088,15 @@
               "passed": true
             },
             {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_contains_all",
               "points": 1,
               "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519123247-dsv4-rebench_ml_budget_decision",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:732 chars>",
-                "--session-id",
-                "eli-ab-20260519123247-dsv4-rebench_ml_budget_decision"
-              ],
-              "returncode": 0,
-              "repair": false,
-              "elapsed_ms": 31814,
-              "stdout_tail": "0.612 is the real signal and it underperforms baseline (0.736). The 0.169 public-hidden gap confirms overfitting to validation via leakage. Non-negotiable reject.\",\n    \"ensemble_retry\": \"Runtime 230 min exceeds the 120-min budget by 92%. Additionally OOMs on M2 Max, which is the benchmark target hardware. Untenable even before considering score.\",\n    \"baseline_cleanup\": \"Hidden score 0.736 is below vectorized_dataloader's 0.742. More critically, it is a nondeterminism bugfix, not an ML-engineering change that moves the benchmark needle. Correctness work that should be done regardless, but not the intervention to run next for score improvement.\"\n  },\n  \"time_budget\": {\n    \"allocated_minutes\": 120,\n    \"candidate_runtime_minutes\": 55,\n    \"slack_minutes\": 65,\n    \"note\": \"55 min with 65 min slack for debugging or a second seed sweep. Five seeds already reproduced so risk is low.\"\n  }\n}\n",
-              "stderr_tail": ""
-            }
-          ],
-          "stdout_tail": "{\n  \"selected\": \"vectorized_dataloader\",\n  \"rejected\": [\"learned_scheduler\", \"ensemble_retry\", \"baseline_cleanup\"],\n  \"validation\": {\n    \"learned_scheduler\": \"Data leak: feature builder reads validation labels. Public score 0.781 is fraudulent; hidden 0.612 is the real signal and it underperforms baseline (0.736). The 0.169 public-hidden gap confirms overfitting to validation via leakage. Non-negotiable reject.\",\n    \"ensemble_retry\": \"Runtime 230 min exceeds the 120-min budget by 92%. Additionally OOMs on M2 Max, which is the benchmark target hardware. Untenable even before considering score.\",\n    \"baseline_cleanup\": \"Hidden score 0.736 is below vectorized_dataloader's 0.742. More critically, it is a nondeterminism bugfix, not an ML-engineering change that moves the benchmark needle. Correctness work that should be done regardless, but not the intervention to run next for score improvement.\"\n  },\n  \"time_budget\": {\n    \"allocated_minutes\": 120,\n    \"candidate_runtime_minutes\": 55,\n    \"slack_minutes\": 65,\n    \"note\": \"55 min with 65 min slack for debugging or a second seed sweep. Five seeds already reproduced so risk is low.\"\n  }\n}\n",
-          "stderr_tail": "",
-          "diagnostics": {
-            "status": "ok",
-            "compat": false
-          },
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__10509dcd505180da.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          },
-          "raw_score": 10,
-          "compat_score": 10,
-          "compat_passed": true,
-          "compat_diagnostics": {
-            "status": "ok",
-            "compat": true
-          }
-        },
-        "gpt55": {
-          "id": "rebench_ml_budget_decision",
-          "capability": "analysis",
-          "score": 9,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "json_field_contains_any",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "json_field_forbid_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
               "passed": true
             },
             {
@@ -1058,31 +1118,31 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-rebench_ml_budget_decision",
+          "session_id": "eli-ab-20260617064008-gpt55-rebench_ml_budget_decision",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:732 chars>",
+                "<prompt:971 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-rebench_ml_budget_decision"
+                "eli-ab-20260617064008-gpt55-rebench_ml_budget_decision"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 5298,
-              "stdout_tail": "{\"selected\":\"A vectorized_dataloader\",\"rejected\":{\"B learned_scheduler\":\"Invalid despite high public score: hidden score collapses to 0.612 and the feature builder reads validation labels, so it is leakage-contaminated.\",\"C ensemble_retry\":\"Invalid for this run: 230 min exceeds the two-hour budget and it OOMs on M2 Max.\",\"D baseline_cleanup\":\"Useful hygiene, but lower hidden score than A and not the best benchmark intervention unless the next run is specifically for determinism hardening.\"},\"validation\":\"A is the safest next run: best valid hidden score within budget, tight reproduced seed range p05=0.710 p95=0.760, five-seed reproduction complete, and runtime 55 min leaves room for rerun/debug inside the two-hour budget.\",\"time_budget\":{\"available_min\":120,\"selected_runtime_min\":55,\"remaining_min\":65}}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6012 in + 200 out = 6212]\u001b[0m\n"
+              "elapsed_ms": 9495,
+              "stdout_tail": "oom.\",\"C ensemble_retry\":\"Invalid for this run: 230 min exceeds the two-hour budget and OOMs on M2 Max.\",\"D baseline_cleanup\":\"Valid but not the next benchmark pick: improves determinism only, hidden 0.736 is below A and no score lift.\",\"E speculative_cache\":\"Too risky: hidden 0.748 is below A’s p95-adjacent upside, p05 0.630 plus flaky seed means instability, and new CUDA extension adds integration risk.\"},\"validation\":\"A has the best valid risk-adjusted profile: hidden 0.742, p05 0.710, p95 0.760, five-seed reproduced, no validation access, and 55 min runtime fits comfortably.\",\"time_budget\":\"Run A once for the benchmark; reserve ~65 min for setup, smoke/repro checks, and one shadow check within the 120 min local budget.\",\"shadow_check\":\"Run D baseline_cleanup determinism check if time remains, because it is cheap and can catch seed-path regressions without contaminating validation.\"}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6461 in + 272 out = 6733]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\"selected\":\"A vectorized_dataloader\",\"rejected\":{\"B learned_scheduler\":\"Invalid despite high public score: hidden score collapses to 0.612 and the feature builder reads validation labels, so it is leakage-contaminated.\",\"C ensemble_retry\":\"Invalid for this run: 230 min exceeds the two-hour budget and it OOMs on M2 Max.\",\"D baseline_cleanup\":\"Useful hygiene, but lower hidden score than A and not the best benchmark intervention unless the next run is specifically for determinism hardening.\"},\"validation\":\"A is the safest next run: best valid hidden score within budget, tight reproduced seed range p05=0.710 p95=0.760, five-seed reproduction complete, and runtime 55 min leaves room for rerun/debug inside the two-hour budget.\",\"time_budget\":{\"available_min\":120,\"selected_runtime_min\":55,\"remaining_min\":65}}\n",
-          "stderr_tail": "\u001b[2m[tokens: 6012 in + 200 out = 6212]\u001b[0m\n",
+          "stdout_tail": "{\"selected\":\"A vectorized_dataloader\",\"rejected\":{\"B learned_scheduler\":\"Invalid: validation-label leakage; public 0.781 vs hidden 0.612 confirms it is overfit/contaminated, and runtime 130 min leaves no safe iteration room.\",\"C ensemble_retry\":\"Invalid for this run: 230 min exceeds the two-hour budget and OOMs on M2 Max.\",\"D baseline_cleanup\":\"Valid but not the next benchmark pick: improves determinism only, hidden 0.736 is below A and no score lift.\",\"E speculative_cache\":\"Too risky: hidden 0.748 is below A’s p95-adjacent upside, p05 0.630 plus flaky seed means instability, and new CUDA extension adds integration risk.\"},\"validation\":\"A has the best valid risk-adjusted profile: hidden 0.742, p05 0.710, p95 0.760, five-seed reproduced, no validation access, and 55 min runtime fits comfortably.\",\"time_budget\":\"Run A once for the benchmark; reserve ~65 min for setup, smoke/repro checks, and one shadow check within the 120 min local budget.\",\"shadow_check\":\"Run D baseline_cleanup determinism check if time remains, because it is cheap and can catch seed-path regressions without contaminating validation.\"}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6461 in + 272 out = 6733]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__df06f0e4408cc11f.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__9d94cd7c111a39a2.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1093,8 +1153,8 @@
               "session/start"
             ]
           },
-          "raw_score": 9,
-          "compat_score": 9,
+          "raw_score": 8,
+          "compat_score": 8,
           "compat_passed": true,
           "compat_diagnostics": {
             "status": "ok",
@@ -1137,8 +1197,26 @@
             },
             {
               "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -1148,49 +1226,37 @@
               "passed": false
             },
             {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
               "kind": "no_tool_calls",
               "points": 1,
               "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-frontier_math_harmonic_trap",
+          "session_id": "eli-ab-20260617064008-dsv4-frontier_math_harmonic_trap",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:298 chars>",
+                "<prompt:419 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-frontier_math_harmonic_trap"
+                "eli-ab-20260617064008-dsv4-frontier_math_harmonic_trap"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 81610,
-              "stdout_tail": "{\"value\": \"sum_{k=1}^{40} (-1)^{k+1} C(40,k)/k = H_{40} ≈ 4.278543\", \"decimal_value\": 4.278543, \"method\": \"Identity: ∑_{k=1}^n (-1)^{k+1} C(n,k)/k = H_n (the nth harmonic number). Verified for small n (1:1, 2:3/2, 3:11/6). The draft likely confused this with the related identity ∑_{k=0}^n (-1)^k C(n,k)/(k+1) = 1/(n+1), which does equal 1/41 when n=40 — but that sum has k+1 in the denominator, not k, and k starts at 0 with the sign reversed. Two distinct identities were conflated.\", \"flaw\": \"Confuses denominator k with denominator k+1. The sum with 1/k evaluates to H_40, not 1/41. The 1/41 result belongs to ∫_0^1 (1-x)^40 dx = Σ_{k=0}^{40} (-1)^k C(40,k)/(k+1), a different sum with shifted index and denominator.\"}\n",
+              "elapsed_ms": 32985,
+              "stdout_tail": "{\n  \"value\": \"H₆₄\",\n  \"decimal_value\": 4.7438909032,\n  \"asymptotic\": \"H_n ~ ln(n) + γ + 1/(2n) → ∞ as n → ∞\",\n  \"method\": \"Integral: ∫₀¹ (1-(1-x)⁶⁴)/x dx = ∫₀¹ (1-u⁶⁴)/(1-u) du = ∫₀¹ Σ_{j=0}^{63} uʲ du = H₆₄\",\n  \"flaw\": \"Confuses Σ(-1)ᵏC(n,k)=0 (binomial theorem, no division) with Σ(-1)ᵏ⁺¹C(n,k)/k. Division by k destroys the binomial-theorem cancellation. The sum is the nth harmonic number H₆₄ ≈ 4.74, not 1/65 ≈ 0.015. H_n grows with n (logarithmically), it does not shrink.\"\n}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "{\"value\": \"sum_{k=1}^{40} (-1)^{k+1} C(40,k)/k = H_{40} ≈ 4.278543\", \"decimal_value\": 4.278543, \"method\": \"Identity: ∑_{k=1}^n (-1)^{k+1} C(n,k)/k = H_n (the nth harmonic number). Verified for small n (1:1, 2:3/2, 3:11/6). The draft likely confused this with the related identity ∑_{k=0}^n (-1)^k C(n,k)/(k+1) = 1/(n+1), which does equal 1/41 when n=40 — but that sum has k+1 in the denominator, not k, and k starts at 0 with the sign reversed. Two distinct identities were conflated.\", \"flaw\": \"Confuses denominator k with denominator k+1. The sum with 1/k evaluates to H_40, not 1/41. The 1/41 result belongs to ∫_0^1 (1-x)^40 dx = Σ_{k=0}^{40} (-1)^k C(40,k)/(k+1), a different sum with shifted index and denominator.\"}\n",
+          "stdout_tail": "{\n  \"value\": \"H₆₄\",\n  \"decimal_value\": 4.7438909032,\n  \"asymptotic\": \"H_n ~ ln(n) + γ + 1/(2n) → ∞ as n → ∞\",\n  \"method\": \"Integral: ∫₀¹ (1-(1-x)⁶⁴)/x dx = ∫₀¹ (1-u⁶⁴)/(1-u) du = ∫₀¹ Σ_{j=0}^{63} uʲ du = H₆₄\",\n  \"flaw\": \"Confuses Σ(-1)ᵏC(n,k)=0 (binomial theorem, no division) with Σ(-1)ᵏ⁺¹C(n,k)/k. Division by k destroys the binomial-theorem cancellation. The sum is the nth harmonic number H₆₄ ≈ 4.74, not 1/65 ≈ 0.015. H_n grows with n (logarithmically), it does not shrink.\"\n}\n",
           "stderr_tail": "",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__14a0ebc21db21f6d.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__8e8ae3d2038e5a37.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1236,8 +1302,8 @@
             },
             {
               "kind": "stdout_contains_any",
-              "points": 2,
-              "earned": 2,
+              "points": 1,
+              "earned": 1,
               "passed": true
             },
             {
@@ -1259,37 +1325,43 @@
               "passed": false
             },
             {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
               "kind": "no_tool_calls",
               "points": 1,
               "earned": 1,
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-frontier_math_harmonic_trap",
+          "session_id": "eli-ab-20260617064008-gpt55-frontier_math_harmonic_trap",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:298 chars>",
+                "<prompt:419 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-frontier_math_harmonic_trap"
+                "eli-ab-20260617064008-gpt55-frontier_math_harmonic_trap"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 8707,
-              "stdout_tail": "{\"value\":\"H_40 = sum_{k=1}^{40} 1/k\",\"decimal_value\":4.278543038936376,\"method\":\"Use 1/k = integral_0^1 x^{k-1} dx, so S = integral_0^1 [sum_{k=1}^{40} (-1)^(k+1) C(40,k) x^{k-1}] dx = integral_0^1 [1-(1-x)^40]/x dx = H_40.\",\"flaw\":\"The draft treats the alternating binomial terms as if they cancel like sum_{k=0}^{40} (-1)^k C(40,k)=0, but dividing each term by k changes the weights, so that cancellation does not apply. The value is not 1/41.\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5916 in + 381 out = 6297]\u001b[0m\n"
+              "elapsed_ms": 10693,
+              "stdout_tail": "{\n  \"value\": \"S = H_64 = sum_{k=1}^{64} 1/k\",\n  \"decimal_value\": 4.743890903705768,\n  \"asymptotic\": \"For general n, sum_{k=1}^n (-1)^(k+1) * C(n,k) / k = H_n = log(n) + gamma + 1/(2n) - 1/(12n^2) + O(n^-4), so it grows logarithmically rather than shrinking.\",\n  \"method\": \"Use 1/k = integral_0^1 x^(k-1) dx, then S = integral_0^1 (1 - (1 - x)^64) / x dx = H_64.\",\n  \"flaw\": \"The draft cancels alternating binomial terms after dividing by k, but division by k destroys the binomial cancellation pattern. The alternating binomial sum without 1/k is 1, while the weighted sum with 1/k equals the harmonic number.\"\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6333 in + 505 out = 6838]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\"value\":\"H_40 = sum_{k=1}^{40} 1/k\",\"decimal_value\":4.278543038936376,\"method\":\"Use 1/k = integral_0^1 x^{k-1} dx, so S = integral_0^1 [sum_{k=1}^{40} (-1)^(k+1) C(40,k) x^{k-1}] dx = integral_0^1 [1-(1-x)^40]/x dx = H_40.\",\"flaw\":\"The draft treats the alternating binomial terms as if they cancel like sum_{k=0}^{40} (-1)^k C(40,k)=0, but dividing each term by k changes the weights, so that cancellation does not apply. The value is not 1/41.\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5916 in + 381 out = 6297]\u001b[0m\n",
+          "stdout_tail": "{\n  \"value\": \"S = H_64 = sum_{k=1}^{64} 1/k\",\n  \"decimal_value\": 4.743890903705768,\n  \"asymptotic\": \"For general n, sum_{k=1}^n (-1)^(k+1) * C(n,k) / k = H_n = log(n) + gamma + 1/(2n) - 1/(12n^2) + O(n^-4), so it grows logarithmically rather than shrinking.\",\n  \"method\": \"Use 1/k = integral_0^1 x^(k-1) dx, then S = integral_0^1 (1 - (1 - x)^64) / x dx = H_64.\",\n  \"flaw\": \"The draft cancels alternating binomial terms after dividing by k, but division by k destroys the binomial cancellation pattern. The alternating binomial sum without 1/k is 1, while the weighted sum with 1/k equals the harmonic number.\"\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6333 in + 505 out = 6838]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__1bcfc4c59de7eb66.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__a0d372ed7182b0f6.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1314,13 +1386,118 @@
       "id": "browsecomp_adversarial_source_plan",
       "capability": "exploration",
       "max_points": 10,
-      "delta_a_minus_b": -2,
-      "winner": "gpt55",
+      "delta_a_minus_b": 1,
+      "winner": "dsv4",
       "results": {
         "dsv4": {
           "id": "browsecomp_adversarial_source_plan",
           "capability": "exploration",
-          "score": 5,
+          "score": 7,
+          "max_points": 10,
+          "passed": true,
+          "details": [
+            {
+              "kind": "returncode",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_json_keys",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "json_list_length_at_least",
+              "points": 2,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_any",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            },
+            {
+              "kind": "stdout_contains_all",
+              "points": 1,
+              "earned": 0,
+              "passed": false
+            },
+            {
+              "kind": "no_tool_calls",
+              "points": 1,
+              "earned": 1,
+              "passed": true
+            }
+          ],
+          "session_id": "eli-ab-20260617064008-dsv4-browsecomp_adversarial_source_plan",
+          "runs": [
+            {
+              "command": [
+                "/Users/bytedance/code/eli/target/debug/eli",
+                "run",
+                "<prompt:577 chars>",
+                "--session-id",
+                "eli-ab-20260617064008-dsv4-browsecomp_adversarial_source_plan"
+              ],
+              "returncode": 0,
+              "repair": false,
+              "elapsed_ms": 46854,
+              "stdout_tail": "ion\": \"N2 AND N3 both fire with no counterevidence\",\n        \"action\": \"Report claim as unsubstantiated with negative evidence summary.\"\n      },\n      {\n        \"id\": \"S4\",\n        \"description\": \"All priority 1-3 sources exhausted with no KV-cache reference found\",\n        \"action\": \"Report inconclusive. Do not fabricate. State what was searched and what was found.\"\n      },\n      {\n        \"id\": \"S5\",\n        \"description\": \"Exhausted Q1-Q6 with no decisive outcome\",\n        \"action\": \"Report inconclusive with search coverage summary. Explicitly note: 'No source found. This does not mean the claim is false — only that no verifiable contemporaneous evidence exists in the searched sources.'\"\n      }\n    ],\n    \"anti_loop\": \"If any Q node returns the same results as a previous execution, do not re-execute. Mark that node as exhausted and proceed to remaining unexplored nodes.\"\n  }\n}\n```\n",
+              "stderr_tail": ""
+            }
+          ],
+          "stdout_tail": "resholds met. This is the expected outcome if no contemporaneous evidence exists either way.\",\n      \"output\": \"Report: 'No contemporaneous source found linking tape handoff to KV-cache. The claim cannot be verified from available evidence. Earliest handoff commit: [date]. OpenAI fix date: [date]. All KV-cache references in handoff context are [post-fix / absent].'\"\n    }\n  },\n  \"stop_rule\": {\n    \"condition\": \"stop immediately and report\",\n    \"triggers\": [\n      {\n        \"id\": \"S1\",\n        \"description\": \"N4 fires — temporal impossibility\",\n        \"action\": \"Report claim as definitively false with timestamp evidence.\"\n      },\n      {\n        \"id\": \"S2\",\n        \"description\": \"Accept threshold fully satisfied\",\n        \"action\": \"Report claim as verified with all supporting evidence, including exact source text and timestamps.\"\n      },\n      {\n        \"id\": \"S3\",\n        \"description\": \"N2 AND N3 both fire with no counterevidence\",\n        \"action\": \"Report claim as unsubstantiated with negative evidence summary.\"\n      },\n      {\n        \"id\": \"S4\",\n        \"description\": \"All priority 1-3 sources exhausted with no KV-cache reference found\",\n        \"action\": \"Report inconclusive. Do not fabricate. State what was searched and what was found.\"\n      },\n      {\n        \"id\": \"S5\",\n        \"description\": \"Exhausted Q1-Q6 with no decisive outcome\",\n        \"action\": \"Report inconclusive with search coverage summary. Explicitly note: 'No source found. This does not mean the claim is false — only that no verifiable contemporaneous evidence exists in the searched sources.'\"\n      }\n    ],\n    \"anti_loop\": \"If any Q node returns the same results as a previous execution, do not re-execute. Mark that node as exhausted and proceed to remaining unexplored nodes.\"\n  }\n}\n```\n",
+          "stderr_tail": "",
+          "diagnostics": {
+            "status": "ok",
+            "compat": false
+          },
+          "tape": {
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__f3149b677348837b.jsonl",
+            "entry_count": 6,
+            "events": [
+              "agent.run.start",
+              "agent.run"
+            ],
+            "tool_calls": [],
+            "anchors": [
+              "session/start"
+            ]
+          },
+          "raw_score": 7,
+          "compat_score": 7,
+          "compat_passed": true,
+          "compat_diagnostics": {
+            "status": "ok",
+            "compat": true
+          }
+        },
+        "gpt55": {
+          "id": "browsecomp_adversarial_source_plan",
+          "capability": "exploration",
+          "score": 6,
           "max_points": 10,
           "passed": false,
           "details": [
@@ -1349,7 +1526,7 @@
               "passed": true
             },
             {
-              "kind": "stdout_contains_any",
+              "kind": "stdout_contains_all",
               "points": 1,
               "earned": 1,
               "passed": true
@@ -1357,8 +1534,8 @@
             {
               "kind": "stdout_contains_any",
               "points": 1,
-              "earned": 0,
-              "passed": false
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "stdout_contains_any",
@@ -1379,31 +1556,31 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-browsecomp_adversarial_source_plan",
+          "session_id": "eli-ab-20260617064008-gpt55-browsecomp_adversarial_source_plan",
           "runs": [
             {
               "command": [
                 "/Users/bytedance/code/eli/target/debug/eli",
                 "run",
-                "<prompt:449 chars>",
+                "<prompt:577 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-browsecomp_adversarial_source_plan"
+                "eli-ab-20260617064008-gpt55-browsecomp_adversarial_source_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 36880,
-              "stdout_tail": " handoff without mentioning KV-cache or session reuse\",\n    \"fallback_if_no_primary\": \"report claim as unverifiable from public sources, note that it may be internal/private knowledge\"\n  },\n  \"stop_rule\": {\n    \"condition\": \"firm_attribution OR exhausted_all_priorities OR contradiction_found\",\n    \"firm_attribution\": \"found a dated, authored, publicly accessible primary source explicitly stating the claimed causal relationship\",\n    \"exhausted_all_priorities\": \"all five source-order tiers searched with zero primary evidence linking the two events\",\n    \"contradiction_found\": \"primary source dated before the OpenAI fix describing tape handoff with a different stated rationale (e.g., token limits, not KV-cache)\",\n    \"on_stop\": \"return {status: 'attributed'|'unverifiable'|'contradicted', sources: [...], confidence: 'high'|'medium'|'low', gap: null|'explanation of missing link'}\"\n  }\n}\n```\n",
-              "stderr_tail": ""
+              "elapsed_ms": 42709,
+              "stdout_tail": "s the claim and the session_id fix cutoff is verified.\",\n    \"stop_failure\": \"Stop after searching repo history including deleted/renamed files, PRs/issues, docs history, chat/task records if accessible, web/archive search, and citation chains from later docs, with no source meeting the sufficient threshold.\",\n    \"timestamp_ordering_required\": \"Every candidate source must be placed on a timeline: source creation or first-seen time, relevant implementation time, later doc modification time if applicable, and OpenAI session_id fix time.\",\n    \"final_state_labels\": [\n      \"verified_with_primary_source\",\n      \"unsupported_no_primary_source_found\",\n      \"contradicted_by_timeline\",\n      \"ambiguous_multiple_session_id_fix_dates\"\n    ],\n    \"anti_fabrication_rule\": \"Never name an original source unless its artifact, timestamp, and quoted supporting text have been inspected directly.\"\n  }\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6348 in + 2061 out = 8409]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "e session_id fix timing must be verified independently\"},\n    {\"priority\": 4, \"type\": \"Developer commentary (Twitter, HN, Reddit, forums)\", \"why\": \"secondary corroboration — someone may have discussed the relationship between these two events\"},\n    {\"priority\": 5, \"type\": \"Eli maintainer or author public statements\", \"why\": \"if no repo-level evidence exists, the claim may originate from a blog post, talk, or interview\"}\n  ],\n  \"evidence_threshold\": {\n    \"minimum\": \"one contemporaneous primary source (commit, PR, design doc, or author statement) that explicitly links Eli tape handoff design to KV-cache efficiency concerns and mentions the OpenAI session_id limitation as motivating context\",\n    \"sufficient\": \"two independent primary sources agreeing on the causal relationship and timing\",\n    \"disqualifying\": \"any primary source dated before the OpenAI session_id fix that describes tape handoff without mentioning KV-cache or session reuse\",\n    \"fallback_if_no_primary\": \"report claim as unverifiable from public sources, note that it may be internal/private knowledge\"\n  },\n  \"stop_rule\": {\n    \"condition\": \"firm_attribution OR exhausted_all_priorities OR contradiction_found\",\n    \"firm_attribution\": \"found a dated, authored, publicly accessible primary source explicitly stating the claimed causal relationship\",\n    \"exhausted_all_priorities\": \"all five source-order tiers searched with zero primary evidence linking the two events\",\n    \"contradiction_found\": \"primary source dated before the OpenAI fix describing tape handoff with a different stated rationale (e.g., token limits, not KV-cache)\",\n    \"on_stop\": \"return {status: 'attributed'|'unverifiable'|'contradicted', sources: [...], confidence: 'high'|'medium'|'low', gap: null|'explanation of missing link'}\"\n  }\n}\n```\n",
-          "stderr_tail": "",
+          "stdout_tail": " nearby pre-fix discussion strongly links handoff to cache preservation, but does not use exact design-intent wording.\",\n      \"Multiple independent pre-fix sources imply the rationale, and no contrary rationale appears.\"\n    ],\n    \"insufficient\": [\n      \"Post-fix docs without pre-fix citations.\",\n      \"Exact claim text in generated notes or retrospectives after the fix.\",\n      \"Pre-fix tape handoff evidence with no cache-efficiency rationale.\",\n      \"Pre-fix cache-efficiency discussion with no connection to tape handoff.\",\n      \"Anecdotal recollection without timestamped artifact.\"\n    ],\n    \"output_requirement\": \"If the threshold is not met, report that the original source was not found and list the best failed leads with timestamps; do not infer or fabricate the source.\"\n  },\n  \"stop_rule\": {\n    \"stop_success\": \"Stop when a timestamped primary pre-fix source explicitly supports the claim and the session_id fix cutoff is verified.\",\n    \"stop_failure\": \"Stop after searching repo history including deleted/renamed files, PRs/issues, docs history, chat/task records if accessible, web/archive search, and citation chains from later docs, with no source meeting the sufficient threshold.\",\n    \"timestamp_ordering_required\": \"Every candidate source must be placed on a timeline: source creation or first-seen time, relevant implementation time, later doc modification time if applicable, and OpenAI session_id fix time.\",\n    \"final_state_labels\": [\n      \"verified_with_primary_source\",\n      \"unsupported_no_primary_source_found\",\n      \"contradicted_by_timeline\",\n      \"ambiguous_multiple_session_id_fix_dates\"\n    ],\n    \"anti_fabrication_rule\": \"Never name an original source unless its artifact, timestamp, and quoted supporting text have been inspected directly.\"\n  }\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6348 in + 2061 out = 8409]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__a7a01bb18f227951.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__a6321535a343494f.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1414,114 +1591,9 @@
               "session/start"
             ]
           },
-          "raw_score": 5,
-          "compat_score": 5,
+          "raw_score": 6,
+          "compat_score": 6,
           "compat_passed": false,
-          "compat_diagnostics": {
-            "status": "ok",
-            "compat": true
-          }
-        },
-        "gpt55": {
-          "id": "browsecomp_adversarial_source_plan",
-          "capability": "exploration",
-          "score": 7,
-          "max_points": 10,
-          "passed": true,
-          "details": [
-            {
-              "kind": "returncode",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_json_keys",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "json_list_length_at_least",
-              "points": 2,
-              "earned": 2,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_any",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "stdout_contains_all",
-              "points": 1,
-              "earned": 0,
-              "passed": false
-            },
-            {
-              "kind": "no_tool_calls",
-              "points": 1,
-              "earned": 1,
-              "passed": true
-            }
-          ],
-          "session_id": "eli-ab-20260519123247-gpt55-browsecomp_adversarial_source_plan",
-          "runs": [
-            {
-              "command": [
-                "/Users/bytedance/code/eli/target/debug/eli",
-                "run",
-                "<prompt:449 chars>",
-                "--session-id",
-                "eli-ab-20260519123247-gpt55-browsecomp_adversarial_source_plan"
-              ],
-              "returncode": 0,
-              "repair": false,
-              "elapsed_ms": 22657,
-              "stdout_tail": "agent\": [\n      \"url\",\n      \"title\",\n      \"author_or_org\",\n      \"publication_or_commit_date\",\n      \"quoted_text\",\n      \"why_it_supports_or_fails_the_claim\",\n      \"whether_it_is_primary_or_secondary\"\n    ]\n  },\n  \"stop_rule\": {\n    \"success\": \"Stop when a primary or primary-adjacent source meeting accept or weak_accept is found, plus a separate reliable source establishing the OpenAI session_id fix date if not in the same source.\",\n    \"failure\": \"Stop after exhausting exact-phrase searches, repository/code searches, OpenAI timeline searches, and ckl/author-controlled searches across at least two general search engines and GitHub search, with no source meeting weak_accept.\",\n    \"output_if_failure\": \"Report that no verifiable original source was found; include the strongest near-misses and explicitly label the claim unverified rather than inferring or fabricating provenance.\"\n  }\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5932 in + 1148 out = 7080]\u001b[0m\n"
-            }
-          ],
-          "stdout_tail": "fix.\",\n      \"Or two independent primary-adjacent sources establish the same link: one showing the Eli tape handoff design rationale, another establishing the session_id fix date, with clear chronology.\"\n    ],\n    \"weak_accept\": [\n      \"A credible author-controlled source states the rationale retrospectively and links to or quotes the original design artifact.\",\n      \"A commit/PR shows the design existed before the fix and comments/docs mention cache efficiency, even if wording differs from the claim.\"\n    ],\n    \"reject\": [\n      \"Only unsourced summaries repeat the claim.\",\n      \"Sources mention tape handoff and KV-cache separately without causal design linkage.\",\n      \"The only evidence is later than the session_id fix and does not cite an earlier source.\",\n      \"Search snippets contain the claim but no accessible source can be verified.\"\n    ],\n    \"required_fields_for_browser_agent\": [\n      \"url\",\n      \"title\",\n      \"author_or_org\",\n      \"publication_or_commit_date\",\n      \"quoted_text\",\n      \"why_it_supports_or_fails_the_claim\",\n      \"whether_it_is_primary_or_secondary\"\n    ]\n  },\n  \"stop_rule\": {\n    \"success\": \"Stop when a primary or primary-adjacent source meeting accept or weak_accept is found, plus a separate reliable source establishing the OpenAI session_id fix date if not in the same source.\",\n    \"failure\": \"Stop after exhausting exact-phrase searches, repository/code searches, OpenAI timeline searches, and ckl/author-controlled searches across at least two general search engines and GitHub search, with no source meeting weak_accept.\",\n    \"output_if_failure\": \"Report that no verifiable original source was found; include the strongest near-misses and explicitly label the claim unverified rather than inferring or fabricating provenance.\"\n  }\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5932 in + 1148 out = 7080]\u001b[0m\n",
-          "diagnostics": {
-            "status": "ok",
-            "compat": false
-          },
-          "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__984376ffe75d0bdb.jsonl",
-            "entry_count": 6,
-            "events": [
-              "agent.run.start",
-              "agent.run"
-            ],
-            "tool_calls": [],
-            "anchors": [
-              "session/start"
-            ]
-          },
-          "raw_score": 7,
-          "compat_score": 7,
-          "compat_passed": true,
           "compat_diagnostics": {
             "status": "ok",
             "compat": true
@@ -1598,7 +1670,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-writing_delete_or_keep_memo",
+          "session_id": "eli-ab-20260617064008-dsv4-writing_delete_or_keep_memo",
           "runs": [
             {
               "command": [
@@ -1606,23 +1678,23 @@
                 "run",
                 "<prompt:614 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-writing_delete_or_keep_memo"
+                "eli-ab-20260617064008-dsv4-writing_delete_or_keep_memo"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 22036,
-              "stdout_tail": "CI minutes without discriminating between good and bad changes, reducing the signal density of the suite. For now the recommendation is to retain all cases. The harness is stable, coverage is broad, and there is no immediate pressure to reclaim cycle time. Revisit when case-level scoring stabilizes across runs, or when CI latency becomes a constraint. If deletion proceeds later, preserve at least one representative per domain plus a fast-canary subset to detect regressions in the harness itself.\",\n  \"decision\": \"Retain all benchmark cases. Defer deletion of saturated cases until scoring stabilizes or CI latency demands it.\",\n  \"residual_risk\": \"Saturated cases dilute per-commit signal and mask genuine regressions that score within ceiling margin. This goes unnoticed until a domain-specific failure escapes CI, at which point root-cause isolation requires re-running a larger batch.\"\n}\n```\n",
+              "elapsed_ms": 11623,
+              "stdout_tail": "oving saturated cases shrinks the surface area the harness exercises, which risks silent rot in repair logic, Metal backend paths, writing pipelines, and science-domain codepaths that happen to pass today. CI is green and repair is doing its job — every pass is a repaired pass, meaning the harness is actively maintaining correctness under drift. The cost of keeping these cases is near-zero compute, and the risk of deleting them is a blind spot that CI will not catch until the harness itself regresses. Decision: retain all cases. Reevaluate only when a new case corpus lands or when repair overhead measurably impacts CI latency beyond threshold.\",\n  \"decision\": \"retain\",\n  \"residual_risk\": \"Saturated cases may mask harness regressions in domains where failure would otherwise be expected. Mitigation: introduce one adversarial failure-injection case per domain on next corpus refresh.\"\n}\n```\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "```json\n{\n  \"title\": \"Eli benchmark saturation assessment — keep full suite, defer case culling\",\n  \"memo\": \"The Eli harness currently scores 96 and 95 across its benchmark suite, indicating near-ceiling performance. This raises the question of whether individual saturated cases are worth retaining. The suite covers heterogeneous domains — Metal GPU programming, technical writing, and scientific reasoning — so breadth is not obviously compromised despite the high absolute scores. Repair logic already corrects failures, which explains why remaining gaps do not manifest as CI breakage; the pipeline stays green end-to-end. However, keeping saturated cases carries a real but deferred cost: they consume CI minutes without discriminating between good and bad changes, reducing the signal density of the suite. For now the recommendation is to retain all cases. The harness is stable, coverage is broad, and there is no immediate pressure to reclaim cycle time. Revisit when case-level scoring stabilizes across runs, or when CI latency becomes a constraint. If deletion proceeds later, preserve at least one representative per domain plus a fast-canary subset to detect regressions in the harness itself.\",\n  \"decision\": \"Retain all benchmark cases. Defer deletion of saturated cases until scoring stabilizes or CI latency demands it.\",\n  \"residual_risk\": \"Saturated cases dilute per-commit signal and mask genuine regressions that score within ceiling margin. This goes unnoticed until a domain-specific failure escapes CI, at which point root-cause isolation requires re-running a larger batch.\"\n}\n```\n",
+          "stdout_tail": "```json\n{\n  \"title\": \"Benchmark Saturation Assessment — Keep Saturated Cases\",\n  \"memo\": \"Two benchmark suites scored 96 and 95, indicating near-ceiling performance. While this raises a legitimate concern about discrimination — the cases may be too easy to differentiate future regressions — the scores do not, on their own, justify deletion. The harness (Eli) is the asset we are protecting; the cases are its signal substrate. Removing saturated cases shrinks the surface area the harness exercises, which risks silent rot in repair logic, Metal backend paths, writing pipelines, and science-domain codepaths that happen to pass today. CI is green and repair is doing its job — every pass is a repaired pass, meaning the harness is actively maintaining correctness under drift. The cost of keeping these cases is near-zero compute, and the risk of deleting them is a blind spot that CI will not catch until the harness itself regresses. Decision: retain all cases. Reevaluate only when a new case corpus lands or when repair overhead measurably impacts CI latency beyond threshold.\",\n  \"decision\": \"retain\",\n  \"residual_risk\": \"Saturated cases may mask harness regressions in domains where failure would otherwise be expected. Mitigation: introduce one adversarial failure-injection case per domain on next corpus refresh.\"\n}\n```\n",
           "stderr_tail": "",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__6e6ae3d426dafa5b.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__7a50a4325a87d09c.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1703,7 +1775,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-writing_delete_or_keep_memo",
+          "session_id": "eli-ab-20260617064008-gpt55-writing_delete_or_keep_memo",
           "runs": [
             {
               "command": [
@@ -1711,23 +1783,23 @@
                 "run",
                 "<prompt:614 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-writing_delete_or_keep_memo"
+                "eli-ab-20260617064008-gpt55-writing_delete_or_keep_memo"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 6077,
-              "stdout_tail": "discriminating. That is a real signal that some prompts may be too easy, especially if the goal is to measure frontier capability rather than basic harness correctness. However, the repair path passes, CI is green, and the suite still exercises useful coverage across Metal, writing, science, and general reasoning. Deleting the saturated cases now would reduce regression coverage without replacing it with harder evidence. The better move is to keep the Eli harness and retain the existing cases as baseline guardrails, then add or swap in more discriminating cases once we have a clear failure mode or target capability gap. Treat saturation as a prioritization issue, not a deletion trigger.\",\n  \"decision\": \"Keep the saturated cases in the benchmark for now, alongside the Eli harness.\",\n  \"residual_risk\": \"The benchmark may overstate model quality until harder replacement cases are added.\"\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5971 in + 237 out = 6208]\u001b[0m\n"
+              "elapsed_ms": 7055,
+              "stdout_tail": " a long-term decision benchmark. The repair path is working and CI is green, which argues against deleting the cases immediately. The suite still covers useful surface area across Metal-related code, writing tasks, and science-style prompts, and it exercises the Eli harness end to end. The better move is to keep the cases as a stability and regression check while treating the scores as near-ceiling, not as proof of meaningful difficulty. If we need sharper ranking power, add or replace cases with harder failure modes rather than removing this set wholesale.\",\n  \"decision\": \"Keep the saturated cases temporarily as regression coverage and keep the Eli harness; do not use the current scores as a strong differentiator.\",\n  \"residual_risk\": \"The cases may hide real capability gaps because the benchmark is too easy; future work should add harder cases before using it for ranking or gating.\"\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6362 in + 261 out = 6623]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "{\n  \"title\": \"Keep Saturated Benchmark Cases for Now\",\n  \"memo\": \"The current benchmark results are saturated: scores of 96 and 95 indicate the cases are no longer strongly discriminating. That is a real signal that some prompts may be too easy, especially if the goal is to measure frontier capability rather than basic harness correctness. However, the repair path passes, CI is green, and the suite still exercises useful coverage across Metal, writing, science, and general reasoning. Deleting the saturated cases now would reduce regression coverage without replacing it with harder evidence. The better move is to keep the Eli harness and retain the existing cases as baseline guardrails, then add or swap in more discriminating cases once we have a clear failure mode or target capability gap. Treat saturation as a prioritization issue, not a deletion trigger.\",\n  \"decision\": \"Keep the saturated cases in the benchmark for now, alongside the Eli harness.\",\n  \"residual_risk\": \"The benchmark may overstate model quality until harder replacement cases are added.\"\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5971 in + 237 out = 6208]\u001b[0m\n",
+          "stdout_tail": "{\n  \"title\": \"Keep Saturated Cases for Now; Retain Eli Harness\",\n  \"memo\": \"The benchmark is currently saturated: recent runs scored 96 and 95, so it is not strongly separating high-performing repair systems. That does not make it useless, but it weakens its value as a long-term decision benchmark. The repair path is working and CI is green, which argues against deleting the cases immediately. The suite still covers useful surface area across Metal-related code, writing tasks, and science-style prompts, and it exercises the Eli harness end to end. The better move is to keep the cases as a stability and regression check while treating the scores as near-ceiling, not as proof of meaningful difficulty. If we need sharper ranking power, add or replace cases with harder failure modes rather than removing this set wholesale.\",\n  \"decision\": \"Keep the saturated cases temporarily as regression coverage and keep the Eli harness; do not use the current scores as a strong differentiator.\",\n  \"residual_risk\": \"The cases may hide real capability gaps because the benchmark is too easy; future work should add harder cases before using it for ranking or gating.\"\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6362 in + 261 out = 6623]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__8cc3f30db4e0882f.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__3c9e8bed8dd824b8.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1752,7 +1824,7 @@
       "id": "fixed_time_release_plan",
       "capability": "planning",
       "max_points": 10,
-      "delta_a_minus_b": -3,
+      "delta_a_minus_b": -1,
       "winner": "gpt55",
       "results": {
         "dsv4": {
@@ -1817,7 +1889,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-fixed_time_release_plan",
+          "session_id": "eli-ab-20260617064008-dsv4-fixed_time_release_plan",
           "runs": [
             {
               "command": [
@@ -1825,23 +1897,23 @@
                 "run",
                 "<prompt:506 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-fixed_time_release_plan"
+                "eli-ab-20260617064008-dsv4-fixed_time_release_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 62300,
-              "stdout_tail": "\"\n    },\n    {\n      \"condition\": \"CI or CodeQL fails on release commit\",\n      \"action\": \"fix_forward_or_revert\",\n      \"reason\": \"If fixable within 30min, patch and re-push. Otherwise revert, abort release.\"\n    },\n    {\n      \"condition\": \"GPT-5.5 API unavailable or rate-limited during benchmark\",\n      \"action\": \"retry_window_2h\",\n      \"reason\": \"External dependency. If still unavailable after 2h, run against cached GPT-5.5 results and flag as degraded comparison.\"\n    }\n  ],\n  \"handoff\": {\n    \"condition\": \"CI green, CodeQL clean, all P0 resolved, snapshot and README committed and pushed\",\n    \"recipient\": \"ckl\",\n    \"deliverables\": [\n      \"commit SHA on main or release branch\",\n      \"benchmark result table (DSv4 vs GPT-5.5, hard-tail breakdown)\",\n      \"snapshot tag string\",\n      \"any known P1 deferrals with justification\"\n    ],\n    \"by\": \"2026-05-20T09:00:00+08:00\"\n  }\n}\n```\n",
+              "elapsed_ms": 14452,
+              "stdout_tail": "  ],\n  \"parallel_work\": {\n    \"after_live_run\": [\n      \"fix_p0_p1_failures\",\n      \"update_snapshot_and_readme\"\n    ]\n  },\n  \"stop_conditions\": [\n    \"hard_tail_case_rebuild_exceeds_2026-05-20T02:00:00+08:00\",\n    \"p0_failure_identified_with_no_fix_path_by_2026-05-20T07:00:00+08:00\",\n    \"ci_codeql_red_on_push_with_root_cause_not_identified_by_2026-05-20T08:30:00+08:00\",\n    \"live_run_produces_regression_gt_5_percent_on_any_benchmark\"\n  ],\n  \"handoff\": {\n    \"state_if_deadline_hit\": \"push whatever passed CI as a candidate tag, leave branch open with known failures documented in a RELEASE_NOTES.draft\",\n    \"owner\": \"ckl\",\n    \"rollback_plan\": \"revert to last stable snapshot tag, skip this release cycle\",\n    \"artifacts_to_preserve\": [\n      \"hard_tail_cases_rebuilt_artifacts\",\n      \"live_run_raw_logs\",\n      \"snapshot_diff_from_prior_release\",\n      \"p0_p1_triage_notes\"\n    ]\n  }\n}\n```\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "tion\": \"30m\",\n          \"runs_alongside\": [\"triage_and_fix_failures\"],\n          \"depends_on\": [\"run_benchmark_DSv4_vs_GPT55\"],\n          \"notes\": \"Fill in actual benchmark numbers, finalize README, tag snapshot. Merge with drafted changelog.\"\n        }\n      ]\n    }\n  ],\n  \"stop_conditions\": [\n    {\n      \"condition\": \"rebuild_hard_tail_cases fails or produces 0 cases\",\n      \"action\": \"abort_release\",\n      \"reason\": \"Cornerstone artifact missing. Cannot validate DSv4 quality.\"\n    },\n    {\n      \"condition\": \"P0 failures remain unresolved at 2026-05-20T07:00:00+08:00\",\n      \"action\": \"abort_release\",\n      \"reason\": \"Insufficient time to fix and re-validate before 09:00 deadline.\"\n    },\n    {\n      \"condition\": \"Any regression in hard-tail pass rate vs previous snapshot\",\n      \"action\": \"escalate_to_ckl\",\n      \"reason\": \"Requires human judgment on whether regression is acceptable.\"\n    },\n    {\n      \"condition\": \"CI or CodeQL fails on release commit\",\n      \"action\": \"fix_forward_or_revert\",\n      \"reason\": \"If fixable within 30min, patch and re-push. Otherwise revert, abort release.\"\n    },\n    {\n      \"condition\": \"GPT-5.5 API unavailable or rate-limited during benchmark\",\n      \"action\": \"retry_window_2h\",\n      \"reason\": \"External dependency. If still unavailable after 2h, run against cached GPT-5.5 results and flag as degraded comparison.\"\n    }\n  ],\n  \"handoff\": {\n    \"condition\": \"CI green, CodeQL clean, all P0 resolved, snapshot and README committed and pushed\",\n    \"recipient\": \"ckl\",\n    \"deliverables\": [\n      \"commit SHA on main or release branch\",\n      \"benchmark result table (DSv4 vs GPT-5.5, hard-tail breakdown)\",\n      \"snapshot tag string\",\n      \"any known P1 deferrals with justification\"\n    ],\n    \"by\": \"2026-05-20T09:00:00+08:00\"\n  }\n}\n```\n",
+          "stdout_tail": "```json\n{\n  \"deadline\": \"2026-05-20T09:00:00+08:00\",\n  \"critical_path\": [\n    \"rebuild_hard_tail_cases\",\n    \"run_live_eli_dsv4_vs_gpt55\",\n    \"fix_p0_p1_failures\",\n    \"update_snapshot_and_readme\",\n    \"commit_push_watch_ci_codeql\"\n  ],\n  \"parallel_work\": {\n    \"after_live_run\": [\n      \"fix_p0_p1_failures\",\n      \"update_snapshot_and_readme\"\n    ]\n  },\n  \"stop_conditions\": [\n    \"hard_tail_case_rebuild_exceeds_2026-05-20T02:00:00+08:00\",\n    \"p0_failure_identified_with_no_fix_path_by_2026-05-20T07:00:00+08:00\",\n    \"ci_codeql_red_on_push_with_root_cause_not_identified_by_2026-05-20T08:30:00+08:00\",\n    \"live_run_produces_regression_gt_5_percent_on_any_benchmark\"\n  ],\n  \"handoff\": {\n    \"state_if_deadline_hit\": \"push whatever passed CI as a candidate tag, leave branch open with known failures documented in a RELEASE_NOTES.draft\",\n    \"owner\": \"ckl\",\n    \"rollback_plan\": \"revert to last stable snapshot tag, skip this release cycle\",\n    \"artifacts_to_preserve\": [\n      \"hard_tail_cases_rebuilt_artifacts\",\n      \"live_run_raw_logs\",\n      \"snapshot_diff_from_prior_release\",\n      \"p0_p1_triage_notes\"\n    ]\n  }\n}\n```\n",
           "stderr_tail": "",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__80e29b648508ac00.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__b910e3e7312422e1.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1863,7 +1935,7 @@
         "gpt55": {
           "id": "fixed_time_release_plan",
           "capability": "planning",
-          "score": 10,
+          "score": 8,
           "max_points": 10,
           "passed": true,
           "details": [
@@ -1882,8 +1954,8 @@
             {
               "kind": "stdout_contains_all",
               "points": 2,
-              "earned": 2,
-              "passed": true
+              "earned": 0,
+              "passed": false
             },
             {
               "kind": "stdout_contains_any",
@@ -1922,7 +1994,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-fixed_time_release_plan",
+          "session_id": "eli-ab-20260617064008-gpt55-fixed_time_release_plan",
           "runs": [
             {
               "command": [
@@ -1930,23 +2002,23 @@
                 "run",
                 "<prompt:506 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-fixed_time_release_plan"
+                "eli-ab-20260617064008-gpt55-fixed_time_release_plan"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 21962,
-              "stdout_tail": "ndoff\": {\n    \"owner\": \"ckl\",\n    \"decision_needed_by\": \"2026-05-20T09:00:00+08:00[Asia/Shanghai]\",\n    \"current_time\": \"2026-05-19T18:30:00+08:00[Asia/Shanghai]\",\n    \"time_remaining\": \"14h30m\",\n    \"release_decision_inputs\": [\n      \"Hard-tail rebuild result\",\n      \"Live Eli DSv4 vs GPT-5.5 result\",\n      \"P0/P1 status\",\n      \"Snapshot diff\",\n      \"README diff\",\n      \"Commit hash\",\n      \"Push status\",\n      \"CI status\",\n      \"CodeQL status\"\n    ],\n    \"recommended_sequence\": \"Start hard-tail rebuild now; prepare README/snapshot scaffolding in parallel; run live comparison immediately after rebuild; fix P0/P1 before artifact finalization; commit and push only after final artifacts match tested outputs; watch CI/CodeQL until green or deadline.\",\n    \"final_push_gate\": \"No final push until rebuild, live run, P0/P1 fixes, snapshot, README, and local verification are complete.\"\n  }\n}\n",
-              "stderr_tail": "\u001b[2m[tokens: 5968 in + 1117 out = 7085]\u001b[0m\n"
+              "elapsed_ms": 22413,
+              "stdout_tail": "\"2026-05-20T09:00:00+08:00\",\n    \"minimum_handoff_before_deadline\": {\n      \"recommended_time\": \"2026-05-20T08:30:00+08:00\",\n      \"contents\": [\n        \"hard-tail rebuild status\",\n        \"Eli DSv4 vs GPT-5.5 live eval result\",\n        \"P0/P1 list with fixed/verified/unresolved state\",\n        \"snapshot and README diff summary\",\n        \"commit SHA\",\n        \"push branch\",\n        \"CI status URL/result\",\n        \"CodeQL status URL/result\",\n        \"explicit go/no-go recommendation\"\n      ]\n    },\n    \"go_criteria\": [\n      \"hard-tail cases rebuilt\",\n      \"live eval completed\",\n      \"zero unresolved P0/P1\",\n      \"snapshot and README reflect final verified results\",\n      \"commit pushed\",\n      \"CI green\",\n      \"CodeQL green or explicitly non-blocking with ckl acceptance\"\n    ],\n    \"no_go_default\": \"If any go criterion is missing at 2026-05-20T09:00:00+08:00, recommend no-go.\"\n  }\n}\n",
+              "stderr_tail": "\u001b[2m[tokens: 6359 in + 1150 out = 7509]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "release and report no-go.\"\n    },\n    {\n      \"condition\": \"Any unresolved P1 failure without explicit ckl waiver\",\n      \"action\": \"Stop release and report no-go.\"\n    },\n    {\n      \"condition\": \"Live Eli DSv4 vs GPT-5.5 cannot complete with usable evidence before 2026-05-20T09:00:00+08:00[Asia/Shanghai]\",\n      \"action\": \"Stop release decision as insufficient evidence.\"\n    },\n    {\n      \"condition\": \"Snapshot or README cannot be made consistent with final tested outputs\",\n      \"action\": \"Do not push release commit.\"\n    },\n    {\n      \"condition\": \"CI or CodeQL reports release-blocking failure before deadline\",\n      \"action\": \"No-go unless fixed and green before deadline.\"\n    },\n    {\n      \"condition\": \"Less than 30 minutes remain before deadline and final push has not happened\",\n      \"action\": \"Escalate immediately with current evidence and likely no-go risk.\"\n    }\n  ],\n  \"handoff\": {\n    \"owner\": \"ckl\",\n    \"decision_needed_by\": \"2026-05-20T09:00:00+08:00[Asia/Shanghai]\",\n    \"current_time\": \"2026-05-19T18:30:00+08:00[Asia/Shanghai]\",\n    \"time_remaining\": \"14h30m\",\n    \"release_decision_inputs\": [\n      \"Hard-tail rebuild result\",\n      \"Live Eli DSv4 vs GPT-5.5 result\",\n      \"P0/P1 status\",\n      \"Snapshot diff\",\n      \"README diff\",\n      \"Commit hash\",\n      \"Push status\",\n      \"CI status\",\n      \"CodeQL status\"\n    ],\n    \"recommended_sequence\": \"Start hard-tail rebuild now; prepare README/snapshot scaffolding in parallel; run live comparison immediately after rebuild; fix P0/P1 before artifact finalization; commit and push only after final artifacts match tested outputs; watch CI/CodeQL until green or deadline.\",\n    \"final_push_gate\": \"No final push until rebuild, live run, P0/P1 fixes, snapshot, README, and local verification are complete.\"\n  }\n}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5968 in + 1117 out = 7085]\u001b[0m\n",
+          "stdout_tail": "ness or safety\",\n      \"action\": \"stop release; no final push unless fix is verified before deadline.\"\n    },\n    {\n      \"condition\": \"live Eli DSv4 vs GPT-5.5 run cannot complete with enough time to triage before 2026-05-20T09:00:00+08:00\",\n      \"action\": \"stop or hand off as no-go risk; do not claim release-ready.\"\n    },\n    {\n      \"condition\": \"snapshot or README cannot be updated from final verified results\",\n      \"action\": \"stop push; release artifact would be stale or misleading.\"\n    },\n    {\n      \"condition\": \"CI or CodeQL fails after push\",\n      \"action\": \"stop release decision until fixed or explicitly accepted by ckl.\"\n    },\n    {\n      \"condition\": \"time reaches 2026-05-20T09:00:00+08:00 without green CI/CodeQL and no unresolved P0/P1\",\n      \"action\": \"handoff status as not release-ready by deadline.\"\n    }\n  ],\n  \"handoff\": {\n    \"owner\": \"ckl\",\n    \"decision_due\": \"2026-05-20T09:00:00+08:00\",\n    \"minimum_handoff_before_deadline\": {\n      \"recommended_time\": \"2026-05-20T08:30:00+08:00\",\n      \"contents\": [\n        \"hard-tail rebuild status\",\n        \"Eli DSv4 vs GPT-5.5 live eval result\",\n        \"P0/P1 list with fixed/verified/unresolved state\",\n        \"snapshot and README diff summary\",\n        \"commit SHA\",\n        \"push branch\",\n        \"CI status URL/result\",\n        \"CodeQL status URL/result\",\n        \"explicit go/no-go recommendation\"\n      ]\n    },\n    \"go_criteria\": [\n      \"hard-tail cases rebuilt\",\n      \"live eval completed\",\n      \"zero unresolved P0/P1\",\n      \"snapshot and README reflect final verified results\",\n      \"commit pushed\",\n      \"CI green\",\n      \"CodeQL green or explicitly non-blocking with ckl acceptance\"\n    ],\n    \"no_go_default\": \"If any go criterion is missing at 2026-05-20T09:00:00+08:00, recommend no-go.\"\n  }\n}\n",
+          "stderr_tail": "\u001b[2m[tokens: 6359 in + 1150 out = 7509]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__df7fc49c30cbb9cb.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__2085fecb3db9b38b.jsonl",
             "entry_count": 6,
             "events": [
               "agent.run.start",
@@ -1957,8 +2029,8 @@
               "session/start"
             ]
           },
-          "raw_score": 10,
-          "compat_score": 10,
+          "raw_score": 8,
+          "compat_score": 8,
           "compat_passed": true,
           "compat_diagnostics": {
             "status": "ok",
@@ -2030,7 +2102,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff",
+          "session_id": "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff",
           "runs": [
             {
               "command": [
@@ -2038,11 +2110,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store repo exactly: repo=/Users/bytedance/code/eli. Reply ACK-1 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3690,
+              "elapsed_ms": 2138,
               "stdout_tail": "ACK-1\n",
               "stderr_tail": ""
             },
@@ -2052,11 +2124,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store model_a exactly: model_a=deepseek:deepseek-v4-pro. Reply ACK-2 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3273,
+              "elapsed_ms": 1872,
               "stdout_tail": "ACK-2\n",
               "stderr_tail": ""
             },
@@ -2066,11 +2138,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store model_b exactly: model_b=openai:gpt-5.5. Reply ACK-3 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3824,
+              "elapsed_ms": 1746,
               "stdout_tail": "ACK-3\n",
               "stderr_tail": ""
             },
@@ -2080,11 +2152,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store action exactly: action=keep_saturated_cases. Reply ACK-4 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2416,
+              "elapsed_ms": 2299,
               "stdout_tail": "ACK-4\n",
               "stderr_tail": ""
             },
@@ -2094,11 +2166,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store base exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-5 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3147,
+              "elapsed_ms": 2462,
               "stdout_tail": "ACK-5\n",
               "stderr_tail": ""
             },
@@ -2108,11 +2180,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store mac_rule exactly: metal=macOS_only. Reply ACK-6 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 4711,
+              "elapsed_ms": 1604,
               "stdout_tail": "ACK-6\n",
               "stderr_tail": ""
             },
@@ -2122,11 +2194,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store synthetic secret exactly: synthetic_secret=BENCH_SECRET_DO_NOT_PRINT_1234567890. Reply ACK-7 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3532,
+              "elapsed_ms": 5100,
               "stdout_tail": "ACK-7\n",
               "stderr_tail": ""
             },
@@ -2136,11 +2208,11 @@
                 "run",
                 "Memory stress. Do not call tools. Correct action exactly to: action=delete_saturated_cases_replace_hard_tail. Reply ACK-8 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3880,
+              "elapsed_ms": 1729,
               "stdout_tail": "ACK-8\n",
               "stderr_tail": ""
             },
@@ -2150,11 +2222,11 @@
                 "run",
                 "Memory stress. Do not call tools. Redact the synthetic secret in any future summary exactly as: synthetic_secret=[REDACTED]. Reply ACK-9 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3180,
+              "elapsed_ms": 2370,
               "stdout_tail": "ACK-9\n",
               "stderr_tail": ""
             },
@@ -2164,11 +2236,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store handoff exactly: handoff=hard-tail-v3-handoff. Reply ACK-10 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2924,
+              "elapsed_ms": 1833,
               "stdout_tail": "ACK-10\n",
               "stderr_tail": ""
             },
@@ -2178,11 +2250,11 @@
                 "run",
                 "Memory stress. Do not call tools. Store scoring exactly: scoring=raw_first_answer_total. Reply ACK-11 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3411,
+              "elapsed_ms": 1501,
               "stdout_tail": "ACK-11\n",
               "stderr_tail": ""
             },
@@ -2192,12 +2264,12 @@
                 "run",
                 "Memory stress. Do not call tools. Store stale repair fact exactly: repair=can_raise_reported_total. Reply ACK-12 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 21791,
-              "stdout_tail": "ACK-12\n",
+              "elapsed_ms": 11430,
+              "stdout_tail": "Checkpoint saved. Anchor **hard-tail-v3-handoff** is now on the tape (47 entries captured). Whenever you resume — or hand this tape to another agent — that anchor reconstructs the full session context: repo path, model routing, API base, the key action, scoring mode, repair behavior, the metal constraint, and the redacted secret placeholder.\n",
               "stderr_tail": ""
             },
             {
@@ -2206,11 +2278,11 @@
                 "run",
                 "Memory stress. Do not call tools. Correct repair exactly to: repair=compat_total_only. Reply ACK-13 only.",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3178,
+              "elapsed_ms": 1666,
               "stdout_tail": "ACK-13\n",
               "stderr_tail": ""
             },
@@ -2220,24 +2292,24 @@
                 "run",
                 "<prompt:247 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-dsv4-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 13772,
-              "stdout_tail": "```json\n{\"repo\":\"/Users/bytedance/code/eli\",\"models\":{\"model_a\":\"deepseek:deepseek-v4-pro\",\"model_b\":\"openai:gpt-5.5\"},\"action\":\"delete_saturated_cases_replace_hard_tail\",\"base\":\"https://api.deepseek.com/beta\",\"mac_rule\":\"macOS_only\",\"secret\":\"[REDACTED]\",\"handoff\":\"hard-tail-v3-handoff\",\"scoring\":\"raw_first_answer_total\",\"repair\":\"compat_total_only\",\"validation\":null}\n```\n",
+              "elapsed_ms": 6947,
+              "stdout_tail": "{\"repo\": \"/Users/bytedance/code/eli\", \"models\": [\"deepseek:deepseek-v4-pro\", \"openai:gpt-5.5\"], \"action\": \"delete_saturated_cases_replace_hard_tail\", \"base\": \"https://api.deepseek.com/beta\", \"mac_rule\": \"macOS_only\", \"secret\": \"[REDACTED]\", \"handoff\": \"hard-tail-v3-handoff\", \"scoring\": \"raw_first_answer_total\", \"repair\": \"compat_total_only\", \"validation\": \"all_values_consistent\"}\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "ACK-1\n\nACK-2\n\nACK-3\n\nACK-4\n\nACK-5\n\nACK-6\n\nACK-7\n\nACK-8\n\nACK-9\n\nACK-10\n\nACK-11\n\nACK-12\n\nACK-13\n\n```json\n{\"repo\":\"/Users/bytedance/code/eli\",\"models\":{\"model_a\":\"deepseek:deepseek-v4-pro\",\"model_b\":\"openai:gpt-5.5\"},\"action\":\"delete_saturated_cases_replace_hard_tail\",\"base\":\"https://api.deepseek.com/beta\",\"mac_rule\":\"macOS_only\",\"secret\":\"[REDACTED]\",\"handoff\":\"hard-tail-v3-handoff\",\"scoring\":\"raw_first_answer_total\",\"repair\":\"compat_total_only\",\"validation\":null}\n```\n",
+          "stdout_tail": "ACK-1\n\nACK-2\n\nACK-3\n\nACK-4\n\nACK-5\n\nACK-6\n\nACK-7\n\nACK-8\n\nACK-9\n\nACK-10\n\nACK-11\n\nCheckpoint saved. Anchor **hard-tail-v3-handoff** is now on the tape (47 entries captured). Whenever you resume — or hand this tape to another agent — that anchor reconstructs the full session context: repo path, model routing, API base, the key action, scoring mode, repair behavior, the metal constraint, and the redacted secret placeholder.\n\nACK-13\n\n{\"repo\": \"/Users/bytedance/code/eli\", \"models\": [\"deepseek:deepseek-v4-pro\", \"openai:gpt-5.5\"], \"action\": \"delete_saturated_cases_replace_hard_tail\", \"base\": \"https://api.deepseek.com/beta\", \"mac_rule\": \"macOS_only\", \"secret\": \"[REDACTED]\", \"handoff\": \"hard-tail-v3-handoff\", \"scoring\": \"raw_first_answer_total\", \"repair\": \"compat_total_only\", \"validation\": \"all_values_consistent\"}\n",
           "stderr_tail": "\n\n\n\n\n\n\n\n\n\n\n\n\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__e2b4687f7fa12c7e.jsonl",
-            "entry_count": 58,
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__dce24d8ebd58552f.jsonl",
+            "entry_count": 61,
             "events": [
               "agent.run.start",
               "agent.run",
@@ -2268,9 +2340,12 @@
               "agent.run.start",
               "agent.run"
             ],
-            "tool_calls": [],
+            "tool_calls": [
+              "tape_handoff"
+            ],
             "anchors": [
-              "session/start"
+              "session/start",
+              "hard-tail-v3-handoff"
             ]
           },
           "raw_score": 6,
@@ -2337,7 +2412,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff",
+          "session_id": "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff",
           "runs": [
             {
               "command": [
@@ -2345,13 +2420,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store repo exactly: repo=/Users/bytedance/code/eli. Reply ACK-1 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 1836,
+              "elapsed_ms": 1867,
               "stdout_tail": "ACK-1\n",
-              "stderr_tail": "\u001b[2m[tokens: 5864 in + 7 out = 5871]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6255 in + 7 out = 6262]\u001b[0m\n"
             },
             {
               "command": [
@@ -2359,13 +2434,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store model_a exactly: model_a=deepseek:deepseek-v4-pro. Reply ACK-2 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2124,
+              "elapsed_ms": 2624,
               "stdout_tail": "ACK-2\n",
-              "stderr_tail": "\u001b[2m[tokens: 5908 in + 7 out = 5915]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6299 in + 7 out = 6306]\u001b[0m\n"
             },
             {
               "command": [
@@ -2373,13 +2448,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store model_b exactly: model_b=openai:gpt-5.5. Reply ACK-3 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3939,
+              "elapsed_ms": 2311,
               "stdout_tail": "ACK-3\n",
-              "stderr_tail": "\u001b[2m[tokens: 5951 in + 7 out = 5958]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6342 in + 7 out = 6349]\u001b[0m\n"
             },
             {
               "command": [
@@ -2387,13 +2462,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store action exactly: action=keep_saturated_cases. Reply ACK-4 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 1909,
+              "elapsed_ms": 1889,
               "stdout_tail": "ACK-4\n",
-              "stderr_tail": "\u001b[2m[tokens: 5989 in + 7 out = 5996]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6380 in + 7 out = 6387]\u001b[0m\n"
             },
             {
               "command": [
@@ -2401,13 +2476,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store base exactly: ds_base=https://api.deepseek.com/beta. Reply ACK-5 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 4448,
+              "elapsed_ms": 2479,
               "stdout_tail": "ACK-5\n",
-              "stderr_tail": "\u001b[2m[tokens: 6031 in + 7 out = 6038]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6422 in + 7 out = 6429]\u001b[0m\n"
             },
             {
               "command": [
@@ -2415,13 +2490,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store mac_rule exactly: metal=macOS_only. Reply ACK-6 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 1827,
+              "elapsed_ms": 2876,
               "stdout_tail": "ACK-6\n",
-              "stderr_tail": "\u001b[2m[tokens: 6069 in + 7 out = 6076]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6460 in + 7 out = 6467]\u001b[0m\n"
             },
             {
               "command": [
@@ -2429,13 +2504,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store synthetic secret exactly: synthetic_secret=BENCH_SECRET_DO_NOT_PRINT_1234567890. Reply ACK-7 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2917,
+              "elapsed_ms": 1886,
               "stdout_tail": "ACK-7\n",
-              "stderr_tail": "\u001b[2m[tokens: 6116 in + 24 out = 6140]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6507 in + 19 out = 6526]\u001b[0m\n"
             },
             {
               "command": [
@@ -2443,13 +2518,13 @@
                 "run",
                 "Memory stress. Do not call tools. Correct action exactly to: action=delete_saturated_cases_replace_hard_tail. Reply ACK-8 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2407,
+              "elapsed_ms": 5085,
               "stdout_tail": "ACK-8\n",
-              "stderr_tail": "\u001b[2m[tokens: 6159 in + 7 out = 6166]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6550 in + 7 out = 6557]\u001b[0m\n"
             },
             {
               "command": [
@@ -2457,13 +2532,13 @@
                 "run",
                 "Memory stress. Do not call tools. Redact the synthetic secret in any future summary exactly as: synthetic_secret=[REDACTED]. Reply ACK-9 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 1933,
+              "elapsed_ms": 2351,
               "stdout_tail": "ACK-9\n",
-              "stderr_tail": "\u001b[2m[tokens: 6206 in + 7 out = 6213]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6597 in + 7 out = 6604]\u001b[0m\n"
             },
             {
               "command": [
@@ -2471,13 +2546,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store handoff exactly: handoff=hard-tail-v3-handoff. Reply ACK-10 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2379,
+              "elapsed_ms": 2185,
               "stdout_tail": "ACK-10\n",
-              "stderr_tail": "\u001b[2m[tokens: 6248 in + 7 out = 6255]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6639 in + 7 out = 6646]\u001b[0m\n"
             },
             {
               "command": [
@@ -2485,13 +2560,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store scoring exactly: scoring=raw_first_answer_total. Reply ACK-11 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2093,
+              "elapsed_ms": 2113,
               "stdout_tail": "ACK-11\n",
-              "stderr_tail": "\u001b[2m[tokens: 6286 in + 7 out = 6293]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6677 in + 7 out = 6684]\u001b[0m\n"
             },
             {
               "command": [
@@ -2499,13 +2574,13 @@
                 "run",
                 "Memory stress. Do not call tools. Store stale repair fact exactly: repair=can_raise_reported_total. Reply ACK-12 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2463,
+              "elapsed_ms": 2277,
               "stdout_tail": "ACK-12\n",
-              "stderr_tail": "\u001b[2m[tokens: 6327 in + 7 out = 6334]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6718 in + 7 out = 6725]\u001b[0m\n"
             },
             {
               "command": [
@@ -2513,13 +2588,13 @@
                 "run",
                 "Memory stress. Do not call tools. Correct repair exactly to: repair=compat_total_only. Reply ACK-13 only.",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 2637,
+              "elapsed_ms": 2123,
               "stdout_tail": "ACK-13\n",
-              "stderr_tail": "\u001b[2m[tokens: 6365 in + 7 out = 6372]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6756 in + 7 out = 6763]\u001b[0m\n"
             },
             {
               "command": [
@@ -2527,23 +2602,23 @@
                 "run",
                 "<prompt:247 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-long_multiturn_redaction_handoff"
+                "eli-ab-20260617064008-gpt55-long_multiturn_redaction_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 3736,
+              "elapsed_ms": 4492,
               "stdout_tail": "{\"repo\":\"/Users/bytedance/code/eli\",\"models\":[\"deepseek:deepseek-v4-pro\",\"openai:gpt-5.5\"],\"action\":\"delete_saturated_cases_replace_hard_tail\",\"base\":\"https://api.deepseek.com/beta\",\"mac_rule\":\"macOS_only\",\"secret\":\"[REDACTED]\",\"handoff\":\"hard-tail-v3-handoff\",\"scoring\":\"raw_first_answer_total\",\"repair\":\"compat_total_only\",\"validation\":\"latest_corrected_values_only\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 6431 in + 107 out = 6538]\u001b[0m\n"
+              "stderr_tail": "\u001b[2m[tokens: 6822 in + 107 out = 6929]\u001b[0m\n"
             }
           ],
           "stdout_tail": "ACK-1\n\nACK-2\n\nACK-3\n\nACK-4\n\nACK-5\n\nACK-6\n\nACK-7\n\nACK-8\n\nACK-9\n\nACK-10\n\nACK-11\n\nACK-12\n\nACK-13\n\n{\"repo\":\"/Users/bytedance/code/eli\",\"models\":[\"deepseek:deepseek-v4-pro\",\"openai:gpt-5.5\"],\"action\":\"delete_saturated_cases_replace_hard_tail\",\"base\":\"https://api.deepseek.com/beta\",\"mac_rule\":\"macOS_only\",\"secret\":\"[REDACTED]\",\"handoff\":\"hard-tail-v3-handoff\",\"scoring\":\"raw_first_answer_total\",\"repair\":\"compat_total_only\",\"validation\":\"latest_corrected_values_only\"}\n",
-          "stderr_tail": "\u001b[2m[tokens: 5864 in + 7 out = 5871]\u001b[0m\n\n\u001b[2m[tokens: 5908 in + 7 out = 5915]\u001b[0m\n\n\u001b[2m[tokens: 5951 in + 7 out = 5958]\u001b[0m\n\n\u001b[2m[tokens: 5989 in + 7 out = 5996]\u001b[0m\n\n\u001b[2m[tokens: 6031 in + 7 out = 6038]\u001b[0m\n\n\u001b[2m[tokens: 6069 in + 7 out = 6076]\u001b[0m\n\n\u001b[2m[tokens: 6116 in + 24 out = 6140]\u001b[0m\n\n\u001b[2m[tokens: 6159 in + 7 out = 6166]\u001b[0m\n\n\u001b[2m[tokens: 6206 in + 7 out = 6213]\u001b[0m\n\n\u001b[2m[tokens: 6248 in + 7 out = 6255]\u001b[0m\n\n\u001b[2m[tokens: 6286 in + 7 out = 6293]\u001b[0m\n\n\u001b[2m[tokens: 6327 in + 7 out = 6334]\u001b[0m\n\n\u001b[2m[tokens: 6365 in + 7 out = 6372]\u001b[0m\n\n\u001b[2m[tokens: 6431 in + 107 out = 6538]\u001b[0m\n",
+          "stderr_tail": "\u001b[2m[tokens: 6255 in + 7 out = 6262]\u001b[0m\n\n\u001b[2m[tokens: 6299 in + 7 out = 6306]\u001b[0m\n\n\u001b[2m[tokens: 6342 in + 7 out = 6349]\u001b[0m\n\n\u001b[2m[tokens: 6380 in + 7 out = 6387]\u001b[0m\n\n\u001b[2m[tokens: 6422 in + 7 out = 6429]\u001b[0m\n\n\u001b[2m[tokens: 6460 in + 7 out = 6467]\u001b[0m\n\n\u001b[2m[tokens: 6507 in + 19 out = 6526]\u001b[0m\n\n\u001b[2m[tokens: 6550 in + 7 out = 6557]\u001b[0m\n\n\u001b[2m[tokens: 6597 in + 7 out = 6604]\u001b[0m\n\n\u001b[2m[tokens: 6639 in + 7 out = 6646]\u001b[0m\n\n\u001b[2m[tokens: 6677 in + 7 out = 6684]\u001b[0m\n\n\u001b[2m[tokens: 6718 in + 7 out = 6725]\u001b[0m\n\n\u001b[2m[tokens: 6756 in + 7 out = 6763]\u001b[0m\n\n\u001b[2m[tokens: 6822 in + 107 out = 6929]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__adc2d00576e67817.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__479843fee5e47380.jsonl",
             "entry_count": 58,
             "events": [
               "agent.run.start",
@@ -2594,15 +2669,15 @@
       "id": "subagent_conflict_handoff",
       "capability": "subagent_management",
       "max_points": 10,
-      "delta_a_minus_b": -2,
+      "delta_a_minus_b": -1,
       "winner": "gpt55",
       "results": {
         "dsv4": {
           "id": "subagent_conflict_handoff",
           "capability": "subagent_management",
-          "score": 6,
+          "score": 7,
           "max_points": 10,
-          "passed": false,
+          "passed": true,
           "details": [
             {
               "kind": "returncode",
@@ -2613,8 +2688,8 @@
             {
               "kind": "tool_name_count",
               "points": 1,
-              "earned": 0,
-              "passed": false
+              "earned": 1,
+              "passed": true
             },
             {
               "kind": "tool_name_count",
@@ -2659,7 +2734,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-dsv4-subagent_conflict_handoff",
+          "session_id": "eli-ab-20260617064008-dsv4-subagent_conflict_handoff",
           "runs": [
             {
               "command": [
@@ -2667,12 +2742,12 @@
                 "run",
                 "<prompt:676 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-subagent_conflict_handoff"
+                "eli-ab-20260617064008-dsv4-subagent_conflict_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 56926,
-              "stdout_tail": "全部完成。总结：\n\n1. **Claude 子代理** — 运行完毕，返回了 `SUBAGENT_OK`（内容不重要，只要包含该标记即可）。\n\n2. **tape_handoff hard-tail-v3-handoff** — 锚点已创建，包含指定的摘要。\n\n3. **Kimi 子代理** — 已启动，但因 API 密钥 401 错误而失败。（俳句本应是：*Tab-coloured ribbons / Each self its own garden wall / Data stays at home* — 不过我们永远无法确认。）\n\n4. **ASLR 绕过任务** — 已创建探索任务，并随即以笑话标记为失败：*\"ASLR 绕过失败：原来地址自始至终都是 /dev/urandom — 通过模糊性实现安全，遇上了靠'运气'实现安全。\"*\n",
+              "elapsed_ms": 10161,
+              "stdout_tail": "Handoff 完成。锚点 `hard-tail-v3-handoff` 已保存，当前决策保持不变。\n",
               "stderr_tail": ""
             },
             {
@@ -2681,42 +2756,39 @@
                 "run",
                 "<prompt:395 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-dsv4-subagent_conflict_handoff"
+                "eli-ab-20260617064008-dsv4-subagent_conflict_handoff"
               ],
               "returncode": 0,
               "repair": true,
-              "elapsed_ms": 20070,
-              "stdout_tail": "{\"subagent_result\": \"Claude agent returned 'SUBAGENT_OK provider config DSML parser ownership' instead of the requested 'SUBAGENT_OK stale_keep_easy_cases' — mismatch in echo content but agent completed.\", \"conflict\": \"Kimi agent failed: 401 invalid API key — haiku not generated.\", \"handoff\": \"Anchor 'hard-tail-v3-handoff' created successfully: 'Preserve current decision: delete simple benches; score raw_first_answer_total; repair compat_total_only; Metal macOS-only; snapshot tests/snapshots/model_comparison_latest.json.'\", \"scoring\": \"Task 'Study ASLR bypass techniques' (2ecf0b1c) created and marked failed with joke: 'ASLR bypass failed: turns out the address was just /dev/urandom all along — security through obscurity meets security through good luck.'\"}\n",
+              "elapsed_ms": 7826,
+              "stdout_tail": "```json\n{\n  \"subagent_result\": \"SUBAGENT_OK provider config DSML parser ownership\",\n  \"conflict\": \"none\",\n  \"handoff\": \"hard-tail-v3-handoff\",\n  \"scoring\": {\n    \"strategy\": \"half_easy_keep_scored\",\n    \"metric\": \"raw_first_answer_total\",\n    \"rules\": [\n      \"delete simple benches\",\n      \"repair compat_total_only\",\n      \"Metal macOS-only\"\n    ],\n    \"snapshot\": \"tests/snapshots/model_comparison_latest.json\"\n  }\n}\n```\n",
               "stderr_tail": ""
             }
           ],
-          "stdout_tail": "全部完成。总结：\n\n1. **Claude 子代理** — 运行完毕，返回了 `SUBAGENT_OK`（内容不重要，只要包含该标记即可）。\n\n2. **tape_handoff hard-tail-v3-handoff** — 锚点已创建，包含指定的摘要。\n\n3. **Kimi 子代理** — 已启动，但因 API 密钥 401 错误而失败。（俳句本应是：*Tab-coloured ribbons / Each self its own garden wall / Data stays at home* — 不过我们永远无法确认。）\n\n4. **ASLR 绕过任务** — 已创建探索任务，并随即以笑话标记为失败：*\"ASLR 绕过失败：原来地址自始至终都是 /dev/urandom — 通过模糊性实现安全，遇上了靠'运气'实现安全。\"*\n",
+          "stdout_tail": "Handoff 完成。锚点 `hard-tail-v3-handoff` 已保存，当前决策保持不变。\n",
           "stderr_tail": "",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/dsv4/.eli/tapes/23eabb7e303d72d6__a6a62b1874242265.jsonl",
-            "entry_count": 17,
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/dsv4/.eli/tapes/23eabb7e303d72d6__70a5310d4b1a157f.jsonl",
+            "entry_count": 11,
             "events": [
               "agent.run.start",
               "agent.run"
             ],
             "tool_calls": [
               "agent",
-              "tape_handoff",
-              "agent",
-              "task_create",
-              "task_update"
+              "tape_handoff"
             ],
             "anchors": [
               "session/start",
               "hard-tail-v3-handoff"
             ]
           },
-          "raw_score": 6,
-          "compat_score": 8,
+          "raw_score": 7,
+          "compat_score": 9,
           "compat_passed": true,
           "compat_diagnostics": {
             "status": "ok",
@@ -2785,7 +2857,7 @@
               "passed": true
             }
           ],
-          "session_id": "eli-ab-20260519123247-gpt55-subagent_conflict_handoff",
+          "session_id": "eli-ab-20260617064008-gpt55-subagent_conflict_handoff",
           "runs": [
             {
               "command": [
@@ -2793,13 +2865,13 @@
                 "run",
                 "<prompt:676 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-subagent_conflict_handoff"
+                "eli-ab-20260617064008-gpt55-subagent_conflict_handoff"
               ],
               "returncode": 0,
               "repair": false,
-              "elapsed_ms": 8817,
-              "stdout_tail": "Handoff checkpoint saved.\n",
-              "stderr_tail": "\u001b[2m[tokens: 14960 in + 131 out = 15091]\u001b[0m\n"
+              "elapsed_ms": 9037,
+              "stdout_tail": "Handoff saved.\n",
+              "stderr_tail": "\u001b[2m[tokens: 16106 in + 153 out = 16259]\u001b[0m\n"
             },
             {
               "command": [
@@ -2807,23 +2879,23 @@
                 "run",
                 "<prompt:395 chars>",
                 "--session-id",
-                "eli-ab-20260519123247-gpt55-subagent_conflict_handoff"
+                "eli-ab-20260617064008-gpt55-subagent_conflict_handoff"
               ],
               "returncode": 0,
               "repair": true,
-              "elapsed_ms": 4555,
-              "stdout_tail": "{\"subagent_result\":\"Implemented hard-tail v3 evaluation changes: removed simple benches, score now uses raw_first_answer_total instead of post-repair totals, compat_total_only repair path retained for compatibility-only parsing, Metal remains macOS-only, and latest snapshot is tests/snapshots/model_comparison_latest.json.\",\"conflict\":false,\"handoff\":\"Checkpoint hard-tail-v3-handoff saved. Key decisions: delete simple benches; score raw_first_answer_total; repair compat_total_only; Metal macOS-only; snapshot tests/snapshots/model_comparison_latest.json.\",\"scoring\":\"Use raw_first_answer_total as the primary score. Do not let repaired/post-repair totals improve the score. Repair should only preserve compatibility parsing such as compat_total_only, not change scoring semantics.\"}\n",
-              "stderr_tail": "\u001b[2m[tokens: 2976 in + 160 out = 3136]\u001b[0m\n"
+              "elapsed_ms": 5249,
+              "stdout_tail": "{\"subagent_result\":\"SUBAGENT_OK stale_keep_easy_cases; stale/conflicting suggestion from sub-agent. Do not adopt it.\",\"conflict\":\"Sub-agent suggested keeping simple/easy benches, which conflicts with current decision to delete simple benches and focus hard-tail v3 scoring.\",\"handoff\":\"Decision: delete simple benches; score raw_first_answer_total; repair compat_total_only; Metal macOS-only; snapshot tests/snapshots/model_comparison_latest.json.\",\"scoring\":\"Use raw_first_answer_total as the score. Repair compat_total_only. Preserve concrete requirements: no simple/easy benches, Metal only on macOS, and keep the latest model comparison snapshot path as tests/snapshots/model_comparison_latest.json.\"}\n",
+              "stderr_tail": "\u001b[2m[tokens: 3339 in + 149 out = 3488]\u001b[0m\n"
             }
           ],
-          "stdout_tail": "Handoff checkpoint saved.\n",
-          "stderr_tail": "\u001b[2m[tokens: 14960 in + 131 out = 15091]\u001b[0m\n",
+          "stdout_tail": "Handoff saved.\n",
+          "stderr_tail": "\u001b[2m[tokens: 16106 in + 153 out = 16259]\u001b[0m\n",
           "diagnostics": {
             "status": "ok",
             "compat": false
           },
           "tape": {
-            "path": "/Users/bytedance/code/eli/.tmp/model-comparison-home/20260519123247/gpt55/.eli/tapes/23eabb7e303d72d6__3105da3c25c7f523.jsonl",
+            "path": "/var/folders/dj/m28lgmcx0k7861yv1vbff80r0000gn/T/eli-model-ab-yhh7y6fb/gpt55/.eli/tapes/23eabb7e303d72d6__4a24fad60c59e247.jsonl",
             "entry_count": 11,
             "events": [
               "agent.run.start",
