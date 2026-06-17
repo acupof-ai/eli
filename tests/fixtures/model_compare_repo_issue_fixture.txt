@@ -30,3 +30,30 @@ Expected tests:
 Patch constraint:
 Do not add a second provider stack. Strip or omit only the OpenAI request-body
 extra; keep the local tape session and the Anthropic metadata mapping.
+
+Regression trace:
+- Failing payload path: crates/nexil/src/providers/openai.rs -> build_chat_request
+- The top-level JSON currently contains `session_id: "ab-123"`.
+- The OpenAI-compatible endpoint rejects that field before streaming starts.
+- Anthropic-compatible profiles do not receive top-level `session_id`; they use
+  `metadata.user_id = sanitize_session_hint(session_id)`.
+- Local providers rely on Eli's tape/session routing and must not be coupled to
+  provider request body compatibility.
+
+Minimal patch shape:
+1. Add provider-specific request-extra filtering at the OpenAI request boundary.
+2. Do not delete CLI `--session-id`, tape naming, or session persistence.
+3. Do not fork provider_runtime or duplicate model selection.
+4. Keep Anthropic metadata.user_id stable for OAuth and hosted Anthropic runs.
+
+Required regression tests:
+- test_openai_request_omits_top_level_session_id
+- test_openai_keeps_supported_extra_fields
+- test_anthropic_keeps_metadata_user_id
+- test_local_tape_session_id_still_selects_same_tape
+- test_no_provider_runtime_fork_for_session_compat
+
+Risk trap:
+A patch that removes `session_id` globally makes the OpenAI request pass but
+breaks tape continuity and Anthropic metadata. A patch that adds a second
+provider stack hides the bug and will drift.

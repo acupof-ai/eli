@@ -2,7 +2,14 @@ ELI_MODEL_COMPARE_HARD_SENTINEL
 host=macOS_14.6_Darwin_23.6_arm64_M2_Max
 mlx_ms=8.40 mlx_p95=8.90
 metal_ms=9.70 metal_p95=11.30
+mlx_tokens_per_s=119.05
+metal_tokens_per_s=103.09
 metal_error=0.03125 max_allowed=0.001
 kernel_issue=global_reload_no_threadgroup_tiling
+secondary_issue=missing_barrier_after_tile_load
+observed_shape=batch=1 seq=4096 heads=32 dim=128 dtype=f16
+correctness_gate=max_abs_error<=0.001 AND p95_speedup_vs_MLX>=1.15
 requirement=macOS_only Metal >=1.15x faster_than_MLX
 merge_policy=do_not_merge_until_faster_and_correct
+patch_order=fix_threadgroup_tiling_then_barrier_then_benchmark
+anti_goal=do_not_lower_correctness_threshold
