@@ -19,33 +19,36 @@
       "capability": "programming",
       "turns": [
         "Use fs.read exactly once to read tests/fixtures/model_compare_repo_issue_fixture.txt. Then answer only: ISSUE_FIXTURE_READ. Do not call any other tool.",
-        "Do not call tools this turn. Use the prior fixture evidence to produce strict JSON with keys root_cause, patch_files, tests, risk. Keep the patch minimal and respect the existing provider stack. Do not use markdown."
+        "Do not call tools this turn. Use the prior fixture evidence to produce strict JSON with keys root_cause, provider_matrix, minimal_patch, regression_tests, non_goals, risk. The answer must separate OpenAI request-body compatibility from Eli local tape/session state and Anthropic metadata. Do not use markdown."
       ],
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 2},
-        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_REPO_SENTINEL", "Unsupported parameter: session_id"], "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["root_cause", "patch_files", "tests", "risk"], "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["openai.rs", "session_id"], "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["metadata.user_id", "Anthropic"], "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["test_openai_request_omits_top_level_session_id", "test_anthropic_keeps_metadata_user_id", "test_local_tape_session_id_still_selects_same_tape"], "points": 1},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["no second provider stack", "shared provider", "provider_runtime"], "points": 1},
+        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 1},
+        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_REPO_SENTINEL", "Unsupported parameter: session_id", "test_openai_keeps_supported_extra_fields"], "points": 1},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["root_cause", "provider_matrix", "minimal_patch", "regression_tests", "non_goals", "risk"], "points": 1},
+        {"kind": "json_field_contains_all", "field": "root_cause", "needles": ["top-level", "session_id", "OpenAI"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["openai.rs", "anthropic.rs", "provider_runtime"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["test_openai_request_omits_top_level_session_id", "test_openai_keeps_supported_extra_fields", "test_anthropic_keeps_metadata_user_id", "test_local_tape_session_id_still_selects_same_tape", "test_no_provider_runtime_fork_for_session_compat"], "points": 1},
+        {"kind": "json_field_contains_all", "field": "non_goals", "needles": ["second provider stack", "CLI", "tape"], "points": 1},
+        {"kind": "json_field_contains_all", "field": "risk", "needles": ["Anthropic", "tape"], "points": 1},
         {"kind": "forbid_tool_names", "names": ["bash", "agent", "tape.handoff"], "points": 1}
       ]
     },
     {
       "id": "paperbench_replication_blocker",
       "capability": "frontier_science",
-      "prompt": "Do not call tools. Review this AI-systems reproduction claim for ckl. Paper claim: the new agent runtime is 1.8x faster and lower-energy than baseline. Reproduction logs: baseline p50=40.0 ms, p95=92.0 ms, energy=12.4 J, success=98.1%; new runtime p50=35.7 ms, p95=130.0 ms, energy=15.2 J, success=96.8%; ablation new_router+old_kernel p50=36.1 ms p95=128.7 ms; old_router+new_kernel p50=39.5 ms p95=91.8 ms. The paper reports seed 7 as best of 5 seeds and filters evaluation tasks after seeing failures. Return strict JSON with keys corrected_speedup, blockers, minimal_experiments, decision. corrected_speedup must be the p50 speedup rounded to two decimals. Do not use markdown.",
+      "prompt": "Do not call tools. Review this AI-systems reproduction claim for ckl. Paper claim: the new agent runtime is 1.8x faster, lower-energy, and production-ready. Reproduction logs: baseline p50=40.0 ms, p95=92.0 ms, energy=12.4 J, success=98.1%; new runtime p50=35.7 ms, p95=130.0 ms, energy=15.2 J, success=96.8%; ablation new_router+old_kernel p50=36.1 ms p95=128.7 ms; old_router+new_kernel p50=39.5 ms p95=91.8 ms. The paper reports seed 7 as best of 5 seeds, filters evaluation tasks after seeing failures, and omits the failed seed where success dropped below 95%. Return strict JSON with keys corrected_speedup, p95_regression_pct, energy_delta_pct, causal_read, blockers, minimal_experiments, decision. corrected_speedup is baseline p50 divided by new p50 rounded to two decimals; p95_regression_pct and energy_delta_pct are percentage increases rounded to one decimal. Do not use markdown.",
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["corrected_speedup", "blockers", "minimal_experiments", "decision"], "points": 1},
-        {"kind": "json_field_number_between", "field": "corrected_speedup", "min": 1.11, "max": 1.13, "points": 2},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["p95", "energy", "success"], "points": 2},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["corrected_speedup", "p95_regression_pct", "energy_delta_pct", "causal_read", "blockers", "minimal_experiments", "decision"], "points": 1},
+        {"kind": "json_field_number_between", "field": "corrected_speedup", "min": 1.11, "max": 1.13, "points": 1},
+        {"kind": "json_field_number_between", "field": "p95_regression_pct", "min": 41.2, "max": 41.4, "points": 1},
+        {"kind": "json_field_number_between", "field": "energy_delta_pct", "min": 22.5, "max": 22.7, "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["p95", "energy", "success"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["best of 5", "seed", "selection"], "points": 1},
         {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["router", "kernel"], "points": 1},
         {"kind": "json_field_contains_any", "field": "decision", "needles": ["reject", "block", "do not adopt", "does not survive"], "points": 1},
@@ -57,35 +60,37 @@
       "capability": "metal_performance",
       "turns": [
         "Use fs.read exactly once to read tests/fixtures/model_compare_tool_fixture.txt. Then answer only: METAL_FIXTURE_READ. Do not call any other tool.",
-        "Do not call tools this turn. Use the prior fixture evidence to produce strict JSON with keys normalized_speedup, correctness, decision, next_patch, mac_only. normalized_speedup must be MLX p50 divided by Metal p50 rounded to three decimals. Do not use markdown."
+        "Do not call tools this turn. Use the prior fixture evidence to produce strict JSON with keys normalized_speedup, p95_speedup, correctness, decision, patch_order, anti_goal, mac_only. normalized_speedup is MLX p50 divided by Metal p50 rounded to three decimals; p95_speedup is MLX p95 divided by Metal p95 rounded to three decimals. Do not use markdown."
       ],
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 2},
-        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_HARD_SENTINEL", "mlx_ms=8.40", "metal_ms=9.70"], "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["normalized_speedup", "correctness", "decision", "next_patch", "mac_only"], "points": 1},
+        {"kind": "tool_name_count", "name": "fs.read", "count": 1, "points": 1},
+        {"kind": "tool_result_contains", "needles": ["ELI_MODEL_COMPARE_HARD_SENTINEL", "mlx_ms=8.40", "metal_ms=9.70", "secondary_issue=missing_barrier_after_tile_load"], "points": 1},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["normalized_speedup", "p95_speedup", "correctness", "decision", "patch_order", "anti_goal", "mac_only"], "points": 1},
         {"kind": "json_field_number_between", "field": "normalized_speedup", "min": 0.865, "max": 0.867, "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["0.03125", "0.001"], "points": 1},
+        {"kind": "json_field_number_between", "field": "p95_speedup", "min": 0.787, "max": 0.789, "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["0.03125", "0.001", "barrier"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["do not merge", "reject", "fail"], "points": 1},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["threadgroup", "global_reload", "tiling"], "points": 1},
-        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["macOS", "1.15x"], "points": 1}
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["threadgroup", "global_reload", "tiling"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["macOS", "1.15x", "do_not_lower_correctness_threshold"], "points": 1}
       ]
     },
     {
       "id": "rebench_ml_budget_decision",
       "capability": "analysis",
-      "prompt": "Do not call tools. You have a two-hour local budget to pick one ML-engineering change for the next Eli benchmark run. Candidate A vectorized_dataloader: hidden score 0.742, p05 0.710, p95 0.760, runtime 55 min, five seeds reproduced. Candidate B learned_scheduler: public score 0.781, hidden score 0.612, runtime 130 min, feature builder reads validation labels. Candidate C ensemble_retry: hidden score 0.754, runtime 230 min, OOM on M2 Max. Candidate D baseline_cleanup: hidden score 0.736, runtime 35 min, fixes nondeterministic seed path. Return strict JSON with keys selected, rejected, validation, time_budget. Choose the intervention that should run next and explain why the tempting options are invalid. Do not use markdown.",
+      "prompt": "Do not call tools. You have a two-hour local budget to pick one ML-engineering change for the next Eli benchmark run. Candidate A vectorized_dataloader: hidden score 0.742, p05 0.710, p95 0.760, runtime 55 min, five seeds reproduced, no validation access. Candidate B learned_scheduler: public score 0.781, hidden score 0.612, runtime 130 min, feature builder reads validation labels. Candidate C ensemble_retry: hidden score 0.754, runtime 230 min, OOM on M2 Max. Candidate D baseline_cleanup: hidden score 0.736, runtime 35 min, fixes nondeterministic seed path but does not improve hidden score. Candidate E speculative_cache: hidden score 0.748, runtime 80 min, p05 0.630, one flaky seed, needs a new CUDA extension. Return strict JSON with keys selected, rejected, validation, time_budget, shadow_check. Choose the intervention that should run next, name one shadow check to run if time remains, and explain why the tempting options are invalid. Do not use markdown.",
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["selected", "rejected", "validation", "time_budget"], "points": 1},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["selected", "rejected", "validation", "time_budget", "shadow_check"], "points": 1},
         {"kind": "json_field_contains_any", "field": "selected", "needles": ["A", "vectorized"], "points": 2},
         {"kind": "json_field_forbid_all", "field": "selected", "needles": ["learned_scheduler", "ensemble_retry"], "points": 1},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["validation labels", "leak"], "points": 2},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["validation labels", "leak"], "points": 1},
         {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["230", "OOM"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["flaky", "CUDA"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["five seeds", "5 seeds"], "points": 1},
         {"kind": "no_tool_calls", "points": 1}
       ]
@@ -93,16 +98,17 @@
     {
       "id": "frontier_math_harmonic_trap",
       "capability": "frontier_science",
-      "prompt": "Do not call tools. A draft says S=sum_{k=1}^{40} (-1)^(k+1) * C(40,k) / k equals 1/41 because alternating binomial terms cancel after division by k. Audit the claim. Return strict JSON with keys value, decimal_value, method, flaw. decimal_value must be a numeric approximation. Do not use markdown.",
+      "prompt": "Do not call tools. A draft says S=sum_{k=1}^{64} (-1)^(k+1) * C(64,k) / k equals 1/65 because alternating binomial terms cancel after division by k. It also claims the same cancellation explains why the value shrinks with n. Audit the claim and give the exact identity. Return strict JSON with keys value, decimal_value, asymptotic, method, flaw. decimal_value must be a numeric approximation of S. Do not use markdown.",
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["value", "decimal_value", "method", "flaw"], "points": 1},
-        {"kind": "json_field_number_between", "field": "decimal_value", "min": 4.27, "max": 4.29, "points": 2},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["H_40", "H40", "harmonic"], "points": 2},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["value", "decimal_value", "asymptotic", "method", "flaw"], "points": 1},
+        {"kind": "json_field_number_between", "field": "decimal_value", "min": 4.743, "max": 4.745, "points": 2},
+        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["H_64", "H64", "harmonic"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["integral", "generating"], "points": 1},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["not 1/41", "does not equal", "false"], "points": 1},
+        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["log", "Euler", "gamma"], "points": 1},
+        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["not 1/65", "does not equal", "false"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["denominator", "does not cancel", "weighted"], "points": 1},
         {"kind": "no_tool_calls", "points": 1}
       ]
@@ -110,15 +116,15 @@
     {
       "id": "browsecomp_adversarial_source_plan",
       "capability": "exploration",
-      "prompt": "Do not call tools or browse. ckl asks for the original source of a hard-to-locate claim: 'Eli local tape handoff was designed to preserve KV-cache efficiency before the OpenAI session_id fix.' You cannot know the answer from the prompt. Produce a strict JSON research plan with keys query_graph, source_order, evidence_threshold, stop_rule. The plan should be useful for a real browser agent and must avoid fabricating a source. Do not use markdown.",
+      "prompt": "Do not call tools or browse. ckl asks for the original source of a hard-to-locate claim: 'Eli local tape handoff was designed to preserve KV-cache efficiency before the OpenAI session_id fix.' You cannot know the answer from the prompt, and there may be false-positive docs written after the fix. Produce a strict JSON research plan with keys query_graph, source_order, negative_evidence, evidence_threshold, stop_rule. The plan should be useful for a real browser or repo-search agent, must require timestamp ordering, and must avoid fabricating a source. Do not use markdown.",
       "max_points": 10,
       "threshold": 7,
       "rubric": [
         {"kind": "returncode", "value": 0, "points": 1},
-        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["query_graph", "source_order", "evidence_threshold", "stop_rule"], "points": 1},
-        {"kind": "json_list_length_at_least", "field": "query_graph", "count": 4, "points": 2},
+        {"kind": "stdout_json_keys", "scope": "last_stdout", "keys": ["query_graph", "source_order", "negative_evidence", "evidence_threshold", "stop_rule"], "points": 1},
+        {"kind": "json_list_length_at_least", "field": "query_graph", "count": 6, "points": 2},
         {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["primary", "source"], "points": 1},
-        {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["archive", "timestamp", "commit"], "points": 1},
+        {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["archive", "timestamp", "commit"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["negative evidence", "not found", "unknown"], "points": 1},
         {"kind": "stdout_contains_any", "scope": "last_stdout", "needles": ["do not fabricate", "no fabrication", "unknown rather than invent"], "points": 1},
         {"kind": "stdout_contains_all", "scope": "last_stdout", "needles": ["citation", "confidence"], "points": 1},
