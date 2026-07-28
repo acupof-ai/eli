@@ -23,7 +23,6 @@ use crate::evolution::{
     AutoEvolutionPolicy, AutoJournalAction, AutoJournalEntry, CandidateStatus, DistillOutcome,
     EvaluationRun, EvolutionStore,
 };
-use crate::sidecar_contract::{SidecarNoticeRequest, SidecarToolRequest, contract_version};
 use crate::skills::discover_skills;
 use crate::tools::{REGISTRY, shorten_text};
 use crate::types::{RUNTIME_TAPES_DIR_KEY, RUNTIME_WORKSPACE_KEY};
@@ -39,9 +38,6 @@ const DEFAULT_READ_LINE_LIMIT: usize = 500;
 const TOOL_OUTPUT_LARGE_THRESHOLD: usize = 30_000;
 /// How many characters of preview to show for spilled output.
 const TOOL_OUTPUT_PREVIEW_CHARS: usize = 2_000;
-
-static HTTP_CLIENT: std::sync::LazyLock<reqwest::Client> =
-    std::sync::LazyLock::new(reqwest::Client::new);
 
 /// Maximum characters of CLI output included in the subagent completion message.
 const SUBAGENT_OUTPUT_TAIL: usize = 2000;
@@ -345,9 +341,6 @@ fn builtin_tools() -> Vec<Tool> {
         tool_task_cancel(),
         tool_task_update(),
     ];
-    if crate::tools::SIDECAR_URL.lock().is_some() {
-        tools.push(tool_sidecar());
-    }
     // Tag read-only tools (MCP behavior hint) from a single auditable list, so
     // a read-only / plan mode can gate everything else. Anything not listed is
     // treated as potentially mutating (the safe default).
@@ -753,53 +746,23 @@ fn tape_name_from_context(ctx: Option<&ToolContext>) -> Result<String, ConduitEr
     })
 }
 
+// Progress notices: compute a short human-readable label per tool call.
+// Delivery to a channel is reconnected when native channels land (Phase 4);
+// until then the label is emitted to the trace log. `auto_notice` is the
+// load-bearing part and is reused by the channel send path.
 async fn maybe_send_user_facing_notice(tool_name: &str, ctx: Option<&ToolContext>, args: &Value) {
-    if let Some((notice, session_id, url)) = extract_notice_params(tool_name, ctx, args) {
-        send_notice(&url, &session_id, &notice).await;
-    }
-}
-
-fn extract_notice_params(
-    tool_name: &str,
-    ctx: Option<&ToolContext>,
-    args: &Value,
-) -> Option<(String, String, String)> {
     if !crate::builtin::config::EliConfig::load().tool_notices {
-        return None;
+        return;
     }
-    let ctx = ctx?;
-    let output_channel = ctx.state.get("output_channel").and_then(|v| v.as_str())?;
-    if output_channel != "webhook" {
-        return None;
-    }
-    let session_id = ctx
-        .state
-        .get("session_id")
+    let Some(session_id) = ctx
+        .and_then(|c| c.state.get("session_id"))
         .and_then(|v| v.as_str())
-        .filter(|s| !s.trim().is_empty())?
-        .to_owned();
-    let url = crate::tools::SIDECAR_URL.lock().clone()?;
-    let notice = auto_notice(tool_name, args);
-    Some((notice, session_id, url))
-}
-
-async fn send_notice(url: &str, session_id: &str, description: &str) {
-    let payload = SidecarNoticeRequest {
-        contract_version: contract_version(),
-        session_id: session_id.to_owned(),
-        text: description.to_owned(),
+        .filter(|s| !s.trim().is_empty())
+    else {
+        return;
     };
-    let notify_url = format!("{url}/notify");
-    let mut req = HTTP_CLIENT
-        .post(&notify_url)
-        .timeout(Duration::from_secs(3))
-        .json(&payload);
-    if let Ok(token) = std::env::var("ELI_SIDECAR_TOKEN") {
-        req = req.bearer_auth(&token);
-    }
-    if let Err(err) = req.send().await {
-        tracing::debug!(error = %err, session_id, notify_url, "tool.notice request failed");
-    }
+    let notice = auto_notice(tool_name, args);
+    tracing::debug!(session_id, notice, "tool.notice");
 }
 
 fn format_tape_info(info: &crate::builtin::tape::TapeInfo) -> String {
@@ -3030,10 +2993,10 @@ fn tool_message_send() -> Tool {
                     "channel": state.get("channel").and_then(|v| v.as_str()).unwrap_or(""),
                     "chat_id": state.get("chat_id").and_then(|v| v.as_str()).unwrap_or(""),
                     "output_channel": state.get("output_channel").and_then(|v| v.as_str()).unwrap_or(""),
-                    // Marker for the sidecar so channel plugins (e.g. feishu-cli)
-                    // know this is a mid-turn progress message, not the final
-                    // turn reply. Prevents the channel from consuming per-turn
-                    // state (inflight batch, quote-reply target, reactions).
+                    // Marker so channel plugins (e.g. Feishu) know this is a
+                    // mid-turn progress message, not the final turn reply.
+                    // Prevents the channel from consuming per-turn state
+                    // (inflight batch, quote-reply target, reactions).
                     "context": { "_eli_mid_turn": true },
                 });
                 if let Some(path) = image_path {
@@ -3074,135 +3037,6 @@ fn tool_quit() -> Tool {
             Box::pin(async move { ok_val("Session tasks stopped.") })
         },
     )
-}
-
-// ---------------------------------------------------------------------------
-// Sidecar bridge tool — proxies calls to the sidecar's /tools/:name endpoint.
-// ---------------------------------------------------------------------------
-
-fn tool_sidecar() -> Tool {
-    Tool::with_context(
-        "sidecar",
-        "Call an external sidecar plugin by tool name.\n\nExamples: create a calendar event, read/write a Feishu doc, trigger a CI pipeline. Always load the skill first to discover the tool's required parameters.",
-        serde_json::json!({
-            "type": "object",
-            "properties": {
-                "tool": {
-                    "type": "string",
-                    "description": "e.g. feishu_calendar_event."
-                },
-                "description": {
-                    "type": "string",
-                },
-                "params": {
-                    "type": "object",
-                    "description": "Tool-specific parameters."
-                }
-            },
-            "required": ["tool"]
-        }),
-        |args: Value, ctx: Option<ToolContext>| -> BoxFuture<'static, ToolResult> {
-            Box::pin(async move {
-                let tool_name = args
-                    .require_str_field("tool")
-                    .map_err(invalid_input)?
-                    .to_owned();
-                let description = args
-                    .get_str_field("description")
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty())
-                    .map(ToOwned::to_owned);
-                let params = args.get("params").cloned().unwrap_or(serde_json::json!({}));
-
-                let url = {
-                    let u = crate::tools::SIDECAR_URL.lock();
-                    u.clone().unwrap_or_default()
-                };
-                if url.is_empty() {
-                    return Err(ConduitError::new(ErrorKind::Tool, "sidecar not running"));
-                }
-
-                let session_id = ctx
-                    .as_ref()
-                    .and_then(|c| c.state.get("session_id"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-
-                // Validate tool_name to prevent path injection / SSRF.
-                if !tool_name
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
-                {
-                    return Err(ConduitError::new(
-                        ErrorKind::InvalidInput,
-                        format!("invalid sidecar tool name: {tool_name}"),
-                    ));
-                }
-                let tool_url = format!("{url}/tools/{tool_name}");
-                let payload =
-                    build_sidecar_request_payload(params, description.as_deref(), session_id);
-                let mut req = HTTP_CLIENT.post(&tool_url).json(&payload);
-                if let Ok(token) = std::env::var("ELI_SIDECAR_TOKEN") {
-                    req = req.bearer_auth(&token);
-                }
-                let resp = req.send().await.map_err(|e| {
-                    ConduitError::new(ErrorKind::Tool, format!("sidecar request failed: {e}"))
-                })?;
-
-                if !resp.status().is_success() {
-                    let status = resp.status();
-                    let body = resp.text().await.unwrap_or_default();
-                    return Err(ConduitError::new(
-                        ErrorKind::Tool,
-                        format!("sidecar returned {status}: {body}"),
-                    ));
-                }
-
-                let body: serde_json::Value = resp.json().await.map_err(|e| {
-                    ConduitError::new(
-                        ErrorKind::Tool,
-                        format!("sidecar response parse failed: {e}"),
-                    )
-                })?;
-
-                if let Some(err) = body.get("error").and_then(|v| v.as_str()) {
-                    return Err(ConduitError::new(ErrorKind::Tool, err.to_owned()));
-                }
-
-                Ok(body)
-            })
-        },
-    )
-}
-
-fn build_sidecar_request_payload(
-    params: Value,
-    description: Option<&str>,
-    session_id: &str,
-) -> Value {
-    serde_json::to_value(SidecarToolRequest {
-        contract_version: contract_version(),
-        params,
-        description: normalized_description(description),
-        session_id: normalized_session_id(session_id),
-    })
-    .unwrap_or_default()
-}
-
-fn normalized_description(description: Option<&str>) -> Option<String> {
-    description
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(ToOwned::to_owned)
-}
-
-fn normalized_session_id(session_id: &str) -> Option<String> {
-    let session_id = session_id.trim();
-    if session_id.is_empty() {
-        None
-    } else {
-        Some(session_id.to_owned())
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3695,23 +3529,6 @@ mod tests {
         let output = value.as_str().unwrap();
         assert!(output.contains("needle"));
         assert!(!output.contains("different"));
-    }
-
-    #[test]
-    fn test_build_sidecar_request_payload_uses_top_level_description_metadata() {
-        let payload = build_sidecar_request_payload(
-            json!({"action": "create", "description": "domain field"}),
-            Some("同步飞书日程"),
-            "session-1",
-        );
-
-        assert_eq!(payload["contract_version"], json!("eli.sidecar.v1"));
-        assert_eq!(payload["description"], json!("同步飞书日程"));
-        assert_eq!(payload["session_id"], json!("session-1"));
-        assert_eq!(
-            payload["params"],
-            json!({"action": "create", "description": "domain field"})
-        );
     }
 
     #[tokio::test]

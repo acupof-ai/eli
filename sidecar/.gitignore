@@ -1,7 +1,0 @@
-node_modules/
-dist/
-sidecar.json
-*.log
-test/debug-*.cjs
-test/test-*.cjs
-test/e2e-*.ts

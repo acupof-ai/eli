@@ -72,15 +72,6 @@ pub fn model_tools_cached() -> Vec<Tool> {
     built.as_ref().clone()
 }
 
-// ---------------------------------------------------------------------------
-// Sidecar state
-// ---------------------------------------------------------------------------
-
-/// URL of the running sidecar (e.g. "http://127.0.0.1:3101").
-/// Set by wait_for_sidecar() when the sidecar is ready.
-pub static SIDECAR_URL: std::sync::LazyLock<Mutex<Option<String>>> =
-    std::sync::LazyLock::new(|| Mutex::new(None));
-
 /// Convert a tool name with dots to underscore-separated form for model APIs.
 fn to_model_name(name: &str) -> String {
     name.replace('.', "_")

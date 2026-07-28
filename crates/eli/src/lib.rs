@@ -32,7 +32,6 @@ pub mod evolution;
 pub mod framework;
 pub mod hooks;
 pub mod prompt_builder;
-pub mod sidecar_contract;
 pub mod skills;
 pub mod smart_router;
 pub mod taskboard;

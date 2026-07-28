@@ -1,206 +1,11 @@
-//! Gateway command: channel listeners (Telegram, Webhook) and sidecar management.
+//! Gateway command: native channel listeners (Feishu, Telegram).
 
 use std::sync::Arc;
 
 use base64::Engine;
 use serde_json::Value;
 
-#[cfg(feature = "gateway")]
-use super::sidecar_support::{ensure_node_available, ensure_sidecar_deps, find_sidecar_dir};
 use crate::channels::message::{ChannelMessage, MediaItem, MediaType};
-
-#[cfg(feature = "gateway")]
-fn prompt_line(label: &str) -> String {
-    use std::io::Write;
-    print!("{label}");
-    std::io::stdout().flush().unwrap();
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf).unwrap();
-    buf.trim().to_owned()
-}
-
-#[cfg(feature = "gateway")]
-fn ensure_sidecar_config(sidecar_dir: &std::path::Path) {
-    let config_path = sidecar_dir.join("sidecar.json");
-    if config_path.exists() {
-        return;
-    }
-
-    println!("\n  No sidecar.json found — let's set up your channel.\n");
-    println!("  Which channel plugin? (default: @larksuite/openclaw-lark)");
-    let plugin = prompt_line("  Plugin: ");
-    let plugin = if plugin.is_empty() {
-        "@larksuite/openclaw-lark".to_owned()
-    } else {
-        plugin
-    };
-
-    let channel_id = infer_channel_id(&plugin);
-    let config = build_sidecar_channel_config(&plugin, channel_id);
-
-    let json = serde_json::to_string_pretty(&config).unwrap();
-    std::fs::write(&config_path, &json).unwrap();
-    println!("\n  Saved {}\n", config_path.display());
-}
-
-#[cfg(feature = "gateway")]
-fn infer_channel_id(plugin: &str) -> String {
-    const KNOWN_CHANNELS: &[(&str, &str)] = &[
-        ("lark", "feishu"),
-        ("feishu", "feishu"),
-        ("weixin", "openclaw-weixin"),
-        ("wechat", "openclaw-weixin"),
-        ("dingtalk", "dingtalk"),
-        ("discord", "discord"),
-        ("slack", "slack"),
-    ];
-    KNOWN_CHANNELS
-        .iter()
-        .find(|(keyword, _)| plugin.contains(keyword))
-        .map(|(_, id)| id.to_string())
-        .unwrap_or_else(|| prompt_line("  Channel ID (e.g. feishu, slack): "))
-}
-
-#[cfg(feature = "gateway")]
-fn build_sidecar_channel_config(plugin: &str, channel_id: String) -> Value {
-    println!("\n  Enter credentials for {channel_id}:");
-    let app_id = prompt_line("  App ID: ");
-    let app_secret = prompt_line("  App Secret: ");
-
-    let domain = if channel_id == "feishu" {
-        let d = prompt_line("  Domain (feishu/lark) [feishu]: ");
-        if d.is_empty() { "feishu".to_owned() } else { d }
-    } else {
-        String::new()
-    };
-
-    let mut channel_config = serde_json::json!({
-        "enabled": true,
-        "appId": app_id,
-        "appSecret": app_secret,
-        "accounts": {
-            "default": {
-                "appId": app_id,
-                "appSecret": app_secret,
-            }
-        }
-    });
-    if !domain.is_empty() {
-        channel_config["domain"] = serde_json::json!(domain);
-        channel_config["accounts"]["default"]["domain"] = serde_json::json!(domain);
-    }
-
-    serde_json::json!({
-        "eli_url": "http://127.0.0.1:3100",
-        "port": 3101,
-        "plugins": [plugin],
-        "channels": {
-            channel_id: channel_config,
-        }
-    })
-}
-
-#[cfg(feature = "gateway")]
-fn start_sidecar(wh: &crate::channels::webhook::WebhookSettings) -> Option<std::process::Child> {
-    let sidecar_dir = find_sidecar_dir().or_else(|| {
-        println!("Sidecar directory not found, skipping");
-        None
-    })?;
-
-    if !ensure_node_available() {
-        eprintln!("Warning: `node` not found in PATH, cannot start sidecar");
-        return None;
-    }
-    if !ensure_sidecar_deps(&sidecar_dir, false) {
-        eprintln!("Warning: `npm install` failed in {}", sidecar_dir.display());
-        return None;
-    }
-    ensure_sidecar_config(&sidecar_dir);
-
-    println!("Starting sidecar from {}...", sidecar_dir.display());
-    spawn_sidecar_process(&sidecar_dir, wh)
-}
-
-#[cfg(feature = "gateway")]
-fn spawn_sidecar_process(
-    sidecar_dir: &std::path::Path,
-    wh: &crate::channels::webhook::WebhookSettings,
-) -> Option<std::process::Child> {
-    let eli_url = format!("http://127.0.0.1:{}", wh.listen_port);
-    // Workspace path lets sidecar write SKILL.md files where discover_skills() finds them
-    let workspace = std::env::current_dir()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-
-    // process_group(0): sidecar + children share a PGID for atomic kill on shutdown
-    // piped stdin: sidecar detects parent death via pipe close
-    use std::os::unix::process::CommandExt;
-    let mut cmd = std::process::Command::new("node");
-    cmd.arg("start.cjs")
-        .current_dir(sidecar_dir)
-        .env("SIDECAR_ELI_URL", &eli_url)
-        .env("SIDECAR_SKILLS_DIR", &workspace)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::inherit())
-        .stderr(std::process::Stdio::inherit())
-        .process_group(0);
-
-    // Forward Telegram token to sidecar so the built-in telegram plugin
-    // picks it up (backward compat with ELI_TELEGRAM_TOKEN).
-    if let Ok(token) = std::env::var("ELI_TELEGRAM_TOKEN")
-        && !token.is_empty()
-    {
-        cmd.env("SIDECAR_TELEGRAM_TOKEN", &token);
-    }
-    // Also forward access control env vars.
-    for var in ["ELI_TELEGRAM_ALLOW_USERS", "ELI_TELEGRAM_ALLOW_CHATS"] {
-        if let Ok(val) = std::env::var(var) {
-            cmd.env(var, &val);
-        }
-    }
-
-    match cmd.spawn() {
-        Ok(child) => {
-            println!("Sidecar started (pid={})", child.id());
-            Some(child)
-        }
-        Err(e) => {
-            eprintln!("Failed to start sidecar: {e}");
-            None
-        }
-    }
-}
-
-#[cfg(feature = "gateway")]
-fn sidecar_retry_delay(attempt: u32) -> std::time::Duration {
-    std::time::Duration::from_millis((200u64 << attempt.min(4)).min(3000))
-}
-
-#[cfg(feature = "gateway")]
-async fn sidecar_is_ready(client: &reqwest::Client, sidecar_url: &str) -> bool {
-    client
-        .get(format!("{sidecar_url}/health"))
-        .send()
-        .await
-        .is_ok_and(|resp| resp.status().is_success())
-}
-
-#[cfg(feature = "gateway")]
-async fn wait_for_sidecar(sidecar_url: &str) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
-    for attempt in 0..15u32 {
-        if sidecar_is_ready(&client, sidecar_url).await {
-            *crate::tools::SIDECAR_URL.lock() = Some(sidecar_url.to_owned());
-            println!("Sidecar ready at {sidecar_url} (skills via .agents/skills/)");
-            return Ok(());
-        }
-        if attempt < 14 {
-            tokio::time::sleep(sidecar_retry_delay(attempt)).await;
-        }
-    }
-    anyhow::bail!("sidecar not reachable at {sidecar_url}");
-}
 
 fn context_string_array(context: &serde_json::Map<String, Value>, key: &str) -> Vec<String> {
     context
@@ -337,20 +142,17 @@ fn acquire_gateway_lock() -> anyhow::Result<GatewayLockGuard> {
     Ok(GatewayLockGuard { path: lock_path })
 }
 
-/// Start channel listeners (Webhook/Sidecar). Telegram now runs through sidecar.
+/// Start native channel listeners (Feishu, Telegram).
 pub(crate) async fn gateway_command() -> anyhow::Result<()> {
     use std::collections::HashMap;
 
     use crate::channels::base::Channel;
-    #[cfg(feature = "gateway")]
-    use crate::channels::webhook::{WebhookChannel, WebhookSettings};
     use tokio_util::sync::CancellationToken;
 
     // Acquire a PID lock to prevent concurrent gateway instances.
     let _lock_guard = acquire_gateway_lock()?;
 
     let (tx, mut rx) = tokio::sync::mpsc::channel::<ChannelMessage>(256);
-    #[allow(unused_variables, unused_mut)]
     let (ingress_tx, mut ingress_rx) = tokio::sync::mpsc::unbounded_channel::<ChannelMessage>();
     let cancel = CancellationToken::new();
     #[allow(unused_mut)]
@@ -380,46 +182,15 @@ pub(crate) async fn gateway_command() -> anyhow::Result<()> {
         }
     });
 
-    // Telegram is now handled by the sidecar's built-in telegram plugin.
-    // The ELI_TELEGRAM_TOKEN is forwarded to the sidecar process as
-    // SIDECAR_TELEGRAM_TOKEN (see spawn_sidecar_process).
-
-    #[cfg(feature = "gateway")]
-    let mut sidecar_child: Option<std::process::Child> = None;
-    #[cfg(feature = "gateway")]
-    {
-        let wh_settings = WebhookSettings::from_env();
-        // Start sidecar if: sidecar dir exists, webhook is configured, OR
-        // Telegram token is set (telegram now runs through sidecar).
-        let telegram_configured = std::env::var("ELI_TELEGRAM_TOKEN").is_ok_and(|t| !t.is_empty());
-        if find_sidecar_dir().is_some() || wh_settings.is_configured() || telegram_configured {
-            sidecar_child = start_sidecar(&wh_settings);
-
-            let wh = Arc::new(WebhookChannel::new(ingress_tx.clone(), wh_settings));
-            println!("Starting Webhook channel...");
-            let ch = wh.clone();
-            let c = cancel.clone();
-            tasks.spawn(async move {
-                if let Err(e) = Channel::start(&*ch, c).await {
-                    eprintln!("Webhook channel error: {e}");
-                }
-            });
-            channels.insert("webhook".to_owned(), wh);
-        }
-    }
+    // Native channels (Feishu via lark-cli, Telegram via long-poll) wire in here.
+    // Each is constructed from env config and spawned via tasks.spawn(Channel::start(...)),
+    // then inserted into `channels` under its name for outbound routing.
 
     if channels.is_empty() {
         anyhow::bail!(
             "No channels configured.\n\
-             Set ELI_TELEGRAM_TOKEN for Telegram, or add a sidecar/ directory."
+             Set ELI_TELEGRAM_TOKEN for Telegram, or log in with lark-cli for Feishu."
         );
-    }
-
-    #[cfg(feature = "gateway")]
-    if sidecar_child.is_some()
-        && let Err(e) = wait_for_sidecar("http://127.0.0.1:3101").await
-    {
-        eprintln!("Warning: sidecar not ready: {e}");
     }
 
     let cancel_for_signal = cancel.clone();
@@ -517,25 +288,6 @@ pub(crate) async fn gateway_command() -> anyhow::Result<()> {
 
     drain_processing_tasks(&mut workers).await;
 
-    #[cfg(feature = "gateway")]
-    if let Some(mut child) = sidecar_child {
-        let pid = child.id();
-        println!("Stopping sidecar (pgid={pid})...");
-        let _ = std::process::Command::new("kill")
-            .args(["-TERM", &format!("-{pid}")])
-            .status();
-        let waited = std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(3));
-            let _ = std::process::Command::new("kill")
-                .args(["-9", &format!("-{}", pid)])
-                .status();
-            child.wait()
-        });
-        match waited.join() {
-            Ok(Ok(_)) => println!("Sidecar stopped."),
-            _ => println!("Sidecar force-killed."),
-        }
-    }
     for (name, ch) in &channels {
         if let Err(e) = ch.stop().await {
             eprintln!("Error stopping {name}: {e}");

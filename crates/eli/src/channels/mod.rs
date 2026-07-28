@@ -9,13 +9,9 @@ pub mod cli;
 pub mod handler;
 pub mod manager;
 pub mod message;
-#[cfg(feature = "gateway")]
-pub mod webhook;
 
 pub use base::Channel;
 pub use cli::{CliChannel, CliRenderer};
 pub use handler::BufferedMessageHandler;
 pub use manager::{ChannelManager, ChannelSettings, InboundProcessor, OutboundRouter};
 pub use message::{ChannelMessage, DataFetcher, MediaItem, MediaType, MessageKind};
-#[cfg(feature = "gateway")]
-pub use webhook::{WebhookChannel, WebhookSettings};

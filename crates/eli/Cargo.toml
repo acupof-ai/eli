@@ -51,7 +51,7 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 
 [features]
 default = ["gateway", "tape-viewer"]
-gateway = ["dep:axum"]
+gateway = []
 tape-viewer = ["dep:axum"]
 
 [[example]]
