@@ -1,0 +1,23 @@
+Cargo.lock
+  s_3d113e23e5ca87::t_df682124658f0a 1149-1158,1514,2252-2257
+Cargo.toml
+  s_3d113e23e5ca87::t_0d4ee5a699c924 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9c144a8a7e1b4854f27ec364f16ac00d69a82f1d",
+  "prompts": {},
+  "sessions": {
+    "s_3d113e23e5ca87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "610dd897-cd83-4fe0-bc93-c6ccf7f37bd3",
+        "model": "unknown"
+      },
+      "human_author": "cklxx <q1293822641@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
