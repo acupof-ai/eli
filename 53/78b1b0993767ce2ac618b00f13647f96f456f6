@@ -1,0 +1,25 @@
+crates/eli/src/builtin/cli/gateway.rs
+  s_3d113e23e5ca87::t_5f52254c529230 185-202
+crates/eli/src/channels/mod.rs
+  s_3d113e23e5ca87::t_fe02a891a5ca6c 13,21
+crates/eli/src/channels/telegram.rs
+  s_3d113e23e5ca87::t_ebe32ab6e43963 1-669
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5378b1b0993767ce2ac618b00f13647f96f456f6",
+  "prompts": {},
+  "sessions": {
+    "s_3d113e23e5ca87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "610dd897-cd83-4fe0-bc93-c6ccf7f37bd3",
+        "model": "unknown"
+      },
+      "human_author": "cklxx <q1293822641@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
