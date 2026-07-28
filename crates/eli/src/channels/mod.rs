@@ -8,7 +8,9 @@ pub mod base;
 pub mod cli;
 pub mod handler;
 pub mod manager;
+pub mod media;
 pub mod message;
+pub mod text;
 
 pub use base::Channel;
 pub use cli::{CliChannel, CliRenderer};
