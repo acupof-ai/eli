@@ -10,6 +10,7 @@ pub mod handler;
 pub mod manager;
 pub mod media;
 pub mod message;
+pub mod telegram;
 pub mod text;
 
 pub use base::Channel;
@@ -17,3 +18,4 @@ pub use cli::{CliChannel, CliRenderer};
 pub use handler::BufferedMessageHandler;
 pub use manager::{ChannelManager, ChannelSettings, InboundProcessor, OutboundRouter};
 pub use message::{ChannelMessage, DataFetcher, MediaItem, MediaType, MessageKind};
+pub use telegram::{TelegramChannel, TelegramSettings};

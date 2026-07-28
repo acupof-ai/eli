@@ -182,9 +182,24 @@ pub(crate) async fn gateway_command() -> anyhow::Result<()> {
         }
     });
 
-    // Native channels (Feishu via lark-cli, Telegram via long-poll) wire in here.
-    // Each is constructed from env config and spawned via tasks.spawn(Channel::start(...)),
-    // then inserted into `channels` under its name for outbound routing.
+    // Telegram: long-poll getUpdates when a bot token is configured.
+    if let Some(settings) = crate::channels::TelegramSettings::from_env() {
+        let ch = Arc::new(crate::channels::TelegramChannel::new(
+            ingress_tx.clone(),
+            settings,
+        ));
+        println!("Starting Telegram channel...");
+        let started = ch.clone();
+        let c = cancel.clone();
+        tasks.spawn(async move {
+            if let Err(e) = Channel::start(&*started, c).await {
+                eprintln!("Telegram channel error: {e}");
+            }
+        });
+        channels.insert("telegram".to_owned(), ch);
+    }
+
+    // Feishu (via lark-cli) wires in here in Phase 3.
 
     if channels.is_empty() {
         anyhow::bail!(
