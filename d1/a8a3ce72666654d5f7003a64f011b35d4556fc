@@ -1,0 +1,27 @@
+crates/eli/src/builtin/cli/gateway.rs
+  s_3d113e23e5ca87::t_8ca2070b4a3a19 202-217
+crates/eli/src/channels/feishu.rs
+  s_3d113e23e5ca87::t_998c4f18a32c2e 1-964
+crates/eli/src/channels/mod.rs
+  s_3d113e23e5ca87::t_c29d442eee7609 9,19
+crates/eli/src/channels/text.rs
+  s_3d113e23e5ca87::t_3c9f1599e766c1 254-265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d1a8a3ce72666654d5f7003a64f011b35d4556fc",
+  "prompts": {},
+  "sessions": {
+    "s_3d113e23e5ca87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "610dd897-cd83-4fe0-bc93-c6ccf7f37bd3",
+        "model": "unknown"
+      },
+      "human_author": "cklxx <q1293822641@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
