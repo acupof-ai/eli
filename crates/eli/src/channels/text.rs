@@ -342,7 +342,10 @@ mod tests {
 
     #[test]
     fn strip_no_mention_unchanged() {
-        assert_eq!(strip_mentions("你好，能帮我查个东西吗"), "你好，能帮我查个东西吗");
+        assert_eq!(
+            strip_mentions("你好，能帮我查个东西吗"),
+            "你好，能帮我查个东西吗"
+        );
     }
 
     #[test]
@@ -352,7 +355,10 @@ mod tests {
 
     #[test]
     fn strip_two_stacked_mentions() {
-        assert_eq!(strip_mentions("@小助手 @secondary 帮我看个东西"), "帮我看个东西");
+        assert_eq!(
+            strip_mentions("@小助手 @secondary 帮我看个东西"),
+            "帮我看个东西"
+        );
     }
 
     #[test]
@@ -423,7 +429,10 @@ mod tests {
     #[test]
     fn friendly_passthrough_when_not_error() {
         assert_eq!(friendlyize_error("hello"), "hello");
-        assert_eq!(friendlyize_error("[Error: something else]"), "[Error: something else]");
+        assert_eq!(
+            friendlyize_error("[Error: something else]"),
+            "[Error: something else]"
+        );
     }
 
     #[test]

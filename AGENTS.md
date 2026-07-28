@@ -71,7 +71,6 @@ No wrapper structs for one field. No builders unless >4 params. Transform pipeli
 | Memory/history retrieval | Auto memory + `docs/experience/` summaries first |
 | Large mechanical edits | Agent tool: explore → plan → execute → review, max 2 retries |
 | User correction | Codify preventive feedback memory before resuming |
-| Sidecar changes (`sidecar/`) | Preserve TypeScript ESM style, keep contracts aligned with Rust side |
 
 No trigger → do not load.
 
@@ -89,10 +88,10 @@ No trigger → do not load.
 
 ## 4. Project Snapshot
 
-- Product: hook-first AI agent framework (CLI, Telegram, Webhook).
-- Two-crate workspace: `conduit` (LLM toolkit) → `eli` (agent framework).
+- Product: hook-first AI agent framework (CLI, Telegram, Feishu).
+- Two-crate workspace: `nexil` (LLM toolkit) → `eli` (agent framework).
 - Turn pipeline: `resolve_session → load_state → build_prompt → run_model → save_state → render_outbound → dispatch_outbound`.
-- Key dirs: `crates/eli/src/` (framework, hooks, builtins, channels, skills, tools), `crates/nexil/src/` (LLM, auth, tape), `sidecar/` (OpenClaw bridge).
+- Key dirs: `crates/eli/src/` (framework, hooks, builtins, channels, skills, tools), `crates/nexil/src/` (LLM, auth, tape).
 - Config: `ELI_*` env vars, `.env` for secrets, `~/.eli/config.toml` for profiles.
 
 ---
@@ -103,7 +102,6 @@ No trigger → do not load.
 - Prefer behavior-oriented test names: `test_build_system_prompt_appends_workspace_agents_guidance`.
 - Use `tempfile` workspaces for tests that depend on filesystem state.
 - Cover prompt composition, hook precedence, channel routing, tape persistence, and tool wiring.
-- If sidecar behavior changes, add or update tests under `sidecar/test/`.
 
 ---
 

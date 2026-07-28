@@ -162,7 +162,7 @@ python3 -m pytest tests/test_vision.py -v # vision: multimodal image tests
 
 ## Architecture
 
-Primary languages: **Rust** (core) and **Python** (integration tests). Secondary: TypeScript (sidecar).
+Primary languages: **Rust** (core) and **Python** (integration tests).
 
 Two-crate Cargo workspace (edition 2024):
 

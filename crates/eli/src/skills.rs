@@ -58,24 +58,12 @@ pub struct SkillMetadata {
     pub location: PathBuf,
     pub source: String,
     pub metadata: std::collections::HashMap<String, String>,
-    /// In-memory body for synthesized skills (e.g. sidecar tool groups).
+    /// In-memory body for skills not backed by a file on disk.
     /// When set, `body()` returns this instead of reading from disk.
     pub content: Option<String>,
 }
 
 impl SkillMetadata {
-    /// Create an in-memory skill (not backed by a file on disk).
-    pub fn synthesized(name: &str, description: &str, body: String) -> Self {
-        Self {
-            name: name.to_owned(),
-            description: description.to_owned(),
-            location: PathBuf::new(),
-            source: "sidecar".to_owned(),
-            metadata: std::collections::HashMap::new(),
-            content: Some(body),
-        }
-    }
-
     /// Read the skill body, stripping YAML frontmatter and substituting template variables.
     pub fn body(&self) -> Option<String> {
         if let Some(ref content) = self.content {

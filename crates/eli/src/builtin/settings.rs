@@ -74,7 +74,10 @@ fn parse_fallback_models() -> Option<Vec<String>> {
 /// | `ELI_CONTEXT_WINDOW`           | Context window override (auto-detected)        |
 /// | `ELI_MAX_TURN_BUDGET`          | Per-turn token budget; loop stops when reached |
 /// | `ELI_VERBOSE`                  | Verbosity level (0–2)                          |
-/// | `ELI_TELEGRAM_TOKEN`           | Telegram bot token (gateway mode)              |
+/// | `ELI_TELEGRAM_TOKEN`           | Telegram bot token (gateway mode; alias `SIDECAR_TELEGRAM_TOKEN`) |
+/// | `ELI_TELEGRAM_ALLOW_USERS`     | Comma-separated Telegram user-id allowlist     |
+/// | `ELI_TELEGRAM_ALLOW_CHATS`     | Comma-separated Telegram chat-id allowlist     |
+/// | `ELI_FEISHU_ACCOUNT`           | Feishu account id for lark-cli (default `default`) |
 pub struct EnvConfig;
 
 impl EnvConfig {

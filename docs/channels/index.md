@@ -6,40 +6,34 @@ Eli uses channel adapters to run the same pipeline across different I/O endpoint
 
 - `cli`: local interactive terminal — see [CLI](cli.md)
 - `telegram`: Telegram bot — see [Telegram](telegram.md)
+- `feishu`: Feishu/Lark bot via `lark-cli` — see [Feishu](feishu.md)
 
 ## Run Modes
 
 Local interactive mode:
 
 ```bash
-uv run eli chat
+eli chat
 ```
 
-Channel listener mode (all non-`cli` channels by default):
+Channel listener mode — starts every channel whose credentials are present:
 
 ```bash
-uv run eli gateway
+eli gateway
 ```
 
-Enable only Telegram:
-
-```bash
-uv run eli gateway --enable-channel telegram
-```
+Telegram needs `ELI_TELEGRAM_TOKEN`; Feishu needs `lark-cli` on PATH,
+authenticated as the bot.
 
 ## Session Semantics
 
 - `run` command default session id: `<channel>:<chat_id>`
-- Telegram channel session id: `telegram:<chat_id>`
+- Telegram channel session id: `telegram:default:<chat_id>`
+- Feishu channel session id: `feishu:<account>:<chat_id>`
 - `chat` command default session id: `cli_session` (override with `--session-id`)
 
 ## Debounce Behavior
 
 - `cli` does not debounce; each input is processed immediately.
-- Other channels can debounce and batch inbound messages per session.
+- Telegram and Feishu debounce and batch inbound messages per session.
 - Comma commands (`,` prefix) always bypass debounce and execute immediately.
-
-## About Discord
-
-Core Eli does not currently include a builtin Discord adapter.
-If you need Discord, implement it in an external plugin via `provide_channels`.

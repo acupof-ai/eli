@@ -5,8 +5,7 @@ This is the current documentation entrypoint for the repository.
 ## Repository Shape
 
 - `crates/nexil` — provider-agnostic LLM toolkit
-- `crates/eli` — hook-first AI agent framework
-- `sidecar/` — OpenClaw bridge and MCP/HTTP channel host
+- `crates/eli` — hook-first AI agent framework (includes native Telegram + Feishu channels)
 
 ## Quick Start
 
@@ -60,7 +59,7 @@ These are useful reference documents, but not the primary source of truth:
 
 When docs conflict, trust these in order:
 
-1. current code in `crates/` and `sidecar/`
+1. current code in `crates/`
 2. `README.md`
 3. `AGENTS.md` and `CLAUDE.md`
 4. current docs in `docs/`

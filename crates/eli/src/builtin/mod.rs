@@ -897,7 +897,7 @@ mod tests {
 
         assert_eq!(outbounds.len(), 1);
         assert_eq!(outbounds[0].content, "reply text");
-        // Inbound context must be propagated so the sidecar can route
+        // Inbound context must be propagated so the channel can route
         // the outbound correctly and clean up typing indicators.
         assert_eq!(
             outbounds[0]

@@ -209,9 +209,8 @@ impl ChannelManager {
 
     /// Dispatch an outbound envelope to the correct channel.
     ///
-    /// Retries on send failure with exponential backoff (same pattern as
-    /// sidecar health checks in `gateway.rs`). All `send()` errors are
-    /// connection-level by nature — HTTP-level errors are handled inside
+    /// Retries on send failure with exponential backoff. All `send()` errors
+    /// are connection-level by nature — HTTP-level errors are handled inside
     /// channel implementations.
     pub async fn dispatch(&self, message: &Envelope) -> bool {
         let Some(outbound) = self.build_outbound(message) else {

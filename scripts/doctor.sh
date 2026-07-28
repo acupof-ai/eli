@@ -19,28 +19,18 @@ printf 'eli doctor\n\n'
 check_cmd "rust toolchain" rustc
 check_cmd "cargo" cargo
 check_cmd "python" python3
-check_cmd "node" node
-check_cmd "npm" npm
-check_cmd "bun (required for sidecar tests)" bun
+
+if command -v lark-cli >/dev/null 2>&1; then
+  printf '[ok] lark-cli (Feishu channel)\n'
+else
+  printf '[warn] lark-cli not found (only needed for the Feishu channel)\n'
+fi
 
 if python3 -m pytest --version >/dev/null 2>&1; then
   printf '[ok] pytest\n'
 else
   printf '[missing] pytest\n'
   status=1
-fi
-
-if [ -f sidecar/package.json ]; then
-  printf '[ok] sidecar package.json\n'
-else
-  printf '[missing] sidecar package.json\n'
-  status=1
-fi
-
-if [ -d sidecar/node_modules ]; then
-  printf '[ok] sidecar dependencies installed\n'
-else
-  printf '[warn] sidecar dependencies not installed yet (run: cd sidecar && npm install)\n'
 fi
 
 if [ -f .env ]; then

@@ -24,23 +24,14 @@ test-rust:
 test-py:
     ./scripts/test_python.sh
 
-# Run sidecar checks
-test-sidecar:
-    ./scripts/test_sidecar.sh
-
 # Run practical local validation across languages
 test-all:
     cargo test --workspace
     ./scripts/test_python.sh
-    ./scripts/test_sidecar.sh
 
 # Keep old shorthand behavior
 test:
     cargo test --workspace
-
-# Run sidecar in dev mode
-dev-sidecar:
-    cd sidecar && npm run dev
 
 # Release-oriented validation
 release-check:

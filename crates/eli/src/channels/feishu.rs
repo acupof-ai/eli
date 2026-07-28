@@ -338,10 +338,13 @@ impl FeishuInner {
         let message_id = item.message_id.clone();
         let generation = {
             let mut st = self.state.lock();
-            let batch = st.queued.entry(chat_id.clone()).or_insert_with(|| QueuedBatch {
-                items: Vec::new(),
-                generation: 0,
-            });
+            let batch = st
+                .queued
+                .entry(chat_id.clone())
+                .or_insert_with(|| QueuedBatch {
+                    items: Vec::new(),
+                    generation: 0,
+                });
             batch.items.push(item);
             batch.generation += 1;
             batch.generation
@@ -356,7 +359,8 @@ impl FeishuInner {
         let this = Arc::clone(self);
         tokio::spawn(async move {
             tokio::time::sleep(BATCH_DEBOUNCE).await;
-            this.flush_batch(chat_id, chat_type, sender_id, generation).await;
+            this.flush_batch(chat_id, chat_type, sender_id, generation)
+                .await;
         });
     }
 
@@ -365,21 +369,42 @@ impl FeishuInner {
         let params = json!({ "message_id": message_id }).to_string();
         let data = json!({ "reaction_type": { "emoji_type": "Typing" } }).to_string();
         let args = owned(&[
-            "im", "reactions", "create", "--as", "bot", "--params", &params, "--data", &data,
+            "im",
+            "reactions",
+            "create",
+            "--as",
+            "bot",
+            "--params",
+            &params,
+            "--data",
+            &data,
         ]);
         if let LarkResult::Ok(v) = run_lark_cli(&args).await
             && let Some(rid) = v.pointer("/data/reaction_id").and_then(|r| r.as_str())
         {
-            self.state.lock().reactions.insert(message_id.to_owned(), rid.to_owned());
+            self.state
+                .lock()
+                .reactions
+                .insert(message_id.to_owned(), rid.to_owned());
         }
     }
 
     /// Delete the Typing reaction for a message, if one was recorded.
     async fn delete_reaction(&self, message_id: &str) {
         let reaction_id = { self.state.lock().reactions.remove(message_id) };
-        let Some(reaction_id) = reaction_id else { return };
+        let Some(reaction_id) = reaction_id else {
+            return;
+        };
         let params = json!({ "message_id": message_id, "reaction_id": reaction_id }).to_string();
-        let args = owned(&["im", "reactions", "delete", "--as", "bot", "--params", &params]);
+        let args = owned(&[
+            "im",
+            "reactions",
+            "delete",
+            "--as",
+            "bot",
+            "--params",
+            &params,
+        ]);
         if let LarkResult::Err(e) = run_lark_cli(&args).await {
             debug!(error = %e, message_id, "feishu: reaction delete failed (may be gone)");
         }
@@ -394,7 +419,13 @@ impl FeishuInner {
 
     /// Flush a chat's batch if its generation still matches (no newer message
     /// arrived). Combine, record inflight, enrich, dispatch.
-    async fn flush_batch(&self, chat_id: String, chat_type: &'static str, sender_id: String, generation: u64) {
+    async fn flush_batch(
+        &self,
+        chat_id: String,
+        chat_type: &'static str,
+        sender_id: String,
+        generation: u64,
+    ) {
         let items = {
             let mut st = self.state.lock();
             match st.queued.get(&chat_id) {
@@ -413,13 +444,20 @@ impl FeishuInner {
         };
 
         let combined_text = combine_batch_text(&items);
-        let enriched = self.enrich_with_history(&chat_id, &items, &combined_text).await;
+        let enriched = self
+            .enrich_with_history(&chat_id, &items, &combined_text)
+            .await;
         self.dispatch(&chat_id, chat_type, &sender_id, &items, enriched);
     }
 
     /// Prepend a window of recent chat history. Degrades to the input text on
     /// any failure.
-    async fn enrich_with_history(&self, chat_id: &str, items: &[InboundItem], text: &str) -> String {
+    async fn enrich_with_history(
+        &self,
+        chat_id: &str,
+        items: &[InboundItem],
+        text: &str,
+    ) -> String {
         let current_ids: Vec<&str> = items.iter().map(|i| i.message_id.as_str()).collect();
         let page_size = HISTORY_WINDOW + current_ids.len().max(1);
         let args = owned(&[
@@ -468,8 +506,18 @@ impl FeishuInner {
     }
 
     /// Build the framework inbound envelope and enqueue it.
-    fn dispatch(&self, chat_id: &str, chat_type: &str, sender_id: &str, items: &[InboundItem], text: String) {
-        let reply_to_id = items.last().map(|i| i.message_id.clone()).unwrap_or_default();
+    fn dispatch(
+        &self,
+        chat_id: &str,
+        chat_type: &str,
+        sender_id: &str,
+        items: &[InboundItem],
+        text: String,
+    ) {
+        let reply_to_id = items
+            .last()
+            .map(|i| i.message_id.clone())
+            .unwrap_or_default();
         let mut context = serde_json::Map::new();
         context.insert("source_channel".into(), json!("feishu"));
         context.insert("account_id".into(), json!(self.account_id));
@@ -541,9 +589,7 @@ impl FeishuInner {
             .as_ref()
             .and_then(|b| b.items.last())
             .map(|i| i.message_id.clone());
-        let target = reply_to_id
-            .map(str::to_owned)
-            .or(latest_message_id);
+        let target = reply_to_id.map(str::to_owned).or(latest_message_id);
 
         let chunks = chunk_text(&rendered, MAX_CHUNK_BYTES);
         // Chunk 0: quote-reply if we have a target, else fresh send.
@@ -551,7 +597,13 @@ impl FeishuInner {
             let result = match &target {
                 Some(mid) => {
                     let args = owned(&[
-                        "im", "+messages-reply", "--as", "bot", "--message-id", mid, "--markdown",
+                        "im",
+                        "+messages-reply",
+                        "--as",
+                        "bot",
+                        "--message-id",
+                        mid,
+                        "--markdown",
                         first,
                     ]);
                     run_lark_cli(&args).await
@@ -744,7 +796,10 @@ fn format_history_line(m: &Value) -> String {
         None => String::new(),
     };
     if content.chars().count() > HISTORY_TEXT_CAP {
-        content = format!("{}…", content.chars().take(HISTORY_TEXT_CAP).collect::<String>());
+        content = format!(
+            "{}…",
+            content.chars().take(HISTORY_TEXT_CAP).collect::<String>()
+        );
     }
     if time.is_empty() {
         format!("{role}: {content}")
@@ -826,7 +881,13 @@ impl Channel for FeishuChannel {
             .filter(|s| !s.is_empty())
             .map(str::to_owned);
         self.inner
-            .send_outbound(&to, &message.content, reply_to_id.as_deref(), is_notice, is_cleanup)
+            .send_outbound(
+                &to,
+                &message.content,
+                reply_to_id.as_deref(),
+                is_notice,
+                is_cleanup,
+            )
             .await;
         Ok(())
     }
@@ -942,17 +1003,29 @@ mod tests {
 
     #[test]
     fn combine_batch_single_verbatim() {
-        let items = vec![InboundItem { message_id: "m".into(), text: "solo".into() }];
+        let items = vec![InboundItem {
+            message_id: "m".into(),
+            text: "solo".into(),
+        }];
         assert_eq!(combine_batch_text(&items), "solo");
     }
 
     #[test]
     fn combine_batch_multi_numbered() {
         let items = vec![
-            InboundItem { message_id: "m1".into(), text: "first".into() },
-            InboundItem { message_id: "m2".into(), text: "second".into() },
+            InboundItem {
+                message_id: "m1".into(),
+                text: "first".into(),
+            },
+            InboundItem {
+                message_id: "m2".into(),
+                text: "second".into(),
+            },
         ];
-        assert_eq!(combine_batch_text(&items), "[消息 1/2] first\n[消息 2/2] second");
+        assert_eq!(
+            combine_batch_text(&items),
+            "[消息 1/2] first\n[消息 2/2] second"
+        );
     }
 
     #[test]

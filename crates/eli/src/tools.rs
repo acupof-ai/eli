@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use nexil::Tool;
 
 /// Central tool registry. Tools are registered here by the builtin module on
-/// startup, but it is a live store: plugins / sidecars may register tools after
+/// startup, but it is a live store: plugins may register tools after
 /// init. The model-facing snapshot ([`model_tools_cached`]) is memoized against
 /// a fingerprint of this map, so any mutation here is reflected automatically —
 /// REGISTRY is the single source of truth.
@@ -53,7 +53,7 @@ pub fn populate_model_tools_cache() {
 /// against a registry fingerprint: a hit returns the cached snapshot, a miss (or
 /// a registry mutation since the last call) rebuilds and re-caches. This keeps a
 /// single source of truth (the live REGISTRY) regardless of how tools were
-/// registered (builtin, plugin, or sidecar, before or after init).
+/// registered (builtin or plugin, before or after init).
 pub fn model_tools_cached() -> Vec<Tool> {
     let reg = REGISTRY.lock();
     let fp = registry_fingerprint(&reg);

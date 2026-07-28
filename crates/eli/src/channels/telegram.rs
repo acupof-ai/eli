@@ -159,14 +159,28 @@ fn format_content(msg: &Value) -> String {
         return t.to_owned();
     }
     let caption = msg.get("caption").and_then(|v| v.as_str()).unwrap_or("");
-    let dur = |key: &str| msg.pointer(&format!("/{key}/duration")).and_then(Value::as_i64).unwrap_or(0);
+    let dur = |key: &str| {
+        msg.pointer(&format!("/{key}/duration"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+    };
 
     if msg.get("photo").is_some() {
-        return if caption.is_empty() { "[Photo]".into() } else { format!("[Photo] {caption}") };
+        return if caption.is_empty() {
+            "[Photo]".into()
+        } else {
+            format!("[Photo] {caption}")
+        };
     }
     if let Some(audio) = msg.get("audio") {
-        let title = audio.get("title").and_then(|v| v.as_str()).unwrap_or("Unknown");
-        let performer = audio.get("performer").and_then(|v| v.as_str()).unwrap_or("");
+        let title = audio
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown");
+        let performer = audio
+            .get("performer")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         return if performer.is_empty() {
             format!("[Audio: {title}]")
         } else {
@@ -187,7 +201,10 @@ fn format_content(msg: &Value) -> String {
         return format!("[Video note: {}s]", dur("video_note"));
     }
     if let Some(doc) = msg.get("document") {
-        let name = doc.get("file_name").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let name = doc
+            .get("file_name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         return if caption.is_empty() {
             format!("[Document: {name}]")
         } else {
@@ -196,7 +213,11 @@ fn format_content(msg: &Value) -> String {
     }
     if let Some(sticker) = msg.get("sticker") {
         let emoji = sticker.get("emoji").and_then(|v| v.as_str()).unwrap_or("");
-        return if emoji.is_empty() { "[Sticker]".into() } else { format!("[Sticker: {emoji}]") };
+        return if emoji.is_empty() {
+            "[Sticker]".into()
+        } else {
+            format!("[Sticker: {emoji}]")
+        };
     }
     caption.to_owned()
 }
@@ -216,15 +237,25 @@ fn detect_media(msg: &Value) -> Option<(String, &'static str, &'static str)> {
         ("video_note", "video", ".mp4"),
         ("document", "file", ""),
     ] {
-        if let Some(id) = msg.pointer(&format!("/{key}/file_id")).and_then(|v| v.as_str()) {
+        if let Some(id) = msg
+            .pointer(&format!("/{key}/file_id"))
+            .and_then(|v| v.as_str())
+        {
             return Some((id.to_owned(), label, ext));
         }
     }
     if let Some(sticker) = msg.get("sticker")
         && let Some(id) = sticker.get("file_id").and_then(|v| v.as_str())
     {
-        let animated = sticker.get("is_animated").and_then(Value::as_bool).unwrap_or(false);
-        return Some((id.to_owned(), "image", if animated { ".webm" } else { ".webp" }));
+        let animated = sticker
+            .get("is_animated")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        return Some((
+            id.to_owned(),
+            "image",
+            if animated { ".webm" } else { ".webp" },
+        ));
     }
     None
 }
@@ -287,7 +318,12 @@ impl TelegramChannel {
     }
 
     /// POST a JSON API call, returning `result` or an error (HTTP or `ok:false`).
-    async fn call_api(&self, method: &str, params: Value, timeout: Duration) -> anyhow::Result<Value> {
+    async fn call_api(
+        &self,
+        method: &str,
+        params: Value,
+        timeout: Duration,
+    ) -> anyhow::Result<Value> {
         let resp = self
             .client
             .post(self.api_url(method))
@@ -297,7 +333,10 @@ impl TelegramChannel {
             .await?;
         let data: Value = resp.json().await?;
         if data.get("ok").and_then(Value::as_bool) != Some(true) {
-            let desc = data.get("description").and_then(|v| v.as_str()).unwrap_or("unknown error");
+            let desc = data
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
             anyhow::bail!("Telegram API {method}: {desc}");
         }
         Ok(data.get("result").cloned().unwrap_or(Value::Null))
@@ -310,7 +349,11 @@ impl TelegramChannel {
             return;
         }
         let md = json!({"chat_id": chat_id, "text": text, "parse_mode": "MarkdownV2"});
-        if self.call_api("sendMessage", md, REQUEST_TIMEOUT).await.is_err() {
+        if self
+            .call_api("sendMessage", md, REQUEST_TIMEOUT)
+            .await
+            .is_err()
+        {
             let plain = json!({"chat_id": chat_id, "text": text});
             if let Err(e) = self.call_api("sendMessage", plain, REQUEST_TIMEOUT).await {
                 warn!(error = %e, "telegram: sendMessage failed");
@@ -320,13 +363,19 @@ impl TelegramChannel {
 
     async fn send_typing(&self, chat_id: i64) {
         let _ = self
-            .call_api("sendChatAction", json!({"chat_id": chat_id, "action": "typing"}), REQUEST_TIMEOUT)
+            .call_api(
+                "sendChatAction",
+                json!({"chat_id": chat_id, "action": "typing"}),
+                REQUEST_TIMEOUT,
+            )
             .await;
     }
 
     /// Download a Telegram file by id into a temp file, returning its path.
     async fn download_file(&self, file_id: &str, ext: &str) -> anyhow::Result<std::path::PathBuf> {
-        let file = self.call_api("getFile", json!({"file_id": file_id}), REQUEST_TIMEOUT).await?;
+        let file = self
+            .call_api("getFile", json!({"file_id": file_id}), REQUEST_TIMEOUT)
+            .await?;
         let file_path = file
             .get("file_path")
             .and_then(|v| v.as_str())
@@ -340,7 +389,10 @@ impl TelegramChannel {
     async fn collect_media(&self, msg: &Value) -> (Vec<String>, Vec<String>) {
         let mut paths = Vec::new();
         let mut types = Vec::new();
-        for source in [Some(msg), msg.get("reply_to_message")].into_iter().flatten() {
+        for source in [Some(msg), msg.get("reply_to_message")]
+            .into_iter()
+            .flatten()
+        {
             let Some((file_id, label, ext)) = detect_media(source) else {
                 continue;
             };
@@ -378,33 +430,45 @@ impl TelegramChannel {
             }
             Access::Start => {
                 if let Some(chat_id) = chat_id_of(msg) {
-                    self.send_text(chat_id, "Eli is online. Send text to start.").await;
+                    self.send_text(chat_id, "Eli is online. Send text to start.")
+                        .await;
                 }
                 return;
             }
             Access::Allowed => {}
         }
 
-        let chat_type = msg.pointer("/chat/type").and_then(|v| v.as_str()).unwrap_or("private");
+        let chat_type = msg
+            .pointer("/chat/type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("private");
         let is_group = chat_type != "private";
         if is_group && !should_process_group(msg, bot_id, bot_username) {
             return;
         }
 
-        let Some(chat_id) = chat_id_of(msg) else { return };
+        let Some(chat_id) = chat_id_of(msg) else {
+            return;
+        };
         self.send_typing(chat_id).await;
 
         let content = strip_eli_prefix(&format_content(msg)).to_owned();
         let (paths, types) = self.collect_media(msg).await;
 
-        let sender_id = msg.pointer("/from/id").map(json_id_string).unwrap_or_default();
+        let sender_id = msg
+            .pointer("/from/id")
+            .map(json_id_string)
+            .unwrap_or_default();
         let sender_name = full_name(msg.get("from"));
         let mut context = serde_json::Map::new();
         context.insert("source_channel".into(), json!("telegram"));
         context.insert("account_id".into(), json!("default"));
         context.insert("sender_id".into(), json!(sender_id));
         context.insert("sender_name".into(), json!(sender_name));
-        context.insert("chat_type".into(), json!(if is_group { "group" } else { "direct" }));
+        context.insert(
+            "chat_type".into(),
+            json!(if is_group { "group" } else { "direct" }),
+        );
         if !paths.is_empty() {
             context.insert("media_paths".into(), json!(paths));
             context.insert("media_types".into(), json!(types));
@@ -428,16 +492,31 @@ impl TelegramChannel {
             status("/new_chat_member/status"),
             "member" | "administrator" | "creator"
         );
-        let is_bot = cm.pointer("/new_chat_member/user/id").and_then(Value::as_i64) == Some(bot_id);
+        let is_bot = cm
+            .pointer("/new_chat_member/user/id")
+            .and_then(Value::as_i64)
+            == Some(bot_id);
         if !(was_absent && is_present && is_bot) {
             return;
         }
-        let Some(chat_id) = cm.pointer("/chat/id").and_then(Value::as_i64) else { return };
-        let chat_type = cm.pointer("/chat/type").and_then(|v| v.as_str()).unwrap_or("group");
+        let Some(chat_id) = cm.pointer("/chat/id").and_then(Value::as_i64) else {
+            return;
+        };
+        let chat_type = cm
+            .pointer("/chat/type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("group");
         let mut context = serde_json::Map::new();
         context.insert("source_channel".into(), json!("telegram"));
         context.insert("account_id".into(), json!("default"));
-        context.insert("chat_type".into(), json!(if chat_type == "private" { "direct" } else { "group" }));
+        context.insert(
+            "chat_type".into(),
+            json!(if chat_type == "private" {
+                "direct"
+            } else {
+                "group"
+            }),
+        );
         let session_id = format!("telegram:default:{chat_id}");
         let message = ChannelMessage::new(session_id, "telegram", "")
             .with_chat_id(chat_id.to_string())
@@ -458,11 +537,16 @@ impl TelegramChannel {
             }
         };
         let bot_id = me.get("id").and_then(Value::as_i64).unwrap_or(0);
-        let bot_username = me.get("username").and_then(|v| v.as_str()).unwrap_or("").to_owned();
+        let bot_username = me
+            .get("username")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned();
         info!(bot_id, username = %bot_username, "telegram: bot identity resolved");
 
         let mut offset: i64 = 0;
-        let poll_timeout = REQUEST_TIMEOUT.max(Duration::from_secs(LONG_POLL_SECS) + LONG_POLL_GRACE);
+        let poll_timeout =
+            REQUEST_TIMEOUT.max(Duration::from_secs(LONG_POLL_SECS) + LONG_POLL_GRACE);
 
         while !cancel.is_cancelled() {
             let params = json!({
@@ -627,19 +711,34 @@ mod tests {
     #[test]
     fn format_content_typed_placeholders() {
         assert_eq!(format_content(&json!({"photo": []})), "[Photo]");
-        assert_eq!(format_content(&json!({"photo": [], "caption": "cap"})), "[Photo] cap");
+        assert_eq!(
+            format_content(&json!({"photo": [], "caption": "cap"})),
+            "[Photo] cap"
+        );
         assert_eq!(
             format_content(&json!({"audio": {"title": "Song", "performer": "Artist"}})),
             "[Audio: Artist - Song]"
         );
-        assert_eq!(format_content(&json!({"audio": {"title": "Song"}})), "[Audio: Song]");
-        assert_eq!(format_content(&json!({"voice": {"duration": 5}})), "[Voice: 5s]");
-        assert_eq!(format_content(&json!({"video": {"duration": 8}})), "[Video: 8s]");
+        assert_eq!(
+            format_content(&json!({"audio": {"title": "Song"}})),
+            "[Audio: Song]"
+        );
+        assert_eq!(
+            format_content(&json!({"voice": {"duration": 5}})),
+            "[Voice: 5s]"
+        );
+        assert_eq!(
+            format_content(&json!({"video": {"duration": 8}})),
+            "[Video: 8s]"
+        );
         assert_eq!(
             format_content(&json!({"document": {"file_name": "a.pdf"}})),
             "[Document: a.pdf]"
         );
-        assert_eq!(format_content(&json!({"sticker": {"emoji": "😀"}})), "[Sticker: 😀]");
+        assert_eq!(
+            format_content(&json!({"sticker": {"emoji": "😀"}})),
+            "[Sticker: 😀]"
+        );
         assert_eq!(format_content(&json!({"sticker": {}})), "[Sticker]");
     }
 
@@ -662,7 +761,10 @@ mod tests {
 
     #[test]
     fn full_name_joins_present_parts() {
-        assert_eq!(full_name(Some(&json!({"first_name": "Ada", "last_name": "L"}))), "Ada L");
+        assert_eq!(
+            full_name(Some(&json!({"first_name": "Ada", "last_name": "L"}))),
+            "Ada L"
+        );
         assert_eq!(full_name(Some(&json!({"first_name": "Ada"}))), "Ada");
         assert_eq!(full_name(None), "");
     }

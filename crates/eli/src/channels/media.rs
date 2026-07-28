@@ -86,10 +86,7 @@ pub fn build_inbound_fetcher(data_base64: Option<&str>, path: Option<&str>) -> O
     data_base64
         .filter(|data| !data.is_empty())
         .and_then(base64_data_fetcher)
-        .or_else(|| {
-            path.filter(|path| !path.is_empty())
-                .map(path_data_fetcher)
-        })
+        .or_else(|| path.filter(|path| !path.is_empty()).map(path_data_fetcher))
 }
 
 fn media_http_client() -> &'static reqwest::Client {
@@ -130,7 +127,9 @@ mod tests {
 
     #[test]
     fn parse_media_type_aliases_and_case() {
-        for s in ["IMAGE", "Image", "image", " img ", "photo", "picture", "sticker"] {
+        for s in [
+            "IMAGE", "Image", "image", " img ", "photo", "picture", "sticker",
+        ] {
             assert_eq!(parse_media_type(s), Some(MediaType::Image), "{s}");
         }
         assert_eq!(parse_media_type("audio"), Some(MediaType::Audio));
@@ -153,12 +152,18 @@ mod tests {
         assert_eq!(default_mime_type(MediaType::Image), "image/jpeg");
         assert_eq!(default_mime_type(MediaType::Audio), "audio/mpeg");
         assert_eq!(default_mime_type(MediaType::Video), "video/mp4");
-        assert_eq!(default_mime_type(MediaType::Document), "application/octet-stream");
+        assert_eq!(
+            default_mime_type(MediaType::Document),
+            "application/octet-stream"
+        );
     }
 
     #[test]
     fn inbound_mime_type_explicit_wins_else_default() {
-        assert_eq!(inbound_mime_type("image/webp", MediaType::Image), "image/webp");
+        assert_eq!(
+            inbound_mime_type("image/webp", MediaType::Image),
+            "image/webp"
+        );
         assert_eq!(inbound_mime_type("", MediaType::Audio), "audio/mpeg");
         assert_eq!(inbound_mime_type("", MediaType::Image), "image/jpeg");
     }

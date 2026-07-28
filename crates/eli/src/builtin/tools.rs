@@ -1336,7 +1336,7 @@ fn tool_fs_edit() -> Tool {
 fn tool_skill() -> Tool {
     Tool::with_context(
         "skill",
-        "Load a skill by name and return its instructions.\n\nExamples: look up a sidecar tool's parameter schema, read a workflow's step-by-step guide, check what capabilities a plugin provides.",
+        "Load a skill by name and return its instructions.\n\nExamples: read a workflow's step-by-step guide, check what capabilities a plugin provides, look up a tool's parameter schema.",
         serde_json::json!({
             "type": "object",
             "properties": {

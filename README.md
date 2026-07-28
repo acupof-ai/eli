@@ -27,7 +27,7 @@
 
 Eli is for people who want an agent runtime, not a notebook demo.
 
-It is built around a fixed turn pipeline, explicit hooks, append-only tape history, and a provider-agnostic LLM layer. You can run it in a terminal, wire it into Telegram, or expose it through a gateway and sidecar-backed channels such as Feishu, WeChat, Slack, Discord, and DingTalk.
+It is built around a fixed turn pipeline, explicit hooks, append-only tape history, and a provider-agnostic LLM layer. You can run it in a terminal, or wire it into native channels — Telegram (built in) and Feishu (via `lark-cli`).
 
 ```bash
 eli chat
@@ -55,7 +55,7 @@ LangChain, AutoGen, and crewAI are good at getting an agent demo running. Eli is
 | **Provider-agnostic LLM layer** | `nexil` handles streaming, tool schema, tape storage, OAuth, and provider routing |
 | **Tape history** | Append-only session history with anchoring, forking, search, and viewer support |
 | **Skills** | `SKILL.md` discovery with project/global precedence and markdown-native authoring |
-| **Gateway mode** | Run as a listener for Telegram or via sidecar-backed channels |
+| **Gateway mode** | Run as a listener for native channels: Telegram and Feishu |
 | **Governed self-evolution** | Candidate capture, deterministic evaluation, canary promotion, rollback, and automation journal |
 
 ## Quick Start
@@ -146,21 +146,21 @@ eli evolution list
 
 ## Gateway & Channels
 
-Native:
+Native channels, no external runtime:
 
 ```bash
+# Telegram
 ELI_TELEGRAM_TOKEN=xxx eli gateway
+
+# Feishu — requires `lark-cli` on PATH, authenticated as your bot
+eli gateway
 ```
 
-Sidecar-backed via OpenClaw:
+- **Telegram** — hand-rolled long-polling over the Bot API (`reqwest`).
+- **Feishu** — shells out to [`lark-cli`](https://github.com/larksuite): a supervised `event consume` subprocess for inbound, `im`/`reactions` commands for outbound.
 
-- Feishu
-- WeChat
-- Slack
-- Discord
-- DingTalk
-
-The sidecar is used for channels and plugin-backed integrations. The core Eli runtime still stays a single Rust binary.
+Both run inside the single Eli binary; `eli gateway` starts every channel whose
+credentials are present.
 
 ## Architecture
 
@@ -174,7 +174,6 @@ Workspace layout:
 |---|---|
 | `crates/nexil` | Provider-agnostic LLM toolkit: transport, streaming, tools, tape, OAuth |
 | `crates/eli` | Agent runtime: hooks, channels, tools, skills, prompt builder, evolution |
-| `sidecar/` | OpenClaw bridge for plugin-backed channels and MCP-style integrations |
 
 Turn pipeline:
 
@@ -198,7 +197,7 @@ Discovery order:
 
 1. `.agents/skills/<name>/SKILL.md`
 2. `~/.eli/skills/<name>/SKILL.md`
-3. Builtin or synthesized skill sources
+3. Builtin skill sources
 
 That gives you local project override without inventing a new packaging format.
 
@@ -210,8 +209,10 @@ That gives you local project override without inventing a new packaging format.
 | `ELI_API_KEY` | — | Provider API key |
 | `ELI_API_BASE` | — | Custom endpoint |
 | `ELI_MAX_STEPS` | `50` | Max tool iterations per turn |
-| `ELI_TELEGRAM_TOKEN` | — | Telegram bot token |
-| `ELI_WEBHOOK_PORT` | `3100` | Webhook port |
+| `ELI_TELEGRAM_TOKEN` | — | Telegram bot token (enables the Telegram channel) |
+| `ELI_TELEGRAM_ALLOW_USERS` | — | Comma-separated Telegram user-id/username allowlist |
+| `ELI_TELEGRAM_ALLOW_CHATS` | — | Comma-separated Telegram chat-id allowlist |
+| `ELI_FEISHU_ACCOUNT` | `default` | Feishu account id passed to `lark-cli` |
 | `ELI_HOME` | `~/.eli` | Config, tape, and runtime data directory |
 | `ELI_TRACE` | — | Trace logging |
 | `ELI_EVOLUTION_DISABLED` | — | Disable background auto-evolution loop when set to `1`/`true` |
@@ -277,7 +278,6 @@ Repository layout:
 
 - Rust workspace in `crates/`
 - Python integration tests in `tests/`
-- TypeScript sidecar in `sidecar/`
 - Project docs in [`docs/`](docs/)
 
 Common workflows:
@@ -287,7 +287,6 @@ just doctor
 just check
 just test-rust
 just test-py
-just test-sidecar
 just test-all
 ```
 

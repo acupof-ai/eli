@@ -4,7 +4,6 @@
 
 - `crates/nexil` — provider-agnostic LLM toolkit
 - `crates/eli` — hook-first AI agent framework
-- `sidecar/` — TypeScript bridge and channel host
 - `tests/` — Python smoke and integration tests
 
 ## Prerequisites
@@ -15,7 +14,6 @@ Have these available locally:
 - `cargo`
 - Python 3
 - `pytest`
-- Node.js and `npm`
 
 Start with:
 
@@ -29,7 +27,6 @@ just doctor
 just check
 just test-rust
 just test-py
-just test-sidecar
 just test-all
 just release-check
 ```
@@ -50,13 +47,6 @@ For changes in `tests/**`:
 
 - run `just test-py`
 - keep smoke paths cheap and deterministic where possible
-
-### Sidecar changes
-
-For changes in `sidecar/**`:
-
-- run `just test-sidecar`
-- keep TypeScript style and Rust-side contracts aligned
 
 ### Docs changes
 
@@ -87,7 +77,6 @@ Call out contract changes clearly in the PR when touching:
 - session or turn pipeline behavior
 - tool schemas or result conventions
 - tape behavior
-- sidecar contracts and envelope shape
 
 For these changes, state:
 

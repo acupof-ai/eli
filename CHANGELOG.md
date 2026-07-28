@@ -6,6 +6,22 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ---
 
+## [Unreleased]
+
+### Breaking
+- **Sidecar removed** — the TypeScript `sidecar/` bridge (OpenClaw host, MCP tool bridge, HTTP/Webhook channel, WeChat/Slack/Discord/DingTalk plugins) is deleted. Channels are now native Rust inside the single `eli` binary.
+- **Feishu** — reimplemented natively via `lark-cli` (`crates/eli/src/channels/feishu.rs`): supervised `event consume` subprocess for inbound, `im`/`reactions` commands for outbound. Requires `lark-cli` on PATH.
+- **Telegram** — reimplemented natively as hand-rolled Bot API long-polling over `reqwest` (`crates/eli/src/channels/telegram.rs`), replacing the sidecar plugin. `SIDECAR_TELEGRAM_*` env vars still accepted as aliases.
+- **WeChat channel dropped** — personal WeChat had no official API/CLI to build a native path on; removed this round.
+- **Removed env vars** — `ELI_WEBHOOK_PORT` and all `ELI_SIDECAR_*` no longer exist.
+- **Removed tooling** — `just test-sidecar` / `just dev-sidecar`, `scripts/test_sidecar.sh`, and the node/npm/bun prerequisites.
+
+### Added
+- `ELI_FEISHU_ACCOUNT` — Feishu account id passed to `lark-cli` (default `default`).
+- `docs/channels/feishu.md` — native Feishu channel docs.
+
+---
+
 ## [0.5.1] — 2026-04-28
 
 ### Added
