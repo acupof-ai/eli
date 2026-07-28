@@ -6,6 +6,7 @@
 
 pub mod base;
 pub mod cli;
+pub mod feishu;
 pub mod handler;
 pub mod manager;
 pub mod media;
@@ -15,6 +16,7 @@ pub mod text;
 
 pub use base::Channel;
 pub use cli::{CliChannel, CliRenderer};
+pub use feishu::{FeishuChannel, FeishuSettings};
 pub use handler::BufferedMessageHandler;
 pub use manager::{ChannelManager, ChannelSettings, InboundProcessor, OutboundRouter};
 pub use message::{ChannelMessage, DataFetcher, MediaItem, MediaType, MessageKind};

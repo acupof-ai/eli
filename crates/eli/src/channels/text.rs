@@ -251,6 +251,18 @@ fn has_escape_seq(text: &str) -> bool {
         .any(|w| w[0] == b'\\' && matches!(w[1], b'n' | b't' | b'r'))
 }
 
+/// Combine multiple message texts into numbered `[消息 i/N] …` lines joined by
+/// newline (used for debounced batches of 2+ messages).
+pub fn combine_lines(texts: &[&str]) -> String {
+    let n = texts.len();
+    texts
+        .iter()
+        .enumerate()
+        .map(|(i, t)| format!("[消息 {}/{}] {}", i + 1, n, t))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// Rewrite a raw `[Error: … run_model …]` tool error into a friendly Chinese
 /// message. Returns the input unchanged unless it starts with `[Error:` and
 /// mentions `run_model`.

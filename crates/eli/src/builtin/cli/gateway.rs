@@ -199,7 +199,22 @@ pub(crate) async fn gateway_command() -> anyhow::Result<()> {
         channels.insert("telegram".to_owned(), ch);
     }
 
-    // Feishu (via lark-cli) wires in here in Phase 3.
+    // Feishu (via lark-cli) when lark-cli is on PATH and logged in.
+    if crate::channels::FeishuSettings::detect() {
+        let ch = Arc::new(crate::channels::FeishuChannel::new(
+            ingress_tx.clone(),
+            crate::channels::FeishuSettings::from_env(),
+        ));
+        println!("Starting Feishu channel...");
+        let started = ch.clone();
+        let c = cancel.clone();
+        tasks.spawn(async move {
+            if let Err(e) = Channel::start(&*started, c).await {
+                eprintln!("Feishu channel error: {e}");
+            }
+        });
+        channels.insert("feishu".to_owned(), ch);
+    }
 
     if channels.is_empty() {
         anyhow::bail!(
