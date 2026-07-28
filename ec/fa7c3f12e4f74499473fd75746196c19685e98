@@ -1,0 +1,21 @@
+docs/plans/2026-07-28-sidecar-to-native-channels.md
+  s_3d113e23e5ca87::t_c5946a3c165af3 1-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ecfa7c3f12e4f74499473fd75746196c19685e98",
+  "prompts": {},
+  "sessions": {
+    "s_3d113e23e5ca87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "610dd897-cd83-4fe0-bc93-c6ccf7f37bd3",
+        "model": "unknown"
+      },
+      "human_author": "cklxx <q1293822641@gmail.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
