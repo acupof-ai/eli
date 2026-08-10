@@ -22,7 +22,7 @@ use serde_json::Value;
 
 pub use crate::core::api_format::ApiFormat;
 use crate::core::errors::{ConduitError, ErrorKind};
-use crate::core::execution::{ProviderValue, LLMCore};
+use crate::core::execution::{LLMCore, ProviderValue};
 use crate::core::response_parser::TransportResponse;
 use crate::tape::{AsyncTapeManager, AsyncTapeStoreAdapter, InMemoryTapeStore, TapeContext};
 use crate::tools::context::ToolContext;
@@ -273,23 +273,21 @@ impl LLM {
             .cloned()
             .collect();
 
-        let response =
-            self.core
-                .run_chat(
-                    msgs,
-                    None,
-                    model,
-                    provider,
-                    max_tokens,
-                    false,
-                    None,
-                    Default::default(),
-                    session_id,
-                    |resp: TransportResponse, _prov: &str, _model: &str| {
-                        Ok(resp.payload)
-                    },
-                )
-                .await?;
+        let response = self
+            .core
+            .run_chat(
+                msgs,
+                None,
+                model,
+                provider,
+                max_tokens,
+                false,
+                None,
+                Default::default(),
+                session_id,
+                |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+            )
+            .await?;
 
         let content = extract_content(&response)?;
 

@@ -137,22 +137,16 @@ async fn test_full_pipeline_inbound_to_outbound() {
     let captured = Arc::new(Mutex::new(Vec::new()));
 
     let fw = EliFramework::with_workspace("/tmp/test-pipeline".into());
-    fw.register_plugin(
-        Arc::new(MockSessionPlugin) as Arc<dyn EliHookSpec>,
-    )
-    .await;
-    fw.register_plugin(
-        Arc::new(MockModelPlugin {
-            canned_response: "REPLY".into(),
-        }) as Arc<dyn EliHookSpec>,
-    )
-    .await;
-    fw.register_plugin(
-        Arc::new(CapturePlugin {
-            captured: captured.clone(),
-        }) as Arc<dyn EliHookSpec>,
-    )
-    .await;
+    fw.register_plugin(Arc::new(MockSessionPlugin) as Arc<dyn EliHookSpec>)
+        .await;
+    fw.register_plugin(Arc::new(MockModelPlugin {
+        canned_response: "REPLY".into(),
+    }) as Arc<dyn EliHookSpec>)
+        .await;
+    fw.register_plugin(Arc::new(CapturePlugin {
+        captured: captured.clone(),
+    }) as Arc<dyn EliHookSpec>)
+        .await;
 
     let inbound = json!({
         "content": "hello world",
@@ -206,12 +200,10 @@ async fn test_full_pipeline_inbound_to_outbound() {
 #[tokio::test]
 async fn test_pipeline_default_session_id() {
     let fw = EliFramework::with_workspace("/tmp/test-pipeline-default".into());
-    fw.register_plugin(
-        Arc::new(MockModelPlugin {
-            canned_response: "OK".into(),
-        }) as Arc<dyn EliHookSpec>,
-    )
-    .await;
+    fw.register_plugin(Arc::new(MockModelPlugin {
+        canned_response: "OK".into(),
+    }) as Arc<dyn EliHookSpec>)
+        .await;
 
     let inbound = json!({
         "content": "ping",
@@ -232,10 +224,8 @@ async fn test_pipeline_state_flows_to_model() {
     let fw = EliFramework::with_workspace("/tmp/test-pipeline-state".into());
     fw.register_plugin(Arc::new(MockStatePlugin) as Arc<dyn EliHookSpec>)
         .await;
-    fw.register_plugin(
-        Arc::new(StateEchoModelPlugin) as Arc<dyn EliHookSpec>,
-    )
-    .await;
+    fw.register_plugin(Arc::new(StateEchoModelPlugin) as Arc<dyn EliHookSpec>)
+        .await;
 
     let inbound = json!({
         "content": "test",
@@ -283,16 +273,12 @@ async fn test_pipeline_no_model_returns_error() {
 #[tokio::test]
 async fn test_pipeline_independent_sessions() {
     let fw = EliFramework::with_workspace("/tmp/test-pipeline-sessions".into());
-    fw.register_plugin(
-        Arc::new(MockSessionPlugin) as Arc<dyn EliHookSpec>,
-    )
-    .await;
-    fw.register_plugin(
-        Arc::new(MockModelPlugin {
-            canned_response: "ECHO".into(),
-        }) as Arc<dyn EliHookSpec>,
-    )
-    .await;
+    fw.register_plugin(Arc::new(MockSessionPlugin) as Arc<dyn EliHookSpec>)
+        .await;
+    fw.register_plugin(Arc::new(MockModelPlugin {
+        canned_response: "ECHO".into(),
+    }) as Arc<dyn EliHookSpec>)
+        .await;
 
     let msg_a = json!({
         "content": "alpha",

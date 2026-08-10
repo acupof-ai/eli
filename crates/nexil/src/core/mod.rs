@@ -19,7 +19,7 @@ pub(crate) mod tool_calls;
 pub use api_format::ApiFormat;
 pub use error_classify::{AttemptDecision, AttemptOutcome, classify_by_text_signature};
 pub use errors::{ConduitError, ErrorKind};
-pub use execution::{ProviderValue, LLMCore, OAuthTokenRefresher};
+pub use execution::{LLMCore, OAuthTokenRefresher, ProviderValue};
 pub use request_builder::TransportCallRequest;
 pub use response_parser::TransportResponse;
 pub use results::{

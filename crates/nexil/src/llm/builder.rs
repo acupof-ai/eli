@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::auth::APIKeyResolver;
 use crate::core::api_format::ApiFormat;
 use crate::core::errors::{ConduitError, ErrorKind};
-use crate::core::execution::{ProviderValue, LLMCore, OAuthTokenRefresher};
+use crate::core::execution::{LLMCore, OAuthTokenRefresher, ProviderValue};
 use crate::core::provider_registry::{ProviderConfig, ProviderRegistry};
 use crate::tape::{
     AsyncTapeManager, AsyncTapeStore, AsyncTapeStoreAdapter, InMemoryTapeStore, TapeContext,

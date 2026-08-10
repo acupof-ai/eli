@@ -39,13 +39,11 @@ pub use crate::core::results::{
     TextStream, ToolAutoResult, ToolExecution, UsageEvent,
 };
 pub use crate::llm::{
-    ApiFormat, ChatRequest, LLM, LLMBuilder,
-    collect_active_decisions, inject_decisions_into_system_prompt,
+    ApiFormat, ChatRequest, LLM, LLMBuilder, collect_active_decisions,
+    inject_decisions_into_system_prompt,
 };
 pub use crate::tape::{
-    AnchorSelector, TapeContext, TapeEntry, TapeEntryKind, AsyncTapeManager, TapeQuery, TapeSession,
+    AnchorSelector, AsyncTapeManager, TapeContext, TapeEntry, TapeEntryKind, TapeQuery, TapeSession,
 };
-pub use crate::tools::{
-    Tool, ToolAction, ToolCallResponse, ToolContext, ToolExecutor, ToolSet,
-};
+pub use crate::tools::{Tool, ToolAction, ToolCallResponse, ToolContext, ToolExecutor, ToolSet};
 pub use tokio_util::sync::CancellationToken;

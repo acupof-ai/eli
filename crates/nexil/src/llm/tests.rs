@@ -681,7 +681,10 @@ fn test_extract_tool_calls_empty() {
 
 #[test]
 fn test_default_api_base_openai() {
-    assert_eq!(crate::core::provider_policies::default_api_base("openai"), "https://api.openai.com/v1");
+    assert_eq!(
+        crate::core::provider_policies::default_api_base("openai"),
+        "https://api.openai.com/v1"
+    );
 }
 
 #[test]
@@ -694,7 +697,10 @@ fn test_default_api_base_anthropic() {
 
 #[test]
 fn test_default_api_base_other() {
-    assert_eq!(crate::core::provider_policies::default_api_base("cohere"), "https://api.cohere.com/v1");
+    assert_eq!(
+        crate::core::provider_policies::default_api_base("cohere"),
+        "https://api.cohere.com/v1"
+    );
 }
 
 #[test]

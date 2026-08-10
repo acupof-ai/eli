@@ -177,23 +177,21 @@ impl LLM {
             messages.as_deref(),
         );
         let schemas = tools.payload().map(|s| s.to_vec());
-        let response =
-            self.core
-                .run_chat(
-                    msgs,
-                    schemas,
-                    model,
-                    provider,
-                    max_tokens,
-                    false,
-                    None,
-                    Default::default(),
-                    session_id,
-                    |resp: TransportResponse, _prov: &str, _model: &str| {
-                        Ok(resp.payload)
-                    },
-                )
-                .await?;
+        let response = self
+            .core
+            .run_chat(
+                msgs,
+                schemas,
+                model,
+                provider,
+                max_tokens,
+                false,
+                None,
+                Default::default(),
+                session_id,
+                |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+            )
+            .await?;
 
         extract_tool_calls(&response)
     }
@@ -500,23 +498,21 @@ impl LLM {
         msgs: &[Value],
         params: &RoundParams<'_>,
     ) -> Result<ToolRound, ConduitError> {
-        let response =
-            self.core
-                .run_chat(
-                    msgs.to_vec(),
-                    params.schemas.clone(),
-                    params.model,
-                    params.provider,
-                    params.max_tokens,
-                    false,
-                    None,
-                    Default::default(),
-                    params.session_id,
-                    |resp: TransportResponse, _prov: &str, _model: &str| {
-                        Ok(resp.payload)
-                    },
-                )
-                .await?;
+        let response = self
+            .core
+            .run_chat(
+                msgs.to_vec(),
+                params.schemas.clone(),
+                params.model,
+                params.provider,
+                params.max_tokens,
+                false,
+                None,
+                Default::default(),
+                params.session_id,
+                |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+            )
+            .await?;
 
         let model_name = response
             .get("model")
@@ -554,9 +550,7 @@ impl LLM {
                             None,
                             Default::default(),
                             params.session_id,
-                            |resp: TransportResponse, _prov: &str, _model: &str| {
-                                Ok(resp.payload)
-                            },
+                            |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
                         )
                         .await?;
                     let retry_content = extract_content(&retry_response)?;

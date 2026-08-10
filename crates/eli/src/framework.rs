@@ -18,8 +18,8 @@ use crate::evolution::{
 };
 use crate::hooks::{EliHookSpec, HookRuntime};
 use crate::types::{
-    Envelope, PromptValue, RUNTIME_SYSTEM_PROMPT_KEY, RUNTIME_TAPES_DIR_KEY,
-    RUNTIME_WORKSPACE_KEY, State, TurnResult, TurnUsageInfo,
+    Envelope, PromptValue, RUNTIME_SYSTEM_PROMPT_KEY, RUNTIME_TAPES_DIR_KEY, RUNTIME_WORKSPACE_KEY,
+    State, TurnResult, TurnUsageInfo,
 };
 
 // ---------------------------------------------------------------------------
@@ -709,17 +709,13 @@ mod tests {
     #[tokio::test]
     async fn test_get_system_prompt_returns_first_result() {
         let fw = EliFramework::new();
-        fw.register_plugin(
-            Arc::new(PromptPlugin {
-                fragment: "low".into(),
-            }),
-        )
+        fw.register_plugin(Arc::new(PromptPlugin {
+            fragment: "low".into(),
+        }))
         .await;
-        fw.register_plugin(
-            Arc::new(PromptPlugin {
-                fragment: "high".into(),
-            }),
-        )
+        fw.register_plugin(Arc::new(PromptPlugin {
+            fragment: "high".into(),
+        }))
         .await;
         let prompt = PromptValue::Text("hello".into());
         let state = State::new();
@@ -759,12 +755,10 @@ mod tests {
     #[tokio::test]
     async fn test_process_inbound_uses_hook_system_prompt_in_run_model_hot_path() {
         let fw = EliFramework::new();
-        fw.register_plugin(
-            Arc::new(SystemPromptStateModelPlugin {
-                fragment: "from-hook".into(),
-            }) as Arc<dyn EliHookSpec>,
-        )
-        .await;
+        fw.register_plugin(Arc::new(SystemPromptStateModelPlugin {
+            fragment: "from-hook".into(),
+        }) as Arc<dyn EliHookSpec>)
+            .await;
 
         let msg = json!({"content": "hello", "session_id": "system-prompt"});
         let result = fw.process_inbound(msg).await.unwrap();
@@ -774,10 +768,8 @@ mod tests {
     #[tokio::test]
     async fn test_process_inbound_logs_utf8_safe_preview() {
         let fw = EliFramework::new();
-        fw.register_plugin(
-            Arc::new(UnicodeBoundaryModelPlugin) as Arc<dyn EliHookSpec>,
-        )
-        .await;
+        fw.register_plugin(Arc::new(UnicodeBoundaryModelPlugin) as Arc<dyn EliHookSpec>)
+            .await;
 
         let msg = json!({"content": "hello", "session_id": "utf8-preview"});
         let result = fw.process_inbound(msg).await.unwrap();
@@ -789,13 +781,11 @@ mod tests {
         let fw = Arc::new(EliFramework::new());
         let started = Arc::new(tokio::sync::Notify::new());
         let release = Arc::new(tokio::sync::Notify::new());
-        fw.register_plugin(
-            Arc::new(BlockingModelPlugin {
-                started: started.clone(),
-                release: release.clone(),
-            }) as Arc<dyn EliHookSpec>,
-        )
-        .await;
+        fw.register_plugin(Arc::new(BlockingModelPlugin {
+            started: started.clone(),
+            release: release.clone(),
+        }) as Arc<dyn EliHookSpec>)
+            .await;
 
         let inbound = json!({"content": "ping", "session_id": "lock-test"});
         let framework = fw.clone();
@@ -864,10 +854,8 @@ mod tests {
         // FirstStatePlugin registered first, SecondStatePlugin registered second.
         fw.register_plugin(Arc::new(FirstStatePlugin) as Arc<dyn EliHookSpec>)
             .await;
-        fw.register_plugin(
-            Arc::new(SecondStatePlugin) as Arc<dyn EliHookSpec>,
-        )
-        .await;
+        fw.register_plugin(Arc::new(SecondStatePlugin) as Arc<dyn EliHookSpec>)
+            .await;
 
         let rt = fw.hook_runtime_snapshot();
         let msg = json!({"content": "hello"});
