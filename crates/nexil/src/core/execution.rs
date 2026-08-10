@@ -717,7 +717,7 @@ impl LLMCore {
         on_response: F,
     ) -> Result<T, ConduitError>
     where
-        F: Fn(TransportResponse, &str, &str, u32) -> Result<T, Option<ConduitError>>,
+        F: Fn(TransportResponse, &str, &str) -> Result<T, Option<ConduitError>>,
     {
         let (resp, candidate, prepared) = self
             .send_with_retry(
@@ -773,7 +773,6 @@ impl LLMCore {
             },
             &candidate.provider_name,
             &candidate.model_id,
-            0,
         ) {
             Ok(result) => Ok(result),
             Err(Some(e)) => Err(e),

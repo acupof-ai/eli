@@ -285,7 +285,7 @@ impl LLM {
                     None,
                     Default::default(),
                     session_id,
-                    |resp: TransportResponse, _prov: &str, _model: &str, _attempt: u32| {
+                    |resp: TransportResponse, _prov: &str, _model: &str| {
                         Ok(resp.payload)
                     },
                 )
