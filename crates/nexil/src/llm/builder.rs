@@ -12,7 +12,7 @@ use crate::tape::{
 };
 use crate::tools::executor::ToolExecutor;
 
-use super::{DEFAULT_MODEL, LLM, StreamEventFilter};
+use super::{DEFAULT_MODEL, LLM};
 
 // ---------------------------------------------------------------------------
 // LLMBuilder
@@ -33,7 +33,6 @@ pub struct LLMBuilder {
     verbose: Option<u32>,
     context: Option<TapeContext>,
     tape_store: Option<Box<dyn AsyncTapeStore + Send + Sync>>,
-    stream_filter: Option<StreamEventFilter>,
     spill_dir: Option<std::path::PathBuf>,
     context_window: Option<usize>,
     provider_registry: Option<ProviderRegistry>,
@@ -57,7 +56,6 @@ impl LLMBuilder {
             verbose: None,
             context: None,
             tape_store: None,
-            stream_filter: None,
             spill_dir: None,
             context_window: None,
             provider_registry: None,
@@ -152,12 +150,6 @@ impl LLMBuilder {
     /// Set the model context window in tokens.
     pub fn context_window(mut self, tokens: usize) -> Self {
         self.context_window = Some(tokens);
-        self
-    }
-
-    /// Set a stream event filter.
-    pub fn stream_filter(mut self, filter: StreamEventFilter) -> Self {
-        self.stream_filter = Some(filter);
         self
     }
 
@@ -259,7 +251,6 @@ impl LLMBuilder {
             core,
             tool_executor: ToolExecutor::new(),
             async_tape,
-            stream_filter: self.stream_filter,
             spill_dir: self.spill_dir,
             context_window: self.context_window,
         })

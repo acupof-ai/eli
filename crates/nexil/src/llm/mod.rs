@@ -2,14 +2,12 @@
 
 mod builder;
 mod decisions;
-mod embedding;
 mod helpers;
 mod stream;
 mod tool_loop;
 
 pub use builder::LLMBuilder;
 pub use decisions::{collect_active_decisions, inject_decisions_into_system_prompt};
-pub use embedding::EmbedInput;
 
 // Re-export helpers used by submodules (pub(crate) so they stay internal).
 use helpers::{
@@ -19,14 +17,12 @@ use helpers::{
 };
 
 use std::fmt;
-use std::sync::Arc;
 
 use serde_json::Value;
 
 pub use crate::core::api_format::ApiFormat;
 use crate::core::errors::{ConduitError, ErrorKind};
 use crate::core::execution::{ApiBaseConfig, ApiKeyConfig, LLMCore};
-use crate::core::provider_policies;
 use crate::core::response_parser::TransportResponse;
 use crate::tape::{AsyncTapeManager, AsyncTapeStoreAdapter, InMemoryTapeStore, TapeContext};
 use crate::tools::context::ToolContext;
@@ -41,14 +37,6 @@ use uuid::Uuid;
 
 /// Default model when none is specified.
 pub const DEFAULT_MODEL: &str = "openai:gpt-4o-mini";
-
-/// Hook to process stream events before they are emitted to the caller.
-/// Return `Some(event)` to forward (possibly transformed), or `None` to drop.
-pub type StreamEventFilter = Arc<
-    dyn Fn(crate::core::results::StreamEvent) -> Option<crate::core::results::StreamEvent>
-        + Send
-        + Sync,
->;
 
 // ---------------------------------------------------------------------------
 // ChatRequest
@@ -107,7 +95,6 @@ pub struct LLM {
     tool_executor: ToolExecutor,
     async_tape: AsyncTapeManager,
     spill_dir: Option<std::path::PathBuf>,
-    stream_filter: Option<StreamEventFilter>,
     /// Model context window in tokens, used for tape budget and tool loop limits.
     pub(crate) context_window: Option<usize>,
 }
@@ -175,7 +162,6 @@ impl LLM {
             core,
             tool_executor: ToolExecutor::new(),
             async_tape,
-            stream_filter: None,
             spill_dir: None,
             context_window: None,
         })
@@ -218,16 +204,6 @@ impl LLM {
         self.context_window = Some(tokens);
     }
 
-    /// Set a stream event filter. Events returning `None` are dropped.
-    pub fn with_stream_filter(&mut self, filter: StreamEventFilter) {
-        self.stream_filter = Some(filter);
-    }
-
-    /// Remove any previously set stream event filter.
-    pub fn clear_stream_filter(&mut self) {
-        self.stream_filter = None;
-    }
-
     /// Set the tape context used for conversation history selection.
     pub fn set_context(&mut self, context: TapeContext) {
         self.async_tape.set_default_context(context);
@@ -262,64 +238,6 @@ impl LLM {
     pub fn session(&mut self, tape: impl Into<String>) -> crate::tape::TapeSession<'_> {
         crate::tape::TapeSession::new(self, tape)
     }
-
-    /// Access the current stream filter, if any.
-    pub fn stream_filter(&self) -> Option<&StreamEventFilter> {
-        self.stream_filter.as_ref()
-    }
-
-    // -- Sync wrappers -------------------------------------------------------
-
-    /// Synchronous wrapper for [`chat_async`](Self::chat_async).
-    ///
-    /// Creates a single-threaded tokio runtime and blocks the current thread.
-    ///
-    /// # Panics
-    /// Panics if called from within an async runtime context.
-    pub fn chat_sync(&mut self, req: ChatRequest<'_>) -> Result<String, ConduitError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| {
-                ConduitError::new(ErrorKind::Unknown, format!("Failed to create runtime: {e}"))
-            })?;
-        rt.block_on(self.chat_async(req))
-    }
-
-    /// Synchronous wrapper for [`run_tools`](Self::run_tools).
-    ///
-    /// Creates a single-threaded tokio runtime and blocks the current thread.
-    ///
-    /// # Panics
-    /// Panics if called from within an async runtime context.
-    pub fn run_tools_sync(
-        &mut self,
-        req: ChatRequest<'_>,
-    ) -> Result<crate::core::results::ToolAutoResult, ConduitError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| {
-                ConduitError::new(ErrorKind::Unknown, format!("Failed to create runtime: {e}"))
-            })?;
-        rt.block_on(self.run_tools(req))
-    }
-
-    /// Synchronous chat (blocks the current thread).
-    ///
-    /// # Panics
-    /// Panics if called from within an async runtime context.
-    pub fn chat(&mut self, req: ChatRequest<'_>) -> Result<String, ConduitError> {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| {
-                ConduitError::new(ErrorKind::Unknown, format!("Failed to create runtime: {e}"))
-            })?;
-        rt.block_on(self.chat_async(req))
-    }
-
-    // -- Chat ----------------------------------------------------------------
 
     /// Async chat completion returning the assistant text.
     pub async fn chat_async(&mut self, req: ChatRequest<'_>) -> Result<String, ConduitError> {
@@ -401,222 +319,6 @@ impl LLM {
 
         Ok(content)
     }
-
-    // -- Responses -----------------------------------------------------------
-
-    /// Send a raw responses-format request.
-    pub async fn responses(
-        &mut self,
-        input: Value,
-        model: Option<&str>,
-        provider: Option<&str>,
-    ) -> Result<Value, ConduitError> {
-        let prov = provider
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.core.provider().to_string());
-        let base = self
-            .core
-            .resolve_api_base(&prov)
-            .unwrap_or_else(|| default_api_base(&prov));
-        let api_key = self.core.resolve_api_key(&prov).ok_or_else(|| {
-            ConduitError::new(
-                ErrorKind::Config,
-                format!("No API key found for provider '{prov}'"),
-            )
-        })?;
-
-        let mdl = model
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.core.model().to_string());
-
-        let url = format!("{}/responses", base.trim_end_matches('/'));
-        let body = serde_json::json!({
-            "model": mdl,
-            "input": input,
-        });
-
-        let client = self.core.get_client(&prov);
-        let resp = client
-            .post(&url)
-            .bearer_auth(&api_key)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| {
-                ConduitError::new(ErrorKind::Provider, format!("HTTP request failed: {e}"))
-            })?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(ConduitError::new(
-                ErrorKind::Provider,
-                format!("HTTP {status}: {text}"),
-            ));
-        }
-
-        resp.json::<Value>().await.map_err(|e| {
-            ConduitError::new(
-                ErrorKind::Provider,
-                format!("Failed to parse responses response: {e}"),
-            )
-        })
-    }
-
-    // -- Embeddings ----------------------------------------------------------
-
-    /// Embed one or more inputs.
-    pub async fn embed(
-        &mut self,
-        inputs: EmbedInput<'_>,
-        model: Option<&str>,
-        provider: Option<&str>,
-    ) -> Result<Vec<Vec<f64>>, ConduitError> {
-        let prov = provider
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.core.provider().to_string());
-        let mdl = model
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| self.core.model().to_string());
-        let base = self
-            .core
-            .resolve_api_base(&prov)
-            .unwrap_or_else(|| default_api_base(&prov));
-        let url = format!("{base}/embeddings");
-
-        let api_key = self.core.resolve_api_key(&prov).ok_or_else(|| {
-            ConduitError::new(
-                ErrorKind::Config,
-                format!("No API key found for provider '{prov}'"),
-            )
-        })?;
-
-        let input_val: Value = match inputs {
-            EmbedInput::Single(s) => serde_json::json!(s),
-            EmbedInput::Multiple(v) => serde_json::json!(v),
-        };
-
-        let body = serde_json::json!({
-            "model": mdl,
-            "input": input_val,
-        });
-
-        let client = self.core.get_client(&prov);
-        let resp = client
-            .post(&url)
-            .bearer_auth(&api_key)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| {
-                ConduitError::new(ErrorKind::Provider, format!("HTTP request failed: {e}"))
-            })?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(ConduitError::new(
-                ErrorKind::Provider,
-                format!("HTTP {status}: {text}"),
-            ));
-        }
-
-        let val: Value = resp.json().await.map_err(|e| {
-            ConduitError::new(
-                ErrorKind::Provider,
-                format!("Failed to parse embedding response: {e}"),
-            )
-        })?;
-
-        let data = val.get("data").and_then(|d| d.as_array()).ok_or_else(|| {
-            ConduitError::new(
-                ErrorKind::Provider,
-                "Embedding response missing 'data' array",
-            )
-        })?;
-
-        data.iter()
-            .map(|item| {
-                item.get("embedding")
-                    .and_then(|e| e.as_array())
-                    .ok_or_else(|| {
-                        ConduitError::new(ErrorKind::Provider, "Embedding item missing 'embedding'")
-                    })
-                    .map(|arr| arr.iter().filter_map(|v| v.as_f64()).collect())
-            })
-            .collect()
-    }
-
-    // -- Text utilities ------------------------------------------------------
-
-    /// Boolean question: does the input satisfy the question?
-    pub async fn if_(&mut self, input_text: &str, question: &str) -> Result<bool, ConduitError> {
-        let prompt = format!(
-            "Answer ONLY 'yes' or 'no'. Question about the following text:\n\
-             Text: {input_text}\n\
-             Question: {question}"
-        );
-        let answer = self
-            .chat_async(ChatRequest {
-                prompt: Some(&prompt),
-                max_tokens: Some(16),
-                ..Default::default()
-            })
-            .await?;
-        let normalized = answer.trim().to_lowercase();
-        Ok(normalized.starts_with("yes"))
-    }
-
-    /// Classify input text into one of the provided choices.
-    pub async fn classify(
-        &mut self,
-        input_text: &str,
-        choices: &[String],
-    ) -> Result<String, ConduitError> {
-        if choices.is_empty() {
-            return Err(ConduitError::new(
-                ErrorKind::InvalidInput,
-                "classify requires at least one choice",
-            ));
-        }
-
-        let choices_str = choices
-            .iter()
-            .enumerate()
-            .map(|(i, c)| format!("{}. {c}", i + 1))
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        let prompt = format!(
-            "Classify the following text into exactly one of the categories below.\n\
-             Reply with ONLY the category label, nothing else.\n\n\
-             Categories:\n{choices_str}\n\n\
-             Text: {input_text}"
-        );
-
-        let answer = self
-            .chat_async(ChatRequest {
-                prompt: Some(&prompt),
-                max_tokens: Some(64),
-                ..Default::default()
-            })
-            .await?;
-
-        let trimmed = answer.trim().to_string();
-        let lower = trimmed.to_lowercase();
-
-        let matched = choices
-            .iter()
-            .find(|c| trimmed == **c)
-            .or_else(|| {
-                choices
-                    .iter()
-                    .find(|c| lower.starts_with(&c.to_lowercase()))
-            })
-            .cloned()
-            .unwrap_or(trimmed);
-        Ok(matched)
-    }
 }
 
 impl fmt::Display for LLM {
@@ -639,10 +341,6 @@ impl fmt::Debug for LLM {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-pub(crate) fn default_api_base(provider: &str) -> String {
-    provider_policies::default_api_base(provider)
-}
 
 #[cfg(test)]
 #[path = "tests.rs"]

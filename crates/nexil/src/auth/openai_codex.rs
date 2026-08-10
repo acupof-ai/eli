@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 use std::time::Duration;
 
 use crate::auth::APIKeyResolver;
@@ -513,63 +512,6 @@ pub fn codex_cli_api_key_resolver(codex_home: Option<PathBuf>) -> APIKeyResolver
         if token.is_empty() { None } else { Some(token) }
     })
 }
-
-/// Build a resolver that auto-refreshes Codex OAuth tokens when they are near expiry.
-///
-/// # Panics
-/// The returned resolver panics if called from within an async runtime context.
-pub fn openai_codex_oauth_resolver(
-    codex_home: Option<PathBuf>,
-    refresh_skew_seconds: i64,
-    refresh_timeout_seconds: f64,
-    client_id: String,
-    token_url: String,
-) -> APIKeyResolver {
-    let lock = Mutex::new(());
-    Box::new(move |provider: &str| -> Option<String> {
-        if !CODEX_PROVIDERS.contains(&provider) {
-            return None;
-        }
-        let _guard = lock.lock().ok()?;
-        let tokens = load_openai_codex_oauth_tokens(codex_home.as_deref())?;
-        let now = Utc::now().timestamp();
-
-        if tokens.expires_at > now + refresh_skew_seconds {
-            return Some(tokens.access_token);
-        }
-
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .ok()?;
-
-        match rt.block_on(refresh_openai_codex_oauth_tokens(
-            &tokens.refresh_token,
-            &client_id,
-            &token_url,
-            refresh_timeout_seconds,
-        )) {
-            Ok(refreshed) => {
-                let persisted = OpenAICodexOAuthTokens {
-                    access_token: refreshed.access_token.clone(),
-                    refresh_token: refreshed.refresh_token,
-                    expires_at: refreshed.expires_at,
-                    account_id: refreshed.account_id.or(tokens.account_id),
-                };
-                let _ = save_openai_codex_oauth_tokens(&persisted, codex_home.as_deref());
-                Some(persisted.access_token)
-            }
-            Err(_) => {
-                if tokens.expires_at > now {
-                    Some(tokens.access_token)
-                } else {
-                    None
-                }
-            }
-        }
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -772,44 +714,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let resolver = codex_cli_api_key_resolver(Some(tmp.path().to_path_buf()));
         assert_eq!(resolver("openai"), None);
-    }
-
-    // ----- openai_codex_oauth_resolver -----
-
-    #[test]
-    fn test_openai_codex_oauth_resolver_returns_valid_token_when_not_expired() {
-        let tmp = TempDir::new().unwrap();
-        let future_expires = Utc::now().timestamp() + 7200; // 2 hours from now
-        let tokens = make_tokens("fresh-token", "rt", future_expires, None);
-        save_openai_codex_oauth_tokens(&tokens, Some(tmp.path())).unwrap();
-
-        let resolver = openai_codex_oauth_resolver(
-            Some(tmp.path().to_path_buf()),
-            300,  // refresh_skew_seconds
-            10.0, // refresh_timeout
-            DEFAULT_CODEX_OAUTH_CLIENT_ID.to_string(),
-            DEFAULT_CODEX_OAUTH_TOKEN_URL.to_string(),
-        );
-
-        assert_eq!(resolver("openai"), Some("fresh-token".to_string()));
-    }
-
-    #[test]
-    fn test_openai_codex_oauth_resolver_ignores_non_openai_provider() {
-        let tmp = TempDir::new().unwrap();
-        let future_expires = Utc::now().timestamp() + 7200;
-        let tokens = make_tokens("token", "rt", future_expires, None);
-        save_openai_codex_oauth_tokens(&tokens, Some(tmp.path())).unwrap();
-
-        let resolver = openai_codex_oauth_resolver(
-            Some(tmp.path().to_path_buf()),
-            300,
-            10.0,
-            "client".to_string(),
-            "http://localhost/token".to_string(),
-        );
-
-        assert_eq!(resolver("anthropic"), None);
     }
 
     // ----- tokens_from_token_payload -----

@@ -1,14 +1,12 @@
 //! Channel subsystem — pluggable transports for user interaction.
 //!
-//! Each channel implements the [`Channel`] trait and is managed by a
-//! [`ChannelManager`] that routes inbound messages to the framework and
-//! dispatches outbound envelopes to the correct channel.
+//! Each channel implements the [`Channel`] trait. Inbound messages are
+//! dispatched to the framework's hook pipeline; outbound envelopes are
+//! sent through the channel that originated the session.
 
 pub mod base;
 pub mod cli;
 pub mod feishu;
-pub mod handler;
-pub mod manager;
 pub mod media;
 pub mod message;
 pub mod telegram;
@@ -17,7 +15,5 @@ pub mod text;
 pub use base::Channel;
 pub use cli::{CliChannel, CliRenderer};
 pub use feishu::{FeishuChannel, FeishuSettings};
-pub use handler::BufferedMessageHandler;
-pub use manager::{ChannelManager, ChannelSettings, InboundProcessor, OutboundRouter};
 pub use message::{ChannelMessage, DataFetcher, MediaItem, MediaType, MessageKind};
 pub use telegram::{TelegramChannel, TelegramSettings};

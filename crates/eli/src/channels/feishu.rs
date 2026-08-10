@@ -891,10 +891,6 @@ impl Channel for FeishuChannel {
             .await;
         Ok(())
     }
-
-    fn needs_debounce(&self) -> bool {
-        false
-    }
 }
 
 #[cfg(test)]

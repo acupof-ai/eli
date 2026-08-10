@@ -348,8 +348,4 @@ impl Channel for CliChannel {
         self.request_done.notify_one();
         Ok(())
     }
-
-    fn needs_debounce(&self) -> bool {
-        false
-    }
 }

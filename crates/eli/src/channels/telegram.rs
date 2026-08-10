@@ -632,10 +632,6 @@ impl Channel for TelegramChannel {
         self.send_text(chat_id, &message.content).await;
         Ok(())
     }
-
-    fn needs_debounce(&self) -> bool {
-        false
-    }
 }
 
 #[cfg(test)]

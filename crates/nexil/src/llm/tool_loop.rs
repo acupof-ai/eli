@@ -56,6 +56,33 @@ pub(super) enum ToolRoundOutcome {
 // run_tools helpers (shared across the loop's exit points)
 // ---------------------------------------------------------------------------
 
+/// Per-tool-result char cap for the in-memory LLM context. Chosen so that even a
+/// long run with many large results stays under the ~400K-char context budget
+/// (see `char_limit` in run_tools and `MAX_TOTAL_CONTEXT_CHARS`): ~16 capped
+/// results fit. The full, un-truncated result is always persisted to the tape via
+/// `maybe_spill_result`; this only bounds what re-enters the model's context.
+const MAX_TOOL_RESULT_CONTEXT_CHARS: usize = 24_000;
+
+/// Cap one tool result's content for the LLM context, keeping a head + tail with
+/// a truncation marker (the head holds the answer/structure, the tail holds any
+/// error/summary). Char-boundary safe. A single multi-MB result (e.g. a big
+/// web.fetch or bash dump) would otherwise blow the context window and abort the
+/// loop at the `char_limit` guard mid-task — the long-horizon failure mode.
+fn cap_tool_result_for_context(content: &str) -> String {
+    let total = content.chars().count();
+    if total <= MAX_TOOL_RESULT_CONTEXT_CHARS {
+        return content.to_string();
+    }
+    let head_n = MAX_TOOL_RESULT_CONTEXT_CHARS * 3 / 4;
+    let tail_n = MAX_TOOL_RESULT_CONTEXT_CHARS - head_n;
+    let head: String = content.chars().take(head_n).collect();
+    let tail: String = content.chars().skip(total - tail_n).collect();
+    let omitted = total - head_n - tail_n;
+    format!(
+        "{head}\n\n…[{omitted} chars truncated for context; full result preserved in the tape]…\n\n{tail}"
+    )
+}
+
 /// Build a terminal text [`ToolAutoResult`], carrying the tool calls/results
 /// and usage accumulated so far. Shared by normal text completion and every
 /// early clean stop (cancellation, context-window limit, budget exhaustion) so
@@ -599,6 +626,12 @@ impl LLM {
                 Value::String(s) => s.clone(),
                 other => serde_json::to_string(other).unwrap_or_default(),
             };
+            // Cap the per-result content fed back into the LLM context. The full
+            // result is still persisted to the tape (maybe_spill_result below);
+            // this only bounds the in-memory context so a single huge result
+            // (e.g. a multi-MB web.fetch / bash dump) cannot blow the context
+            // window and abort a long-horizon run at the `char_limit` guard.
+            let content_str = cap_tool_result_for_context(&content_str);
             in_memory_msgs.push(serde_json::json!({
                 "role": "tool",
                 "tool_call_id": call_id,

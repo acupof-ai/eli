@@ -31,12 +31,4 @@ pub trait Channel: Send + Sync {
     async fn send(&self, _message: ChannelMessage) -> anyhow::Result<()> {
         Ok(())
     }
-
-    /// Whether this channel requires debounce buffering.
-    ///
-    /// Channels like Telegram where users send multiple rapid messages should
-    /// return `true` so the framework batches them before processing.
-    fn needs_debounce(&self) -> bool {
-        false
-    }
 }

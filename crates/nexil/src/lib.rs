@@ -29,9 +29,8 @@ pub use crate::auth::{
     APIKeyResolver, CodexOAuthLoginError, GitHubCopilotOAuthLoginError, GitHubCopilotOAuthTokens,
     OpenAICodexOAuthTokens, codex_cli_api_key_resolver, github_copilot_oauth_resolver,
     load_openai_codex_oauth_tokens, login_github_copilot_oauth, login_openai_codex_oauth,
-    multi_api_key_resolver, openai_codex_oauth_resolver,
+    multi_api_key_resolver,
 };
-pub use crate::clients::InternalOps;
 pub use crate::core::errors::{ConduitError, ErrorKind};
 pub use crate::core::execution::OAuthTokenRefresher;
 pub use crate::core::provider_registry::{ProviderConfig, ProviderRegistry};
@@ -40,14 +39,13 @@ pub use crate::core::results::{
     TextStream, ToolAutoResult, ToolExecution, UsageEvent,
 };
 pub use crate::llm::{
-    ApiFormat, ChatRequest, EmbedInput, LLM, LLMBuilder, StreamEventFilter,
+    ApiFormat, ChatRequest, LLM, LLMBuilder,
     collect_active_decisions, inject_decisions_into_system_prompt,
 };
 pub use crate::tape::{
-    AnchorSelector, TapeContext, TapeEntry, TapeEntryKind, TapeManager, TapeQuery, TapeSession,
+    AnchorSelector, TapeContext, TapeEntry, TapeEntryKind, AsyncTapeManager, TapeQuery, TapeSession,
 };
 pub use crate::tools::{
-    Tool, ToolAction, ToolCallResponse, ToolContext, ToolExecutor, ToolSet, normalize_tools,
-    tool_from_fn, tool_from_schema,
+    Tool, ToolAction, ToolCallResponse, ToolContext, ToolExecutor, ToolSet,
 };
 pub use tokio_util::sync::CancellationToken;

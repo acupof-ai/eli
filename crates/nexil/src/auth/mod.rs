@@ -11,7 +11,7 @@ pub use github_copilot::{
 pub use openai_codex::{
     CodexOAuthLoginError, OpenAICodexOAuthTokens, codex_cli_api_key_resolver,
     extract_openai_codex_account_id, load_openai_codex_oauth_tokens, login_openai_codex_oauth,
-    openai_codex_oauth_resolver, refresh_openai_codex_oauth_tokens, save_openai_codex_oauth_tokens,
+    refresh_openai_codex_oauth_tokens, save_openai_codex_oauth_tokens,
 };
 
 /// A function that resolves an API key for a given provider name.

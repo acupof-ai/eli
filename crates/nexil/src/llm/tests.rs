@@ -1,6 +1,6 @@
 use super::*;
 use crate::auth::APIKeyResolver;
-use crate::core::results::{StreamEvent, StreamEventKind, ToolExecution};
+use crate::core::results::ToolExecution;
 use crate::tape::entries::{TapeEntry, TapeEntryKind};
 use serde_json::json;
 use std::collections::HashMap;
@@ -209,21 +209,6 @@ fn test_api_format_equality() {
     assert_eq!(ApiFormat::Auto, ApiFormat::Auto);
     assert_eq!(ApiFormat::Completion, ApiFormat::Completion);
     assert_ne!(ApiFormat::Completion, ApiFormat::Responses);
-}
-
-// ----- EmbedInput -----
-
-#[test]
-fn test_embed_input_from_str() {
-    let input: EmbedInput = "hello".into();
-    matches!(input, EmbedInput::Single("hello"));
-}
-
-#[test]
-fn test_embed_input_from_slice() {
-    let data = vec!["a".to_string(), "b".to_string()];
-    let input: EmbedInput = data.as_slice().into();
-    matches!(input, EmbedInput::Multiple(_));
 }
 
 // ----- build_messages -----
@@ -696,26 +681,26 @@ fn test_extract_tool_calls_empty() {
 
 #[test]
 fn test_default_api_base_openai() {
-    assert_eq!(default_api_base("openai"), "https://api.openai.com/v1");
+    assert_eq!(crate::core::provider_policies::default_api_base("openai"), "https://api.openai.com/v1");
 }
 
 #[test]
 fn test_default_api_base_anthropic() {
     assert_eq!(
-        default_api_base("anthropic"),
+        crate::core::provider_policies::default_api_base("anthropic"),
         "https://api.anthropic.com/v1"
     );
 }
 
 #[test]
 fn test_default_api_base_other() {
-    assert_eq!(default_api_base("cohere"), "https://api.cohere.com/v1");
+    assert_eq!(crate::core::provider_policies::default_api_base("cohere"), "https://api.cohere.com/v1");
 }
 
 #[test]
 fn test_default_api_base_deepseek_alias() {
     assert_eq!(
-        default_api_base("dsv4"),
+        crate::core::provider_policies::default_api_base("dsv4"),
         crate::core::provider_policies::DEEPSEEK_OPENAI_BASE
     );
 }
@@ -733,7 +718,6 @@ fn test_builder_basic() {
     assert_eq!(llm.model(), "gpt-4o");
     assert_eq!(llm.provider(), "openai");
     assert!(llm.fallback_models().is_empty());
-    assert!(llm.stream_filter().is_none());
 }
 
 #[test]
@@ -858,21 +842,6 @@ fn test_builder_explicit_key_overrides_resolver() {
     // Explicit key takes priority
     assert_eq!(llm.model(), "gpt-4o");
 }
-
-#[test]
-fn test_builder_with_stream_filter() {
-    let filter: StreamEventFilter = Arc::new(Some);
-
-    let llm = LLM::builder()
-        .model("openai:gpt-4o")
-        .api_key("test-key")
-        .stream_filter(filter)
-        .build()
-        .unwrap();
-
-    assert!(llm.stream_filter().is_some());
-}
-
 #[test]
 fn test_builder_with_max_retries() {
     let llm = LLM::builder()
@@ -980,78 +949,10 @@ fn test_builder_register_provider_with_custom_headers() {
     );
 }
 
-// ----- StreamEventFilter -----
-
-#[test]
-fn test_stream_filter_drops_events() {
-    // Filter that drops all Text events
-    let filter: StreamEventFilter = Arc::new(|event| {
-        if event.kind == StreamEventKind::Text {
-            None
-        } else {
-            Some(event)
-        }
-    });
-
-    let text_event = StreamEvent::new(StreamEventKind::Text, json!({"delta": "hello"}));
-    let usage_event = StreamEvent::new(StreamEventKind::Usage, json!({"tokens": 42}));
-
-    assert!(filter(text_event).is_none());
-    assert!(filter(usage_event).is_some());
-}
-
-#[test]
-fn test_stream_filter_transforms_events() {
-    // Filter that uppercases text deltas
-    let filter: StreamEventFilter = Arc::new(|mut event| {
-        if event.kind == StreamEventKind::Text
-            && let Some(delta) = event.data.get("delta").and_then(|d| d.as_str())
-        {
-            event.data = json!({"delta": delta.to_uppercase()});
-        }
-        Some(event)
-    });
-
-    let event = StreamEvent::new(StreamEventKind::Text, json!({"delta": "hello"}));
-    let result = filter(event).unwrap();
-    assert_eq!(result.data["delta"], "HELLO");
-}
-
-#[test]
-fn test_stream_filter_passthrough() {
-    let filter: StreamEventFilter = Arc::new(Some);
-
-    let event = StreamEvent::new(StreamEventKind::Final, json!({"ok": true}));
-    let result = filter(event);
-    assert!(result.is_some());
-    let result = result.unwrap();
-    assert_eq!(result.kind, StreamEventKind::Final);
-}
-
-#[test]
-fn test_with_stream_filter_set_and_clear() {
-    let mut llm = LLM::builder()
-        .model("openai:gpt-4o")
-        .api_key("test-key")
-        .build()
-        .unwrap();
-
-    assert!(llm.stream_filter().is_none());
-
-    let filter: StreamEventFilter = Arc::new(Some);
-    llm.with_stream_filter(filter);
-    assert!(llm.stream_filter().is_some());
-
-    llm.clear_stream_filter();
-    assert!(llm.stream_filter().is_none());
-}
-
-// ----- LLM::responses URL/body building -----
-
 #[test]
 fn test_responses_url_default_provider() {
     // Verify the URL is built correctly from the default provider base
-    let base = default_api_base("openai");
+    let base = crate::core::provider_policies::default_api_base("openai");
     let url = format!("{}/responses", base.trim_end_matches('/'));
     assert_eq!(url, "https://api.openai.com/v1/responses");
 }
@@ -1065,7 +966,7 @@ fn test_responses_url_custom_base() {
 
 #[test]
 fn test_responses_url_anthropic() {
-    let base = default_api_base("anthropic");
+    let base = crate::core::provider_policies::default_api_base("anthropic");
     let url = format!("{}/responses", base.trim_end_matches('/'));
     assert_eq!(url, "https://api.anthropic.com/v1/responses");
 }
