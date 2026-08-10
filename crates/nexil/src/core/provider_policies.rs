@@ -119,6 +119,16 @@ pub fn provider_policy(provider_name: &str) -> ProviderPolicy {
             responses_tools_blocked_model_prefixes: vec!["anthropic/".to_owned()],
             ..Default::default()
         },
+        "deepseek" => ProviderPolicy {
+            include_usage_in_completion_stream: true,
+            completion_max_tokens_arg: "max_tokens".to_owned(),
+            ..Default::default()
+        },
+        "volcano" => ProviderPolicy {
+            include_usage_in_completion_stream: true,
+            completion_max_tokens_arg: "max_tokens".to_owned(),
+            ..Default::default()
+        },
         _ => ProviderPolicy::default(),
     }
 }

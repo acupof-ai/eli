@@ -273,13 +273,21 @@ impl UsageEvent {
     /// Extract a `UsageEvent` from a raw API response's `"usage"` field.
     pub fn from_raw(raw: &Value, model: &str, attempt: u32, success: bool) -> Option<Self> {
         let usage = raw.as_object()?;
-        let field = |key: &str| usage.get(key).and_then(Value::as_u64).unwrap_or(0);
+        // Accept both Anthropic-style (input_tokens/output_tokens) and
+        // OpenAI-style (prompt_tokens/completion_tokens) field names.
+        let field = |primary: &str, fallback: &str| {
+            usage
+                .get(primary)
+                .or_else(|| usage.get(fallback))
+                .and_then(Value::as_u64)
+                .unwrap_or(0)
+        };
         Some(Self {
             model: model.to_owned(),
-            input_tokens: field("input_tokens"),
-            output_tokens: field("output_tokens"),
-            cache_creation_input_tokens: field("cache_creation_input_tokens"),
-            cache_read_input_tokens: field("cache_read_input_tokens"),
+            input_tokens: field("input_tokens", "prompt_tokens"),
+            output_tokens: field("output_tokens", "completion_tokens"),
+            cache_creation_input_tokens: field("cache_creation_input_tokens", ""),
+            cache_read_input_tokens: field("cache_read_input_tokens", ""),
             attempt,
             success,
             timestamp: chrono::Utc::now().to_rfc3339(),

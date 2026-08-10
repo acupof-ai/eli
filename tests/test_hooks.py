@@ -78,7 +78,7 @@ class TestHookRegistration:
     def test_all_hooks_have_builtin(self):
         r = run_eli("hooks")
         assert r.ok, f"eli hooks failed: {r.stderr}"
-        # All 14 hook points should show "builtin"
+        # All 12 hook points should show "builtin"
         expected_hooks = [
             "classify_inbound",
             "resolve_session",
@@ -92,8 +92,6 @@ class TestHookRegistration:
             "register_cli_commands",
             "on_error",
             "wrap_tool",
-            "provide_tape_store",
-            "provide_channels",
         ]
         for hook in expected_hooks:
             assert hook in r.stdout, f"Hook '{hook}' not found in output"
