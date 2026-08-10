@@ -81,31 +81,24 @@ pub(super) fn lookup_registered_tool(name: &str) -> Option<Tool> {
 
 #[allow(clippy::type_complexity)]
 fn resolve_stored_api_key(
-    model_str: &str,
+    _model_str: &str,
 ) -> Option<(
     Option<String>,
     Option<std::collections::HashMap<String, String>>,
 )> {
-    let provider = nexil::core::provider_policies::normalized_provider_name(
-        model_str.split(':').next().unwrap_or(""),
-    );
+    // Collect ALL stored provider keys as a per-provider map so that fallback
+    // candidates use their own key rather than the primary provider's key.
     let key_map: HashMap<String, String> = provider_resolvers()
         .into_iter()
-        .filter(|(name, _)| provider.is_empty() || provider == *name)
         .filter_map(|(name, resolve)| resolve().map(|key| (name.to_owned(), key)))
         .collect();
 
-    match key_map.len() {
-        0 => None,
-        1 => {
-            let (_, v) = key_map
-                .into_iter()
-                .next()
-                .expect("SAFETY: len == 1 verified");
-            Some((Some(v), None))
-        }
-        _ => Some((None, Some(key_map))),
+    if key_map.is_empty() {
+        return None;
     }
+
+    // Return the full map so fallbacks can resolve their own keys.
+    Some((None, Some(key_map)))
 }
 
 type ProviderResolver = (&'static str, Box<dyn FnOnce() -> Option<String>>);
@@ -138,6 +131,10 @@ fn provider_resolvers() -> Vec<ProviderResolver> {
         (
             "deepseek",
             Box::new(|| crate::builtin::config::load_api_key_entry("deepseek")),
+        ),
+        (
+            "local",
+            Box::new(|| crate::builtin::config::load_api_key_entry("local")),
         ),
     ]
 }
