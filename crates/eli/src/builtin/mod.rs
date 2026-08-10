@@ -32,7 +32,7 @@ use crate::builtin::store::{FileTapeStore, ForkTapeStore};
 use crate::builtin::tape::TapeService;
 use crate::channels::base::Channel;
 use crate::channels::message::{ChannelMessage, MessageKind};
-use crate::hooks::{EliHookSpec, TapeStoreKind};
+use crate::hooks::EliHookSpec;
 use crate::smart_router::{RouteDecision, SmartRouter};
 use crate::tool_middleware::MiddlewareChain;
 use crate::types::{Envelope, PromptValue, RUNTIME_TAPES_DIR_KEY, RUNTIME_WORKSPACE_KEY, State};
@@ -739,10 +739,6 @@ impl EliHookSpec for BuiltinImpl {
             Some(t) => nexil::ToolAction::Replace(t),
             None => nexil::ToolAction::Remove,
         }
-    }
-
-    fn provide_tape_store(&self) -> Option<TapeStoreKind> {
-        Some(TapeStoreKind::Sync(Arc::new(self.provide_tape_store())))
     }
 }
 

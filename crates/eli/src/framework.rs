@@ -16,9 +16,9 @@ use crate::envelope::{ValueExt, unpack_batch_vec};
 use crate::evolution::{
     AutoEvolutionLoop, AutoEvolutionPolicy, EvolutionStore, load_runtime_policy_for_workspace,
 };
-use crate::hooks::{ChannelHook, EliHookSpec, HookRuntime, TapeStoreKind};
+use crate::hooks::{EliHookSpec, HookRuntime};
 use crate::types::{
-    Envelope, MessageHandler, PromptValue, RUNTIME_SYSTEM_PROMPT_KEY, RUNTIME_TAPES_DIR_KEY,
+    Envelope, PromptValue, RUNTIME_SYSTEM_PROMPT_KEY, RUNTIME_TAPES_DIR_KEY,
     RUNTIME_WORKSPACE_KEY, State, TurnResult, TurnUsageInfo,
 };
 
@@ -459,27 +459,6 @@ impl EliFramework {
     }
 
     // -- Channel and tape store accessors -----------------------------------
-
-    /// Collect channels from all plugins, deduplicating by name.
-    pub async fn get_channels(
-        &self,
-        message_handler: MessageHandler,
-    ) -> HashMap<String, Box<dyn ChannelHook>> {
-        let rt = self.hook_runtime.load();
-        let all_channels = rt.call_provide_channels(message_handler);
-        let mut map: HashMap<String, Box<dyn ChannelHook>> = HashMap::new();
-        for ch in all_channels {
-            let name = ch.name().to_string();
-            map.entry(name).or_insert(ch);
-        }
-        map
-    }
-
-    /// Get the first provided tape store.
-    pub async fn get_tape_store(&self) -> Option<TapeStoreKind> {
-        let rt = self.hook_runtime.load();
-        rt.call_provide_tape_store()
-    }
 
     /// Build the system prompt via the hook chain.
     pub async fn get_system_prompt(&self, prompt: &PromptValue, state: &State) -> String {

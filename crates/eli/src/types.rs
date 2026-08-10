@@ -1,9 +1,6 @@
 //! Framework-neutral data aliases and core types.
 
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
 
 use serde_json::Value;
 
@@ -21,10 +18,6 @@ pub const RUNTIME_WORKSPACE_KEY: &str = "_runtime_workspace";
 
 /// Internal state key for the tapes directory path.
 pub const RUNTIME_TAPES_DIR_KEY: &str = "_runtime_tapes_dir";
-
-/// An async message handler that receives inbound envelopes.
-pub type MessageHandler =
-    Arc<dyn Fn(Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync>;
 
 /// Token usage from a single turn.
 #[derive(Debug, Clone, Default)]

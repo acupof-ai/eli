@@ -10,10 +10,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::FutureExt;
 
-use nexil::tape::{AsyncTapeStore, TapeStore};
-
 use crate::smart_router::RouteDecision;
-use crate::types::{Envelope, MessageHandler, PromptValue, State};
+use crate::types::{Envelope, PromptValue, State};
 
 // ---------------------------------------------------------------------------
 // HookError
@@ -34,8 +32,6 @@ pub enum HookPoint {
     RegisterCliCommands,
     OnError,
     WrapTool,
-    ProvideTapeStore,
-    ProvideChannels,
 }
 
 impl std::fmt::Display for HookPoint {
@@ -53,8 +49,6 @@ impl std::fmt::Display for HookPoint {
             Self::RegisterCliCommands => "register_cli_commands",
             Self::OnError => "on_error",
             Self::WrapTool => "wrap_tool",
-            Self::ProvideTapeStore => "provide_tape_store",
-            Self::ProvideChannels => "provide_channels",
         };
         f.write_str(name)
     }
@@ -198,46 +192,6 @@ fn trace_hook_none(plugin: &str, session_id: &str, hook: &str) {
 }
 
 // ---------------------------------------------------------------------------
-// ChannelHook trait (framework-level channel contract for EliHookSpec)
-// ---------------------------------------------------------------------------
-
-/// A framework-level channel that can receive and optionally send messages.
-///
-/// This is the hook-system's view of a channel, used by [`EliHookSpec::provide_channels`].
-/// For the transport-level trait, see [`crate::channels::base::Channel`].
-#[async_trait]
-pub trait ChannelHook: Send + Sync {
-    /// Unique name identifying this channel type.
-    fn name(&self) -> &str;
-
-    /// Start listening for events. Runs until `stop` is called or the token is cancelled.
-    async fn start(&self, stop: tokio::sync::watch::Receiver<bool>) -> anyhow::Result<()>;
-
-    /// Gracefully stop the channel.
-    async fn stop(&self) -> anyhow::Result<()>;
-
-    /// Whether this channel needs debounce to prevent overload.
-    fn needs_debounce(&self) -> bool {
-        false
-    }
-
-    /// Send a message through this channel (optional).
-    async fn send(&self, _message: Envelope) -> anyhow::Result<()> {
-        Ok(())
-    }
-}
-
-// ---------------------------------------------------------------------------
-// TapeStoreKind: unifies sync and async tape stores
-// ---------------------------------------------------------------------------
-
-/// Wraps either a sync or async tape store returned by plugins.
-pub enum TapeStoreKind {
-    Sync(Arc<dyn TapeStore>),
-    Async(Arc<dyn AsyncTapeStore>),
-}
-
-// ---------------------------------------------------------------------------
 // EliHookSpec trait
 // ---------------------------------------------------------------------------
 
@@ -348,16 +302,6 @@ pub trait EliHookSpec: Send + Sync {
     fn wrap_tool(&self, tool: &nexil::Tool) -> nexil::ToolAction {
         nexil::ToolAction::Keep
     }
-
-    /// Provide a tape store instance for conversation recording.
-    fn provide_tape_store(&self) -> Option<TapeStoreKind> {
-        None
-    }
-
-    /// Provide channels for receiving messages.
-    fn provide_channels(&self, message_handler: MessageHandler) -> Vec<Box<dyn ChannelHook>> {
-        Vec::new()
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -377,8 +321,6 @@ const HOOK_NAMES: &[&str] = &[
     "register_cli_commands",
     "on_error",
     "wrap_tool",
-    "provide_tape_store",
-    "provide_channels",
 ];
 
 /// Executes hooks with fault isolation and precedence semantics.
@@ -794,36 +736,6 @@ impl HookRuntime {
     ) {
         call_notify_all!(self.plugins.iter(), "on_error", |p| p
             .on_error(stage, error, message));
-    }
-
-    /// Get the first provided tape store.
-    pub fn call_provide_tape_store(&self) -> Option<TapeStoreKind> {
-        for plugin in self.reversed() {
-            let name = plugin.plugin_name();
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                plugin.provide_tape_store()
-            })) {
-                Ok(Some(store)) => return Some(store),
-                Ok(None) => {}
-                Err(panic_info) => {
-                    let msg = panic_payload_message(&panic_info);
-                    tracing::error!(plugin = %name, panic.message = %msg, "hook.provide_tape_store panicked");
-                }
-            }
-        }
-        None
-    }
-
-    /// Collect channels from all plugins.
-    pub fn call_provide_channels(
-        &self,
-        message_handler: MessageHandler,
-    ) -> Vec<Box<dyn ChannelHook>> {
-        let mut channels = Vec::new();
-        call_sync_all!(self.plugins.iter(), "provide_channels", |p| {
-            channels.append(&mut p.provide_channels(message_handler.clone()));
-        });
-        channels
     }
 
     /// Build a hook-name to adapter-names mapping for diagnostics.
