@@ -393,10 +393,10 @@ impl LLMCore {
         model_id: &str,
         resolved_api_base: &str,
         normalized_messages: Vec<Value>,
-        tools_payload: &Option<Vec<Value>>,
+        tools_payload: Option<&[Value]>,
         max_tokens: Option<u32>,
         stream: bool,
-        reasoning_effort: &Option<Value>,
+        reasoning_effort: Option<&Value>,
         kwargs: &serde_json::Map<String, Value>,
         session_id: Option<&str>,
         runtime: &ProviderRuntime<'_>,
@@ -407,10 +407,10 @@ impl LLMCore {
             model_id: model_id.to_owned(),
             api_base: Some(resolved_api_base.to_owned()),
             messages_payload: normalized_messages,
-            tools_payload: tools_payload.clone(),
+            tools_payload: tools_payload.map(|t| t.to_vec()),
             max_tokens,
             stream,
-            reasoning_effort: reasoning_effort.clone(),
+            reasoning_effort: reasoning_effort.cloned(),
             kwargs: kwargs.clone(),
             is_anthropic_oauth: runtime.is_anthropic_oauth(),
             session_id: session_id.map(|s| s.to_owned()),
@@ -531,15 +531,15 @@ impl LLMCore {
         &self,
         candidate: &ModelCandidate,
         messages_payload: &[Value],
-        tools_payload: &Option<Vec<Value>>,
+        tools_payload: Option<&[Value]>,
         max_tokens: Option<u32>,
         stream: bool,
-        reasoning_effort: &Option<Value>,
+        reasoning_effort: Option<&Value>,
         kwargs: &serde_json::Map<String, Value>,
         session_id: Option<&str>,
     ) -> Result<PreparedAttempt, ConduitError> {
         let runtime = candidate.runtime(self.api_format, &self.provider_registry);
-        let transport = runtime.selected_transport(tools_payload.as_deref(), false, None)?;
+        let transport = runtime.selected_transport(tools_payload, false, None)?;
         let resolved_api_base = runtime.resolved_api_base();
         let request = Self::build_transport_request(
             &candidate.client,
@@ -606,22 +606,25 @@ impl LLMCore {
     /// because the tape is append-only and information must never be silently
     /// dropped from the payload.
     #[allow(clippy::too_many_arguments)]
-    pub async fn run_chat<T, F>(
+    /// Run the candidate/retry loop and return the first successful HTTP
+    /// response along with the candidate and prepared attempt that produced it.
+    ///
+    /// Shared by [`run_chat`](Self::run_chat) and
+    /// [`run_chat_stream`](Self::run_chat_stream) to avoid duplicating the
+    /// backoff / OAuth-refresh / error-classification logic.
+    #[allow(clippy::too_many_arguments)]
+    async fn send_with_retry(
         &mut self,
-        messages_payload: Vec<Value>,
-        tools_payload: Option<Vec<Value>>,
+        messages_payload: &[Value],
+        tools_payload: Option<&[Value]>,
         model: Option<&str>,
         provider: Option<&str>,
         max_tokens: Option<u32>,
         stream: bool,
-        reasoning_effort: Option<Value>,
-        kwargs: serde_json::Map<String, Value>,
+        reasoning_effort: Option<&Value>,
+        kwargs: &serde_json::Map<String, Value>,
         session_id: Option<&str>,
-        on_response: F,
-    ) -> Result<T, ConduitError>
-    where
-        F: Fn(TransportResponse, &str, &str, u32) -> Result<T, Option<ConduitError>>,
-    {
+    ) -> Result<(reqwest::Response, ModelCandidate, PreparedAttempt), ConduitError> {
         let candidates = self.model_candidates(model, provider)?;
         let mut last_error: Option<ConduitError> = None;
         let mut oauth_refreshed = false;
@@ -630,20 +633,19 @@ impl LLMCore {
             for attempt in self.retry_attempts() {
                 Self::backoff_delay(attempt).await;
 
-                // Build the candidate inside the retry loop so that after a client eviction
-                // (e.g. stale SSE connection pool) the next attempt gets a fresh Arc<Client>
-                // from the registry rather than re-using the old one still held by a prior
-                // ModelCandidate.
+                // Build the candidate inside the retry loop so that after a client
+                // eviction (e.g. stale SSE connection pool) the next attempt gets
+                // a fresh Arc<Client> from the registry.
                 let candidate = self.build_candidate(provider_name, model_id);
 
                 let prepared = match self.prepare_attempt(
                     &candidate,
-                    &messages_payload,
-                    &tools_payload,
+                    messages_payload,
+                    tools_payload,
                     max_tokens,
                     stream,
-                    &reasoning_effort,
-                    &kwargs,
+                    reasoning_effort,
+                    kwargs,
                     session_id,
                 ) {
                     Ok(prepared) => prepared,
@@ -691,76 +693,95 @@ impl LLMCore {
                     }
                 };
 
-                let payload: Value = match Self::read_response_payload(
-                    resp,
-                    prepared.body_forced_stream,
-                    prepared.transport,
-                    &candidate.provider_name,
-                    &candidate.model_id,
-                )
-                .await
-                {
-                    Ok(v) => v,
-                    Err(e) => {
-                        // SSE stream body errors are caused by stale pooled connections or
-                        // server-side stream termination (e.g. backend time limit).
-                        // Evict the cached client so the next retry gets a fresh connection pool.
-                        if e.message.contains(SSE_STREAM_ERROR_PREFIX) {
-                            let next = attempt + 1;
-                            let max = self.max_attempts();
-                            if next < max {
-                                warn!(
-                                    provider = %candidate.provider_name,
-                                    model = %candidate.model_id,
-                                    attempt = next,
-                                    max_attempts = max,
-                                    error = %e.message,
-                                    "SSE stream error — evicting client and retrying"
-                                );
-                            }
-                            self.client_registry.remove(
-                                &candidate.provider_name,
-                                candidate.api_key.as_deref(),
-                                candidate.api_base.as_deref(),
-                            );
-                        }
-                        if self.handle_send_error(
-                            e,
-                            &candidate.provider_name,
-                            &candidate.model_id,
-                            attempt,
-                            &mut last_error,
-                        ) {
-                            continue;
-                        }
-                        break;
-                    }
-                };
-
-                Self::log_response(&candidate, prepared.transport, &payload);
-
-                match on_response(
-                    TransportResponse {
-                        transport: prepared.transport,
-                        payload,
-                    },
-                    &candidate.provider_name,
-                    &candidate.model_id,
-                    attempt,
-                ) {
-                    Ok(result) => return Ok(result),
-                    Err(Some(e)) => {
-                        last_error = Some(e);
-                        break;
-                    }
-                    Err(None) => continue,
-                }
+                return Ok((resp, candidate, prepared));
             }
         }
 
         Err(last_error.unwrap_or_else(|| {
             ConduitError::new(ErrorKind::Temporary, "LLM call failed after retries")
         }))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn run_chat<T, F>(
+        &mut self,
+        messages_payload: Vec<Value>,
+        tools_payload: Option<Vec<Value>>,
+        model: Option<&str>,
+        provider: Option<&str>,
+        max_tokens: Option<u32>,
+        stream: bool,
+        reasoning_effort: Option<Value>,
+        kwargs: serde_json::Map<String, Value>,
+        session_id: Option<&str>,
+        on_response: F,
+    ) -> Result<T, ConduitError>
+    where
+        F: Fn(TransportResponse, &str, &str, u32) -> Result<T, Option<ConduitError>>,
+    {
+        let (resp, candidate, prepared) = self
+            .send_with_retry(
+                &messages_payload,
+                tools_payload.as_deref(),
+                model,
+                provider,
+                max_tokens,
+                stream,
+                reasoning_effort.as_ref(),
+                &kwargs,
+                session_id,
+            )
+            .await?;
+
+        let payload: Value = match Self::read_response_payload(
+            resp,
+            prepared.body_forced_stream,
+            prepared.transport,
+            &candidate.provider_name,
+            &candidate.model_id,
+        )
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                // SSE stream body errors are caused by stale pooled connections or
+                // server-side stream termination (e.g. backend time limit).
+                // Evict the cached client so the next retry gets a fresh connection pool.
+                if e.message.contains(SSE_STREAM_ERROR_PREFIX) {
+                    warn!(
+                        provider = %candidate.provider_name,
+                        model = %candidate.model_id,
+                        error = %e.message,
+                        "SSE stream error — evicting client"
+                    );
+                    self.client_registry.remove(
+                        &candidate.provider_name,
+                        candidate.api_key.as_deref(),
+                        candidate.api_base.as_deref(),
+                    );
+                }
+                return Err(e);
+            }
+        };
+
+        Self::log_response(&candidate, prepared.transport, &payload);
+
+        match on_response(
+            TransportResponse {
+                transport: prepared.transport,
+                payload,
+            },
+            &candidate.provider_name,
+            &candidate.model_id,
+            0,
+        ) {
+            Ok(result) => Ok(result),
+            Err(Some(e)) => Err(e),
+            Err(None) => Err(ConduitError::new(
+                ErrorKind::Temporary,
+                "LLM call failed after retries",
+            )),
+        }
     }
 
     /// Execute a streaming chat call.
@@ -778,89 +799,26 @@ impl LLMCore {
         kwargs: serde_json::Map<String, Value>,
         session_id: Option<&str>,
     ) -> Result<(reqwest::Response, TransportKind, String, String), ConduitError> {
-        let candidates = self.model_candidates(model, provider)?;
-        let mut last_error: Option<ConduitError> = None;
-        let mut oauth_refreshed = false;
-
-        for (provider_name, model_id) in &candidates {
-            for attempt in self.retry_attempts() {
-                Self::backoff_delay(attempt).await;
-
-                // Build candidate inside the retry loop (same as run_chat) so that
-                // after an OAuth refresh + client eviction the next attempt uses
-                // the fresh token.
-                let candidate = self.build_candidate(provider_name, model_id);
-
-                let prepared = match self.prepare_attempt(
-                    &candidate,
-                    &messages_payload,
-                    &tools_payload,
-                    max_tokens,
-                    true,
-                    &reasoning_effort,
-                    &kwargs,
-                    session_id,
-                ) {
-                    Ok(prepared) => prepared,
-                    Err(e) => {
-                        last_error = Some(e);
-                        break;
-                    }
-                };
-                Self::log_request(&candidate, &prepared);
-
-                let resp = match Self::send_http_request(
-                    &candidate.client,
-                    &prepared.url,
-                    &prepared.body,
-                    &candidate.provider_name,
-                    &candidate.model_id,
-                )
-                .await
-                {
-                    Ok(r) => r,
-                    Err(e) => {
-                        // On 401 with an OAuth refresher, try to refresh once.
-                        if !oauth_refreshed
-                            && Self::is_http_401(&e)
-                            && self.try_oauth_refresh(&candidate.provider_name).await
-                        {
-                            oauth_refreshed = true;
-                            warn!(
-                                provider = %candidate.provider_name,
-                                model = %candidate.model_id,
-                                "retrying stream after OAuth token refresh"
-                            );
-                            continue;
-                        }
-                        if self.handle_send_error(
-                            e,
-                            &candidate.provider_name,
-                            &candidate.model_id,
-                            attempt,
-                            &mut last_error,
-                        ) {
-                            continue;
-                        }
-                        break;
-                    }
-                };
-
-                return Ok((
-                    resp,
-                    prepared.transport,
-                    candidate.provider_name.clone(),
-                    candidate.model_id.clone(),
-                ));
-            }
-        }
-
-        Err(last_error.unwrap_or_else(|| {
-            ConduitError::new(
-                ErrorKind::Temporary,
-                "LLM streaming call failed after retries",
+        let (resp, candidate, prepared) = self
+            .send_with_retry(
+                &messages_payload,
+                tools_payload.as_deref(),
+                model,
+                provider,
+                max_tokens,
+                true,
+                reasoning_effort.as_ref(),
+                &kwargs,
+                session_id,
             )
-        }))
+            .await?;
+
+        Ok((
+            resp,
+            prepared.transport,
+            candidate.provider_name.clone(),
+            candidate.model_id.clone(),
+        ))
     }
 }
 
