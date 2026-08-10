@@ -97,7 +97,7 @@ impl<'a> ProviderRuntime<'a> {
             return cfg.api_base.clone();
         }
 
-        Self::default_api_base(self.provider_name).to_owned()
+        provider_policies::default_api_base(self.provider_name)
     }
 
     pub fn is_anthropic_oauth(&self) -> bool {
@@ -113,20 +113,6 @@ impl<'a> ProviderRuntime<'a> {
 
     pub fn completion_max_tokens_arg(provider_name: &str) -> String {
         provider_policies::completion_max_tokens_arg(provider_name)
-    }
-
-    pub fn default_api_base(provider_name: &str) -> &'static str {
-        match provider_name.trim().to_lowercase().as_str() {
-            "anthropic" => "https://api.anthropic.com/v1",
-            "openai" => "https://api.openai.com/v1",
-            "openrouter" => "https://openrouter.ai/api/v1",
-            "github-copilot" => "https://api.githubcopilot.com",
-            "deepseek" | "deepseek-v4" | "deepseek_v4" | "ds-v4" | "dsv4" => {
-                super::provider_policies::DEEPSEEK_OPENAI_BASE
-            }
-            "volcano" => super::provider_policies::VOLCANO_CODING_OPENAI_BASE,
-            _ => "https://api.openai.com/v1",
-        }
     }
 
     fn require_messages(&self) -> Result<TransportKind, ConduitError> {
@@ -211,8 +197,8 @@ mod tests {
     #[test]
     fn test_default_api_base_deepseek_alias() {
         assert_eq!(
-            ProviderRuntime::default_api_base("dsv4"),
-            super::super::provider_policies::DEEPSEEK_OPENAI_BASE
+            super::provider_policies::default_api_base("dsv4"),
+            super::provider_policies::DEEPSEEK_OPENAI_BASE
         );
     }
 

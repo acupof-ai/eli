@@ -101,8 +101,7 @@ pub fn default_model_for_provider(provider_name: &str) -> &'static str {
 ///
 /// Unknown providers fall back to the default policy.
 pub fn provider_policy(provider_name: &str) -> ProviderPolicy {
-    let normalized = provider_name_key(provider_name);
-    match normalized.as_str() {
+    match provider_alias(provider_name).as_str() {
         "github-copilot" => ProviderPolicy {
             include_usage_in_completion_stream: true,
             completion_max_tokens_arg: "max_tokens".to_owned(),
