@@ -27,12 +27,6 @@ pub trait ValueExt {
 
     /// Get textual content from any envelope shape.
     fn content_text(&self) -> String;
-
-    /// Convert an arbitrary envelope to a mutable JSON object.
-    fn normalize_envelope(&self) -> Value;
-
-    /// Normalize one `render_outbound` return value to a flat list of envelopes.
-    fn unpack_batch(&self) -> Vec<Envelope>;
 }
 
 impl ValueExt for Value {
@@ -75,22 +69,6 @@ impl ValueExt for Value {
         match self.as_object() {
             Some(obj) => obj.get("content").map(value_to_string).unwrap_or_default(),
             None => value_to_string(self),
-        }
-    }
-
-    fn normalize_envelope(&self) -> Value {
-        match self {
-            Value::Object(_) => self.clone(),
-            Value::String(content) => serde_json::json!({ "content": content }),
-            other => serde_json::json!({ "content": other.to_string() }),
-        }
-    }
-
-    fn unpack_batch(&self) -> Vec<Envelope> {
-        match self {
-            Value::Null => Vec::new(),
-            Value::Array(items) => items.clone(),
-            other => vec![other.clone()],
         }
     }
 }
@@ -138,16 +116,6 @@ fn bool_field_of(message: &Envelope, key: &str) -> Option<bool> {
 #[cfg(test)]
 fn content_of(message: &Envelope) -> String {
     message.content_text()
-}
-
-#[cfg(test)]
-fn normalize_envelope(message: &Envelope) -> Value {
-    message.normalize_envelope()
-}
-
-#[cfg(test)]
-fn unpack_batch(batch: &Value) -> Vec<Envelope> {
-    batch.unpack_batch()
 }
 
 /// Flatten nested batches into a single list of envelopes.
@@ -343,81 +311,6 @@ mod tests {
     fn test_content_of_bool_non_object() {
         let msg = json!(true);
         assert_eq!(content_of(&msg), "true");
-    }
-
-    // -- normalize_envelope tests ---------------------------------------------
-
-    #[test]
-    fn test_normalize_envelope_object() {
-        let msg = json!({"a": 1});
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, json!({"a": 1}));
-    }
-
-    #[test]
-    fn test_normalize_envelope_object_is_clone_not_same() {
-        let msg = json!({"content": "hello"});
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, msg);
-    }
-
-    #[test]
-    fn test_normalize_envelope_string() {
-        let msg = json!("hello");
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, json!({"content": "hello"}));
-    }
-
-    #[test]
-    fn test_normalize_envelope_number() {
-        let msg = json!(42);
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, json!({"content": "42"}));
-    }
-
-    #[test]
-    fn test_normalize_envelope_bool() {
-        let msg = json!(true);
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, json!({"content": "true"}));
-    }
-
-    #[test]
-    fn test_normalize_envelope_null() {
-        let msg = json!(null);
-        let out = normalize_envelope(&msg);
-        assert_eq!(out, json!({"content": "null"}));
-    }
-
-    // -- unpack_batch tests ---------------------------------------------------
-
-    #[test]
-    fn test_unpack_batch_null() {
-        assert!(unpack_batch(&Value::Null).is_empty());
-    }
-
-    #[test]
-    fn test_unpack_batch_array() {
-        let batch = json!([{"content": "a"}, {"content": "b"}]);
-        let out = unpack_batch(&batch);
-        assert_eq!(out.len(), 2);
-        assert_eq!(out[0], json!({"content": "a"}));
-        assert_eq!(out[1], json!({"content": "b"}));
-    }
-
-    #[test]
-    fn test_unpack_batch_single() {
-        let batch = json!({"content": "one"});
-        let out = unpack_batch(&batch);
-        assert_eq!(out.len(), 1);
-        assert_eq!(out[0], json!({"content": "one"}));
-    }
-
-    #[test]
-    fn test_unpack_batch_empty_array() {
-        let batch = json!([]);
-        let out = unpack_batch(&batch);
-        assert!(out.is_empty());
     }
 
     // -- unpack_batch_vec tests -----------------------------------------------

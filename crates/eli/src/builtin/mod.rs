@@ -33,7 +33,7 @@ use crate::builtin::tape::TapeService;
 use crate::channels::base::Channel;
 use crate::channels::message::{ChannelMessage, MessageKind};
 use crate::hooks::EliHookSpec;
-use crate::smart_router::{RouteDecision, SmartRouter};
+use crate::smart_router::SmartRouter;
 use crate::tool_middleware::MiddlewareChain;
 use crate::types::{Envelope, PromptValue, RUNTIME_TAPES_DIR_KEY, RUNTIME_WORKSPACE_KEY, State};
 
@@ -429,7 +429,7 @@ impl EliHookSpec for BuiltinImpl {
         "builtin"
     }
 
-    fn classify_inbound(&self, message: &Envelope) -> Option<RouteDecision> {
+    fn classify_inbound(&self, message: &Envelope) -> Option<String> {
         let content = message
             .get("content")
             .and_then(|v| v.as_str())

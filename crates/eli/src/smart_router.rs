@@ -7,19 +7,10 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Route decision
 // ---------------------------------------------------------------------------
-
-/// Classification result for an inbound message.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RouteDecision {
-    /// Matched a greeting — contains the pre-written reply text.
-    Greet(String),
-}
 
 // ---------------------------------------------------------------------------
 // Greeting table
@@ -137,9 +128,9 @@ impl SmartRouter {
         Self
     }
 
-    /// Classify a message. Returns `Some(Greet(reply))` for greetings,
+    /// Classify a message. Returns `Some(reply)` for greetings,
     /// `None` for everything else (default Chat pipeline).
-    pub fn classify(&self, content: &str) -> Option<RouteDecision> {
+    pub fn classify(&self, content: &str) -> Option<String> {
         let trimmed = content.trim();
         if trimmed.is_empty() {
             return None;
@@ -151,7 +142,7 @@ impl SmartRouter {
         if let Some(responses) = GREETINGS.get(stripped) {
             let mut rng = rand::thread_rng();
             let reply = responses.choose(&mut rng).unwrap_or(&responses[0]);
-            return Some(RouteDecision::Greet((*reply).to_owned()));
+            return Some((*reply).to_owned());
         }
 
         None
@@ -187,8 +178,8 @@ mod tests {
     fn test_greet_chinese() {
         let r = router();
         let result = r.classify("你好");
-        assert!(matches!(result, Some(RouteDecision::Greet(_))));
-        if let Some(RouteDecision::Greet(text)) = result {
+        assert!(matches!(result, Some(_)));
+        if let Some(text) = result {
             let valid = ["在呢！", "嗨~", "你好呀", "有什么事？", "来了来了"];
             assert!(valid.contains(&text.as_str()), "unexpected: {text}");
         }
@@ -198,36 +189,24 @@ mod tests {
     fn test_greet_english() {
         let r = router();
         let result = r.classify("hello");
-        assert!(matches!(result, Some(RouteDecision::Greet(_))));
+        assert!(matches!(result, Some(_)));
     }
 
     #[test]
     fn test_greet_with_punctuation() {
         let r = router();
-        assert!(matches!(
-            r.classify("你好！"),
-            Some(RouteDecision::Greet(_))
-        ));
-        assert!(matches!(
-            r.classify("hello!"),
-            Some(RouteDecision::Greet(_))
-        ));
-        assert!(matches!(r.classify("hi?"), Some(RouteDecision::Greet(_))));
-        assert!(matches!(
-            r.classify("谢谢！！"),
-            Some(RouteDecision::Greet(_))
-        ));
+        assert!(matches!(r.classify("你好！"), Some(_)));
+        assert!(matches!(r.classify("hello!"), Some(_)));
+        assert!(matches!(r.classify("hi?"), Some(_)));
+        assert!(matches!(r.classify("谢谢！！"), Some(_)));
     }
 
     #[test]
     fn test_greet_case_insensitive() {
         let r = router();
-        assert!(matches!(r.classify("HELLO"), Some(RouteDecision::Greet(_))));
-        assert!(matches!(r.classify("Hello"), Some(RouteDecision::Greet(_))));
-        assert!(matches!(
-            r.classify("Good Morning"),
-            Some(RouteDecision::Greet(_))
-        ));
+        assert!(matches!(r.classify("HELLO"), Some(_)));
+        assert!(matches!(r.classify("Hello"), Some(_)));
+        assert!(matches!(r.classify("Good Morning"), Some(_)));
     }
 
     #[test]

@@ -246,7 +246,7 @@ impl EliFramework {
     }
 
     fn try_greet_shortcircuit(rt: &HookRuntime, inbound: &Envelope) -> Option<TurnResult> {
-        let crate::smart_router::RouteDecision::Greet(reply) = rt.call_classify_inbound(inbound)?;
+        let reply = rt.call_classify_inbound(inbound)?;
 
         let session_id = Self::default_session_id(inbound);
         let channel = inbound.field_str("channel", "");

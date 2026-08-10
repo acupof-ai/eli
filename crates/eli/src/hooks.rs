@@ -10,7 +10,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::FutureExt;
 
-use crate::smart_router::RouteDecision;
 use crate::types::{Envelope, PromptValue, State};
 
 // ---------------------------------------------------------------------------
@@ -217,8 +216,9 @@ pub trait EliHookSpec: Send + Sync {
     }
 
     /// Classify an inbound message to determine its processing route.
-    /// Returns `None` to defer to the next plugin, or `Some(RouteDecision)`.
-    fn classify_inbound(&self, message: &Envelope) -> Option<RouteDecision> {
+    /// Returns `None` to defer to the next plugin, or `Some(reply)` to
+    /// short-circuit with a greeting reply.
+    fn classify_inbound(&self, message: &Envelope) -> Option<String> {
         None
     }
 
@@ -365,7 +365,7 @@ impl HookRuntime {
     // -- classify inbound (sync, first-result) --------------------------------
 
     /// Classify inbound message: return the first non-None result.
-    pub fn call_classify_inbound(&self, message: &Envelope) -> Option<RouteDecision> {
+    pub fn call_classify_inbound(&self, message: &Envelope) -> Option<String> {
         for plugin in self.reversed() {
             let name = plugin.plugin_name();
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
