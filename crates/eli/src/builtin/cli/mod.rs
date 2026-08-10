@@ -434,7 +434,7 @@ pub(crate) fn strip_fake_tool_calls(text: &str) -> String {
 async fn builtin_framework() -> (Arc<EliFramework>, Arc<BuiltinImpl>) {
     let builtin = Arc::new(BuiltinImpl::new());
     let framework = Arc::new(EliFramework::new());
-    framework.register_plugin("builtin", builtin.clone()).await;
+    framework.register_plugin(builtin.clone()).await;
     (framework, builtin)
 }
 

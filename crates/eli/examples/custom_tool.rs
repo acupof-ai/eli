@@ -55,7 +55,7 @@ async fn main() {
 
     // Build framework with the echo model and process a message.
     let fw = EliFramework::new();
-    fw.register_plugin("echo-model", Arc::new(EchoModel)).await;
+    fw.register_plugin(Arc::new(EchoModel)).await;
 
     let msg = json!({"content": "What is 2 + 3?", "channel": "cli", "chat_id": "demo"});
     let result = fw

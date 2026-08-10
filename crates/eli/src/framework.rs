@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use nexil::CancellationToken;
 
 use crate::builtin::config::EliConfig;
-use crate::control_plane::{BudgetLedger, DispatchFn, TurnContext, turn_usage, with_turn_context};
+use crate::control_plane::{DispatchFn, TurnContext, turn_usage, with_turn_context};
 use crate::envelope::{ValueExt, unpack_batch_vec};
 use crate::evolution::{
     AutoEvolutionLoop, AutoEvolutionPolicy, EvolutionStore, load_runtime_policy_for_workspace,
@@ -21,17 +21,6 @@ use crate::types::{
     Envelope, PromptValue, RUNTIME_SYSTEM_PROMPT_KEY, RUNTIME_TAPES_DIR_KEY,
     RUNTIME_WORKSPACE_KEY, State, TurnResult, TurnUsageInfo,
 };
-
-// ---------------------------------------------------------------------------
-// PluginStatus
-// ---------------------------------------------------------------------------
-
-/// Records whether a plugin loaded successfully.
-#[derive(Debug, Clone)]
-pub struct PluginStatus {
-    pub is_success: bool,
-    pub detail: Option<String>,
-}
 
 // ---------------------------------------------------------------------------
 // EliFramework
@@ -44,10 +33,6 @@ pub struct EliFramework {
     /// The hook runtime that dispatches to registered plugins.
     /// Uses `ArcSwap` for lock-free snapshot reads on the hot path.
     hook_runtime: ArcSwap<HookRuntime>,
-    /// Status of each loaded plugin.
-    plugin_status: RwLock<HashMap<String, PluginStatus>>,
-    /// Token budget ledger (control plane infrastructure).
-    pub budget: BudgetLedger,
 }
 
 impl EliFramework {
@@ -56,9 +41,6 @@ impl EliFramework {
         Self {
             workspace: RwLock::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
             hook_runtime: ArcSwap::from_pointee(HookRuntime::new(Vec::new())),
-            plugin_status: RwLock::new(HashMap::new()),
-
-            budget: BudgetLedger::new(),
         }
     }
 
@@ -67,49 +49,26 @@ impl EliFramework {
         Self {
             workspace: RwLock::new(workspace),
             hook_runtime: ArcSwap::from_pointee(HookRuntime::new(Vec::new())),
-            plugin_status: RwLock::new(HashMap::new()),
-
-            budget: BudgetLedger::new(),
         }
     }
 
     // -- Plugin registration ------------------------------------------------
 
     /// Register a plugin with the framework.
-    pub async fn register_plugin(&self, name: &str, plugin: Arc<dyn EliHookSpec>) {
+    pub async fn register_plugin(&self, plugin: Arc<dyn EliHookSpec>) {
         self.hook_runtime.rcu(|current| {
             let mut new_rt = (**current).clone();
             new_rt.register(plugin.clone());
             new_rt
         });
-        let mut status = self.plugin_status.write().await;
-        status.insert(
-            name.to_string(),
-            PluginStatus {
-                is_success: true,
-                detail: None,
-            },
-        );
-    }
-
-    /// Record a plugin load failure.
-    pub async fn record_plugin_failure(&self, name: &str, detail: String) {
-        let mut status = self.plugin_status.write().await;
-        status.insert(
-            name.to_string(),
-            PluginStatus {
-                is_success: false,
-                detail: Some(detail),
-            },
-        );
     }
 
     /// Load hooks from a list of plugins. This is the Rust equivalent of
     /// the Python `load_hooks` which discovers plugins via entry points.
     /// In Rust, callers explicitly provide the plugin list.
     pub async fn load_hooks(&self, plugins: Vec<(String, Arc<dyn EliHookSpec>)>) {
-        for (name, plugin) in plugins {
-            self.register_plugin(&name, plugin).await;
+        for (_name, plugin) in plugins {
+            self.register_plugin(plugin).await;
         }
     }
 
@@ -453,11 +412,6 @@ impl EliFramework {
         rt.hook_report()
     }
 
-    /// Return the plugin status map.
-    pub async fn plugin_status(&self) -> HashMap<String, PluginStatus> {
-        self.plugin_status.read().await.clone()
-    }
-
     // -- Channel and tape store accessors -----------------------------------
 
     /// Build the system prompt via the hook chain.
@@ -732,25 +686,6 @@ mod tests {
     // -- Plugin registration --------------------------------------------------
 
     #[tokio::test]
-    async fn test_register_plugin_records_status() {
-        let fw = EliFramework::new();
-        fw.register_plugin("test", Arc::new(SessionPlugin)).await;
-        let status = fw.plugin_status().await;
-        assert!(status.contains_key("test"));
-        assert!(status["test"].is_success);
-    }
-
-    #[tokio::test]
-    async fn test_record_plugin_failure() {
-        let fw = EliFramework::new();
-        fw.record_plugin_failure("bad", "failed to load".into())
-            .await;
-        let status = fw.plugin_status().await;
-        assert!(!status["bad"].is_success);
-        assert_eq!(status["bad"].detail.as_deref(), Some("failed to load"));
-    }
-
-    #[tokio::test]
     async fn test_load_hooks_registers_multiple_plugins() {
         let fw = EliFramework::new();
         fw.load_hooks(vec![
@@ -764,10 +699,9 @@ mod tests {
             ),
         ])
         .await;
-        let status = fw.plugin_status().await;
-        assert_eq!(status.len(), 2);
-        assert!(status["session"].is_success);
-        assert!(status["model"].is_success);
+        let report = fw.hook_report().await;
+        // Both plugins registered their hooks
+        assert!(!report.is_empty());
     }
 
     // -- get_system_prompt ----------------------------------------------------
@@ -776,14 +710,12 @@ mod tests {
     async fn test_get_system_prompt_returns_first_result() {
         let fw = EliFramework::new();
         fw.register_plugin(
-            "low",
             Arc::new(PromptPlugin {
                 fragment: "low".into(),
             }),
         )
         .await;
         fw.register_plugin(
-            "high",
             Arc::new(PromptPlugin {
                 fragment: "high".into(),
             }),
@@ -801,9 +733,9 @@ mod tests {
     #[tokio::test]
     async fn test_process_inbound_full_pipeline() {
         let fw = EliFramework::new();
-        fw.register_plugin("session", Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>)
+        fw.register_plugin(Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>)
             .await;
-        fw.register_plugin("model", Arc::new(ModelPlugin) as Arc<dyn EliHookSpec>)
+        fw.register_plugin(Arc::new(ModelPlugin) as Arc<dyn EliHookSpec>)
             .await;
 
         let msg = json!({"content": "ping", "session_id": "test-session"});
@@ -816,7 +748,7 @@ mod tests {
     #[tokio::test]
     async fn test_process_inbound_default_session_id() {
         let fw = EliFramework::new();
-        fw.register_plugin("model", Arc::new(ModelPlugin) as Arc<dyn EliHookSpec>)
+        fw.register_plugin(Arc::new(ModelPlugin) as Arc<dyn EliHookSpec>)
             .await;
 
         let msg = json!({"content": "hello", "channel": "telegram", "chat_id": "42"});
@@ -828,7 +760,6 @@ mod tests {
     async fn test_process_inbound_uses_hook_system_prompt_in_run_model_hot_path() {
         let fw = EliFramework::new();
         fw.register_plugin(
-            "model",
             Arc::new(SystemPromptStateModelPlugin {
                 fragment: "from-hook".into(),
             }) as Arc<dyn EliHookSpec>,
@@ -844,7 +775,6 @@ mod tests {
     async fn test_process_inbound_logs_utf8_safe_preview() {
         let fw = EliFramework::new();
         fw.register_plugin(
-            "model",
             Arc::new(UnicodeBoundaryModelPlugin) as Arc<dyn EliHookSpec>,
         )
         .await;
@@ -860,7 +790,6 @@ mod tests {
         let started = Arc::new(tokio::sync::Notify::new());
         let release = Arc::new(tokio::sync::Notify::new());
         fw.register_plugin(
-            "model",
             Arc::new(BlockingModelPlugin {
                 started: started.clone(),
                 release: release.clone(),
@@ -875,7 +804,7 @@ mod tests {
 
         tokio::time::timeout(
             std::time::Duration::from_millis(100),
-            fw.register_plugin("late", Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>),
+            fw.register_plugin(Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>),
         )
         .await
         .expect("register_plugin should not wait for an in-flight turn");
@@ -883,7 +812,6 @@ mod tests {
         release.notify_waiters();
         let result = turn.await.unwrap().unwrap();
         assert_eq!(result.session_id, "lock-test");
-        assert!(fw.plugin_status().await.contains_key("late"));
     }
 
     // -- state merge precedence ------------------------------------------------
@@ -934,10 +862,9 @@ mod tests {
     async fn test_build_state_last_registered_wins_for_duplicate_keys() {
         let fw = EliFramework::new();
         // FirstStatePlugin registered first, SecondStatePlugin registered second.
-        fw.register_plugin("first", Arc::new(FirstStatePlugin) as Arc<dyn EliHookSpec>)
+        fw.register_plugin(Arc::new(FirstStatePlugin) as Arc<dyn EliHookSpec>)
             .await;
         fw.register_plugin(
-            "second",
             Arc::new(SecondStatePlugin) as Arc<dyn EliHookSpec>,
         )
         .await;
@@ -1039,7 +966,7 @@ mod tests {
     #[tokio::test]
     async fn test_hook_report_reflects_registered_plugins() {
         let fw = EliFramework::new();
-        fw.register_plugin("session", Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>)
+        fw.register_plugin(Arc::new(SessionPlugin) as Arc<dyn EliHookSpec>)
             .await;
         let report = fw.hook_report().await;
         assert!(report.contains_key("resolve_session"));

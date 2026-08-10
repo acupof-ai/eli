@@ -224,113 +224,12 @@ pub async fn inject_inbound(envelope: Value) {
 }
 
 // ---------------------------------------------------------------------------
-// Budget ledger
-// ---------------------------------------------------------------------------
-
-/// Atomic token budget. Concurrent-safe, independent of State HashMap.
-pub struct BudgetLedger {
-    remaining: AtomicU64,
-    consumed: AtomicU64,
-}
-
-impl BudgetLedger {
-    /// Unlimited budget (default).
-    pub fn new() -> Self {
-        Self {
-            remaining: AtomicU64::new(u64::MAX),
-            consumed: AtomicU64::new(0),
-        }
-    }
-
-    /// Fixed token budget.
-    pub fn with_budget(max_tokens: u64) -> Self {
-        Self {
-            remaining: AtomicU64::new(max_tokens),
-            consumed: AtomicU64::new(0),
-        }
-    }
-
-    /// Atomically spend `amount` tokens. Returns `true` if budget allowed it.
-    pub fn try_spend(&self, amount: u64) -> bool {
-        loop {
-            let current = self.remaining.load(Ordering::Acquire);
-            if current < amount {
-                return false;
-            }
-            if self
-                .remaining
-                .compare_exchange_weak(
-                    current,
-                    current - amount,
-                    Ordering::AcqRel,
-                    Ordering::Acquire,
-                )
-                .is_ok()
-            {
-                self.consumed.fetch_add(amount, Ordering::Relaxed);
-                return true;
-            }
-        }
-    }
-
-    pub fn remaining(&self) -> u64 {
-        self.remaining.load(Ordering::Relaxed)
-    }
-
-    pub fn consumed(&self) -> u64 {
-        self.consumed.load(Ordering::Relaxed)
-    }
-}
-
-impl Default for BudgetLedger {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn budget_unlimited_by_default() {
-        let b = BudgetLedger::new();
-        assert!(b.try_spend(1_000_000));
-        assert_eq!(b.consumed(), 1_000_000);
-    }
-
-    #[test]
-    fn budget_rejects_overspend() {
-        let b = BudgetLedger::with_budget(100);
-        assert!(b.try_spend(60));
-        assert!(!b.try_spend(60));
-        assert_eq!(b.remaining(), 40);
-        assert_eq!(b.consumed(), 60);
-    }
-
-    #[test]
-    fn budget_concurrent_spend() {
-        use std::sync::Arc;
-        let b = Arc::new(BudgetLedger::with_budget(1000));
-        let handles: Vec<_> = (0..100)
-            .map(|_| {
-                let b = Arc::clone(&b);
-                std::thread::spawn(move || b.try_spend(10))
-            })
-            .collect();
-        let successes: usize = handles
-            .into_iter()
-            .map(|h| h.join().unwrap())
-            .filter(|&ok| ok)
-            .count();
-        assert_eq!(successes, 100);
-        assert_eq!(b.remaining(), 0);
-        assert_eq!(b.consumed(), 1000);
-    }
 
     #[tokio::test]
     async fn turn_context_propagates() {

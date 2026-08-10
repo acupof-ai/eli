@@ -60,9 +60,9 @@ async fn main() {
     let prompt_plugin = SystemPromptPlugin {
         instruction: "You are a helpful assistant that speaks like a pirate.".into(),
     };
-    fw.register_plugin("system-prompt", Arc::new(prompt_plugin))
+    fw.register_plugin(Arc::new(prompt_plugin))
         .await;
-    fw.register_plugin("simple-model", Arc::new(SimpleModel))
+    fw.register_plugin(Arc::new(SimpleModel))
         .await;
 
     // Verify the system prompt is wired up.
