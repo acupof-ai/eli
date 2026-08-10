@@ -5,6 +5,7 @@ between steps. They verify that the tool loop, tape state, and tool
 feedback signals work together end-to-end.
 """
 
+import hashlib
 import os
 import tempfile
 import uuid
@@ -16,13 +17,33 @@ from conftest import run_eli, switch_profile, assert_nonempty
 PROVIDER = "openai"
 
 
-def eli_run(prompt: str, timeout: int = 120, chat_id: str | None = None):
+def eli_run(prompt: str, timeout: int = 180, chat_id: str | None = None):
     cid = chat_id or f"eval-{uuid.uuid4().hex[:12]}"
     return run_eli("run", prompt, "--chat-id", cid, timeout=timeout)
 
 
 def setup_provider():
     switch_profile(PROVIDER)
+
+
+def tape_name_for(session_id: str) -> str:
+    workspace = os.path.realpath(os.getcwd())
+    wh = hashlib.md5(workspace.encode(), usedforsecurity=False).hexdigest()[:16]
+    sh = hashlib.md5(session_id.encode(), usedforsecurity=False).hexdigest()[:16]
+    return f"{wh}__{sh}"
+
+
+def read_tape_entries(session_id: str) -> list[dict]:
+    from pathlib import Path
+    name = tape_name_for(session_id)
+    tape_file = Path.home() / ".eli" / "tapes" / f"{name}.jsonl"
+    if not tape_file.exists():
+        return []
+    entries = []
+    for line in tape_file.read_text().splitlines():
+        if line.strip():
+            entries.append(__import__("json").loads(line))
+    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -200,3 +221,56 @@ class TestTapeSearchToDecision:
         assert "found" in output or "yes" in output, (
             f"Agent should confirm finding the marker. Got: {r2.full_output}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Task 7: Multi-step work → tape.handoff checkpoint → continue → verify anchor
+# ---------------------------------------------------------------------------
+
+class TestTapeHandoff:
+    """Verify tape.handoff creates a checkpoint anchor with a summary."""
+
+    def test_handoff_saves_anchor_with_summary(self):
+        setup_provider()
+        chat_id = f"eval-handoff-{uuid.uuid4().hex[:8]}"
+        session_id = f"cli:{chat_id}"
+        with tempfile.TemporaryDirectory() as d:
+            src = os.path.join(d, "data.txt")
+            with open(src, "w") as f:
+                f.write("alpha\nbeta\ngamma\n")
+
+            r = eli_run(
+                f"1. Use fs.read to read {src}.\n"
+                f"2. Count the number of lines.\n"
+                f"3. Use tape.handoff to save a checkpoint named 'phase1-count' with "
+                f"a summary that includes the line count.\n"
+                f"4. Use fs.write to write the line count to {os.path.join(d, 'count.txt')}.\n"
+                f"5. Tell me the line count.",
+                chat_id=chat_id,
+            )
+            assert r.ok, f"Failed: {r.stderr}"
+
+            # Verify the handoff anchor exists in the tape.
+            entries = read_tape_entries(session_id)
+            anchors = [
+                e for e in entries
+                if e.get("kind") == "anchor"
+            ]
+            assert len(anchors) > 0, "No anchor entries found in tape"
+
+            # Find the handoff anchor we created.
+            handoff_anchors = [
+                a for a in anchors
+                if a.get("payload", {}).get("name") == "phase1-count"
+            ]
+            assert len(handoff_anchors) > 0, (
+                f"Expected anchor 'phase1-count' not found. "
+                f"Anchors: {[a.get('payload', {}).get('name') for a in anchors]}"
+            )
+
+            # The summary should be in the anchor's state.
+            state = handoff_anchors[0].get("payload", {}).get("state", {})
+            summary = state.get("summary", "")
+            assert "3" in summary, (
+                f"Expected summary to contain line count '3'. Got: {summary}"
+            )

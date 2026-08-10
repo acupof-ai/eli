@@ -189,7 +189,7 @@ impl LLM {
                 None,
                 Default::default(),
                 session_id,
-                |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+                |resp: TransportResponse| Ok(resp.payload),
             )
             .await?;
 
@@ -510,7 +510,7 @@ impl LLM {
                 None,
                 Default::default(),
                 params.session_id,
-                |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+                |resp: TransportResponse| Ok(resp.payload),
             )
             .await?;
 
@@ -520,7 +520,7 @@ impl LLM {
             .unwrap_or(params.model.unwrap_or("unknown"));
         let usage_event = response
             .get("usage")
-            .and_then(|raw| UsageEvent::from_raw(raw, model_name, 0, true));
+            .and_then(|raw| UsageEvent::from_raw(raw, model_name));
         let raw_calls = extract_tool_calls(&response)?;
 
         if raw_calls.is_empty() {
@@ -550,13 +550,13 @@ impl LLM {
                             None,
                             Default::default(),
                             params.session_id,
-                            |resp: TransportResponse, _prov: &str, _model: &str| Ok(resp.payload),
+                            |resp: TransportResponse| Ok(resp.payload),
                         )
                         .await?;
                     let retry_content = extract_content(&retry_response)?;
                     let retry_usage = retry_response
                         .get("usage")
-                        .and_then(|raw| UsageEvent::from_raw(raw, model_name, 0, true));
+                        .and_then(|raw| UsageEvent::from_raw(raw, model_name));
                     return Ok(ToolRound {
                         usage_event: retry_usage,
                         outcome: ToolRoundOutcome::Text(retry_content),
@@ -608,6 +608,11 @@ impl LLM {
             .get("reasoning_content")
             .and_then(|v| v.as_str())
             .map(str::to_owned);
+        let assistant_text = assistant_msg
+            .get("content")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned);
         in_memory_msgs.push(assistant_msg);
         for (i, result) in execution.tool_results.iter().enumerate() {
             let call_id = execution
@@ -641,14 +646,6 @@ impl LLM {
                 .iter()
                 .map(|call| self.maybe_spill_tool_call(call, tape_name))
                 .collect();
-            let assistant_text = in_memory_msgs
-                .iter()
-                .rev()
-                .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("assistant"))
-                .and_then(|m| m.get("content"))
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned);
             let entry = TapeEntry::tool_call_with_assistant_fields(
                 spilled_calls,
                 assistant_text,
@@ -745,8 +742,6 @@ mod tests {
             output_tokens: output,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
-            attempt: 0,
-            success: true,
             timestamp: String::new(),
         }
     }

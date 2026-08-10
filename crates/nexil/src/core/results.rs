@@ -248,7 +248,7 @@ pub struct ToolExecution {
     pub error: Option<ErrorPayload>,
 }
 
-/// Token usage from a single API call, including failed attempts.
+/// Token usage from a single API call.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageEvent {
     pub model: String,
@@ -264,14 +264,12 @@ pub struct UsageEvent {
     /// read counts on repeat turns mean the stable prefix is being reused.
     #[serde(default)]
     pub cache_read_input_tokens: u64,
-    pub attempt: u32,
-    pub success: bool,
     pub timestamp: String,
 }
 
 impl UsageEvent {
     /// Extract a `UsageEvent` from a raw API response's `"usage"` field.
-    pub fn from_raw(raw: &Value, model: &str, attempt: u32, success: bool) -> Option<Self> {
+    pub fn from_raw(raw: &Value, model: &str) -> Option<Self> {
         let usage = raw.as_object()?;
         // Accept both Anthropic-style (input_tokens/output_tokens) and
         // OpenAI-style (prompt_tokens/completion_tokens) field names.
@@ -288,8 +286,6 @@ impl UsageEvent {
             output_tokens: field("output_tokens", "completion_tokens"),
             cache_creation_input_tokens: field("cache_creation_input_tokens", ""),
             cache_read_input_tokens: field("cache_read_input_tokens", ""),
-            attempt,
-            success,
             timestamp: chrono::Utc::now().to_rfc3339(),
         })
     }
@@ -386,7 +382,7 @@ mod tests {
             "cache_creation_input_tokens": 20,
             "cache_read_input_tokens": 80,
         });
-        let ev = UsageEvent::from_raw(&raw, "claude", 0, true).unwrap();
+        let ev = UsageEvent::from_raw(&raw, "claude").unwrap();
         assert_eq!(ev.input_tokens, 100);
         assert_eq!(ev.output_tokens, 42);
         assert_eq!(ev.cache_creation_input_tokens, 20);
@@ -398,7 +394,7 @@ mod tests {
     #[test]
     fn usage_event_from_raw_defaults_cache_tokens_to_zero() {
         let raw = json!({"input_tokens": 10, "output_tokens": 5});
-        let ev = UsageEvent::from_raw(&raw, "gpt", 0, true).unwrap();
+        let ev = UsageEvent::from_raw(&raw, "gpt").unwrap();
         assert_eq!(ev.cache_creation_input_tokens, 0);
         assert_eq!(ev.cache_read_input_tokens, 0);
     }

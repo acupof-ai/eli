@@ -596,8 +596,8 @@ impl LLMCore {
     /// Execute a synchronous (non-streaming) chat call with retry logic.
     ///
     /// Iterates over model candidates, retrying on transient errors.
-    /// The `on_response` callback receives `(TransportResponse, provider, model, attempt)`
-    /// and should return `Ok(T)` on success or `Err(None)` to signal a retry.
+    /// The `on_response` callback receives the `TransportResponse` and should
+    /// return `Ok(T)` on success or `Err(None)` to signal a retry.
     ///
     /// When the primary model overflows, the fallback receives the **full**
     /// unmodified context.  If it also overflows, the error propagates and the
@@ -717,7 +717,7 @@ impl LLMCore {
         on_response: F,
     ) -> Result<T, ConduitError>
     where
-        F: Fn(TransportResponse, &str, &str) -> Result<T, Option<ConduitError>>,
+        F: Fn(TransportResponse) -> Result<T, Option<ConduitError>>,
     {
         let (resp, candidate, prepared) = self
             .send_with_retry(
@@ -766,14 +766,10 @@ impl LLMCore {
 
         Self::log_response(&candidate, prepared.transport, &payload);
 
-        match on_response(
-            TransportResponse {
-                transport: prepared.transport,
-                payload,
-            },
-            &candidate.provider_name,
-            &candidate.model_id,
-        ) {
+        match on_response(TransportResponse {
+            transport: prepared.transport,
+            payload,
+        }) {
             Ok(result) => Ok(result),
             Err(Some(e)) => Err(e),
             Err(None) => Err(ConduitError::new(

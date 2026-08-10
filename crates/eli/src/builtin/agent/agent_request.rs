@@ -79,13 +79,7 @@ pub(super) fn lookup_registered_tool(name: &str) -> Option<Tool> {
         })
 }
 
-#[allow(clippy::type_complexity)]
-fn resolve_stored_api_key(
-    _model_str: &str,
-) -> Option<(
-    Option<String>,
-    Option<std::collections::HashMap<String, String>>,
-)> {
+fn resolve_stored_api_key() -> Option<std::collections::HashMap<String, String>> {
     // Collect ALL stored provider keys as a per-provider map so that fallback
     // candidates use their own key rather than the primary provider's key.
     let key_map: HashMap<String, String> = provider_resolvers()
@@ -97,8 +91,7 @@ fn resolve_stored_api_key(
         return None;
     }
 
-    // Return the full map so fallbacks can resolve their own keys.
-    Some((None, Some(key_map)))
+    Some(key_map)
 }
 
 type ProviderResolver = (&'static str, Box<dyn FnOnce() -> Option<String>>);
@@ -172,7 +165,7 @@ pub(super) fn create_llm(
         builder = builder.fallback_models(fallback_models);
     }
 
-    builder = apply_api_key(builder, &settings.api_key, &model_str);
+    builder = apply_api_key(builder, &settings.api_key);
     builder = apply_api_base(builder, &settings.api_base);
 
     builder.build()
@@ -193,17 +186,14 @@ fn resolve_model_string(model_str: &str) -> String {
 fn apply_api_key(
     builder: nexil::llm::LLMBuilder,
     config: &ProviderValue,
-    model_str: &str,
 ) -> nexil::llm::LLMBuilder {
-    let (api_key, api_key_map) = match config.clone() {
-        ProviderValue::Single(k) => (Some(k), None),
-        ProviderValue::PerProvider(m) => (None, Some(m)),
-        ProviderValue::None => resolve_stored_api_key(model_str).unwrap_or((None, None)),
-    };
-    match (api_key, api_key_map) {
-        (Some(key), _) => builder.api_key(&key),
-        (_, Some(map)) => builder.api_key_map(map),
-        _ => builder,
+    match config.clone() {
+        ProviderValue::Single(k) => builder.api_key(&k),
+        ProviderValue::PerProvider(m) => builder.api_key_map(m),
+        ProviderValue::None => match resolve_stored_api_key() {
+            Some(map) => builder.api_key_map(map),
+            None => builder,
+        },
     }
 }
 

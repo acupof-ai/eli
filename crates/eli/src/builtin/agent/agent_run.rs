@@ -1121,8 +1121,6 @@ mod tests {
             output_tokens: output,
             cache_creation_input_tokens: 0,
             cache_read_input_tokens: 0,
-            attempt: 0,
-            success: true,
             timestamp: "2026-01-01T00:00:00Z".into(),
         }]
     }
@@ -1384,8 +1382,6 @@ mod tests {
                     output_tokens: 100,
                     cache_creation_input_tokens: 0,
                     cache_read_input_tokens: 0,
-                    attempt: 0,
-                    success: true,
                     timestamp: "2026-01-01T00:00:00Z".into(),
                 },
                 UsageEvent {
@@ -1394,8 +1390,6 @@ mod tests {
                     output_tokens: 150,
                     cache_creation_input_tokens: 0,
                     cache_read_input_tokens: 0,
-                    attempt: 0,
-                    success: true,
                     timestamp: "2026-01-01T00:00:01Z".into(),
                 },
             ];
@@ -1421,8 +1415,6 @@ mod tests {
                 output_tokens: 50,
                 cache_creation_input_tokens: 100,
                 cache_read_input_tokens: 700,
-                attempt: 0,
-                success: true,
                 timestamp: "2026-01-01T00:00:00Z".into(),
             }];
             record_run_event(42, "ok", None, &usage, 3);
