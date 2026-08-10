@@ -24,17 +24,9 @@ use crate::clients::parsing::TransportKind;
 /// Returns `Some(new_api_key)` on success, `None` if refresh is not applicable or fails.
 pub type OAuthTokenRefresher = Arc<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
-/// How API keys are configured.
+/// How a per-provider value (API key, base URL, …) is configured.
 #[derive(Debug, Clone)]
-pub enum ApiKeyConfig {
-    None,
-    Single(String),
-    PerProvider(HashMap<String, String>),
-}
-
-/// How API bases are configured.
-#[derive(Debug, Clone)]
-pub enum ApiBaseConfig {
+pub enum ProviderValue {
     None,
     Single(String),
     PerProvider(HashMap<String, String>),
@@ -46,8 +38,8 @@ pub struct LLMCore {
     model: String,
     fallback_models: Vec<String>,
     max_retries: u32,
-    api_key: ApiKeyConfig,
-    api_base: ApiBaseConfig,
+    api_key: ProviderValue,
+    api_base: ProviderValue,
     client_registry: ClientRegistry,
     api_format: ApiFormat,
     verbose: u32,
@@ -113,8 +105,8 @@ impl LLMCore {
         model: String,
         fallback_models: Vec<String>,
         max_retries: u32,
-        api_key: ApiKeyConfig,
-        api_base: ApiBaseConfig,
+        api_key: ProviderValue,
+        api_base: ProviderValue,
         api_format: impl Into<ApiFormat>,
         verbose: u32,
     ) -> Self {
@@ -179,11 +171,11 @@ impl LLMCore {
         self.max_retries
     }
 
-    pub fn api_key_config(&self) -> &ApiKeyConfig {
+    pub fn api_key_config(&self) -> &ProviderValue {
         &self.api_key
     }
 
-    pub fn api_base_config(&self) -> &ApiBaseConfig {
+    pub fn api_base_config(&self) -> &ProviderValue {
         &self.api_base
     }
 
@@ -309,18 +301,18 @@ impl LLMCore {
     /// Resolve the API key for a given provider.
     pub fn resolve_api_key(&self, provider: &str) -> Option<String> {
         match &self.api_key {
-            ApiKeyConfig::None => None,
-            ApiKeyConfig::Single(key) => Some(key.clone()),
-            ApiKeyConfig::PerProvider(map) => map.get(provider).cloned(),
+            ProviderValue::None => None,
+            ProviderValue::Single(key) => Some(key.clone()),
+            ProviderValue::PerProvider(map) => map.get(provider).cloned(),
         }
     }
 
     /// Resolve the API base URL for a given provider.
     pub fn resolve_api_base(&self, provider: &str) -> Option<String> {
         match &self.api_base {
-            ApiBaseConfig::None => None,
-            ApiBaseConfig::Single(base) => Some(base.clone()),
-            ApiBaseConfig::PerProvider(map) => map.get(provider).cloned(),
+            ProviderValue::None => None,
+            ProviderValue::Single(base) => Some(base.clone()),
+            ProviderValue::PerProvider(map) => map.get(provider).cloned(),
         }
     }
 
@@ -486,14 +478,14 @@ impl LLMCore {
 
                 // Update the API key config.
                 match &mut self.api_key {
-                    ApiKeyConfig::Single(key) => {
+                    ProviderValue::Single(key) => {
                         *key = new_key;
                     }
-                    ApiKeyConfig::PerProvider(map) => {
+                    ProviderValue::PerProvider(map) => {
                         map.insert(provider_name.to_owned(), new_key);
                     }
-                    ApiKeyConfig::None => {
-                        self.api_key = ApiKeyConfig::Single(new_key);
+                    ProviderValue::None => {
+                        self.api_key = ProviderValue::Single(new_key);
                     }
                 }
 
@@ -1148,8 +1140,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             2,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Completion,
             0,
         );
@@ -1181,8 +1173,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             2,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Completion,
             0,
         );
@@ -1206,8 +1198,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             3,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Completion,
             0,
         );
@@ -1228,8 +1220,8 @@ mod tests {
             "claude-3".into(),
             vec![],
             1,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Completion,
             0,
         );
@@ -1252,13 +1244,13 @@ mod tests {
             "gpt-4".into(),
             vec![],
             3,
-            ApiKeyConfig::Single("my-key".into()),
-            ApiBaseConfig::None,
+            ProviderValue::Single("my-key".into()),
+            ProviderValue::None,
             TransportKind::Completion,
             0,
         );
         match core.api_key_config() {
-            ApiKeyConfig::Single(key) => assert_eq!(key, "my-key"),
+            ProviderValue::Single(key) => assert_eq!(key, "my-key"),
             _ => panic!("Expected Single key config"),
         }
     }
@@ -1270,13 +1262,13 @@ mod tests {
             "gpt-4".into(),
             vec![],
             3,
-            ApiKeyConfig::None,
-            ApiBaseConfig::Single("https://custom.api.com".into()),
+            ProviderValue::None,
+            ProviderValue::Single("https://custom.api.com".into()),
             TransportKind::Completion,
             0,
         );
         match core.api_base_config() {
-            ApiBaseConfig::Single(base) => assert_eq!(base, "https://custom.api.com"),
+            ProviderValue::Single(base) => assert_eq!(base, "https://custom.api.com"),
             _ => panic!("Expected Single base config"),
         }
     }
@@ -1288,8 +1280,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             3,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Responses,
             0,
         );
@@ -1303,8 +1295,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             3,
-            ApiKeyConfig::None,
-            ApiBaseConfig::None,
+            ProviderValue::None,
+            ProviderValue::None,
             TransportKind::Completion,
             2,
         );
@@ -1583,8 +1575,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             1,
-            ApiKeyConfig::Single("old-key".into()),
-            ApiBaseConfig::None,
+            ProviderValue::Single("old-key".into()),
+            ProviderValue::None,
             ApiFormat::default(),
             0,
         );
@@ -1601,8 +1593,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             1,
-            ApiKeyConfig::Single("expired-token".into()),
-            ApiBaseConfig::None,
+            ProviderValue::Single("expired-token".into()),
+            ProviderValue::None,
             ApiFormat::default(),
             0,
         )
@@ -1638,8 +1630,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             1,
-            ApiKeyConfig::Single("old-key".into()),
-            ApiBaseConfig::None,
+            ProviderValue::Single("old-key".into()),
+            ProviderValue::None,
             ApiFormat::default(),
             0,
         )
@@ -1664,8 +1656,8 @@ mod tests {
             "gpt-4".into(),
             vec![],
             1,
-            ApiKeyConfig::PerProvider(map),
-            ApiBaseConfig::None,
+            ProviderValue::PerProvider(map),
+            ProviderValue::None,
             ApiFormat::default(),
             0,
         )

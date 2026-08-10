@@ -139,7 +139,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::builtin::settings::{ApiBaseConfig, ApiKeyConfig};
+    use crate::builtin::settings::ProviderValue;
     use crate::builtin::store::{FileTapeStore, ForkTapeStore};
     use crate::builtin::tools::register_builtin_tools;
     use nexil::llm::ApiFormat;
@@ -174,8 +174,8 @@ mod tests {
             home: home.to_path_buf(),
             model: "test-model".into(),
             fallback_models: None,
-            api_key: ApiKeyConfig::None,
-            api_base: ApiBaseConfig::None,
+            api_key: ProviderValue::None,
+            api_base: ProviderValue::None,
             api_format: ApiFormat::Auto,
             max_steps: 5,
             max_tokens: 256,

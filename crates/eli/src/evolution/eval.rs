@@ -4,7 +4,7 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::builtin::settings::{
-    AgentSettings, ApiBaseConfig, ApiFormat, ApiKeyConfig, DEFAULT_CONTEXT_WINDOW,
+    AgentSettings, ProviderValue, ApiFormat, DEFAULT_CONTEXT_WINDOW,
     DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MODEL,
 };
 use crate::prompt_builder::{PromptBuilder, PromptMode};
@@ -321,8 +321,8 @@ fn evaluation_settings(home: &std::path::Path) -> AgentSettings {
         home: home.to_path_buf(),
         model: DEFAULT_MODEL.to_owned(),
         fallback_models: None,
-        api_key: ApiKeyConfig::None,
-        api_base: ApiBaseConfig::None,
+        api_key: ProviderValue::None,
+        api_base: ProviderValue::None,
         api_format: ApiFormat::Auto,
         max_steps: 50,
         max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 
-pub use nexil::core::execution::{ApiBaseConfig, ApiKeyConfig};
+pub use nexil::core::execution::ProviderValue;
 pub use nexil::llm::ApiFormat;
 
 /// Default model identifier.
@@ -95,7 +95,7 @@ impl EnvConfig {
     ///
     /// Precedence: `ELI_API_KEY` (single) or `ELI_<PROVIDER>_API_KEY` (per-provider).
     /// See [`resolve_api_credentials`] for the full algorithm.
-    pub fn api_credentials() -> (ApiKeyConfig, ApiBaseConfig) {
+    pub fn api_credentials() -> (ProviderValue, ProviderValue) {
         resolve_api_credentials()
     }
 
@@ -124,12 +124,12 @@ impl EnvConfig {
 ///
 /// Supports both single-value (`ELI_API_KEY` / `ELI_API_BASE`) and per-provider
 /// (`ELI_<PROVIDER>_API_KEY` / `ELI_<PROVIDER>_API_BASE`) patterns.
-fn resolve_api_credentials() -> (ApiKeyConfig, ApiBaseConfig) {
+fn resolve_api_credentials() -> (ProviderValue, ProviderValue) {
     let single_key = env::var("ELI_API_KEY").ok();
     let single_base = env::var("ELI_API_BASE").ok();
 
     if let (Some(key), Some(base)) = (single_key.clone(), single_base.clone()) {
-        return (ApiKeyConfig::Single(key), ApiBaseConfig::Single(base));
+        return (ProviderValue::Single(key), ProviderValue::Single(base));
     }
 
     let mut key_map: HashMap<String, String> = HashMap::new();
@@ -161,31 +161,31 @@ fn resolve_api_credentials() -> (ApiKeyConfig, ApiBaseConfig) {
 
     let api_key = collapse_config_map(
         key_map,
-        ApiKeyConfig::None,
-        ApiKeyConfig::Single,
-        ApiKeyConfig::PerProvider,
+        ProviderValue::None,
+        ProviderValue::Single,
+        ProviderValue::PerProvider,
     );
     let api_base = collapse_config_map(
         base_map,
-        ApiBaseConfig::None,
-        ApiBaseConfig::Single,
-        ApiBaseConfig::PerProvider,
+        ProviderValue::None,
+        ProviderValue::Single,
+        ProviderValue::PerProvider,
     );
     (api_key, api_base)
 }
 
 /// Merge the active profile's `api_base` override into the env-resolved
-/// [`ApiBaseConfig`].
+/// [`ProviderValue`].
 ///
 /// Precedence: any env-supplied `api_base` wins. When env did not target
 /// this profile's provider, the profile override is inserted so local
 /// inference servers (e.g. agent-infer at `127.0.0.1:8000`) are reachable
 /// without requiring users to duplicate the URL in `ELI_<PROVIDER>_API_BASE`.
 fn merge_profile_api_base(
-    current: ApiBaseConfig,
+    current: ProviderValue,
     provider: Option<&str>,
     profile_api_base: Option<&str>,
-) -> ApiBaseConfig {
+) -> ProviderValue {
     let (Some(provider), Some(profile_api_base)) = (provider, profile_api_base) else {
         return current;
     };
@@ -193,16 +193,16 @@ fn merge_profile_api_base(
         nexil::core::provider_policies::normalized_provider_name(provider).to_lowercase();
 
     match current {
-        ApiBaseConfig::Single(s) => ApiBaseConfig::Single(s),
-        ApiBaseConfig::None => {
+        ProviderValue::Single(s) => ProviderValue::Single(s),
+        ProviderValue::None => {
             let mut map = HashMap::new();
             map.insert(provider_key, profile_api_base.to_owned());
-            ApiBaseConfig::PerProvider(map)
+            ProviderValue::PerProvider(map)
         }
-        ApiBaseConfig::PerProvider(mut map) => {
+        ProviderValue::PerProvider(mut map) => {
             map.entry(provider_key)
                 .or_insert_with(|| profile_api_base.to_owned());
-            ApiBaseConfig::PerProvider(map)
+            ProviderValue::PerProvider(map)
         }
     }
 }
@@ -239,8 +239,8 @@ pub struct AgentSettings {
     pub home: PathBuf,
     pub model: String,
     pub fallback_models: Option<Vec<String>>,
-    pub api_key: ApiKeyConfig,
-    pub api_base: ApiBaseConfig,
+    pub api_key: ProviderValue,
+    pub api_base: ProviderValue,
     pub api_format: ApiFormat,
     pub max_steps: usize,
     pub max_tokens: usize,
@@ -360,13 +360,13 @@ mod tests {
         assert_eq!(ApiFormat::Messages.as_str(), "messages");
     }
 
-    // -- ApiKeyConfig / ApiBaseConfig -----------------------------------------
+    // -- ProviderValue / ProviderValue -----------------------------------------
 
     #[test]
     fn test_api_key_config_single() {
-        let config = ApiKeyConfig::Single("sk-test".into());
+        let config = ProviderValue::Single("sk-test".into());
         match config {
-            ApiKeyConfig::Single(k) => assert_eq!(k, "sk-test"),
+            ProviderValue::Single(k) => assert_eq!(k, "sk-test"),
             _ => panic!("expected Single"),
         }
     }
@@ -375,9 +375,9 @@ mod tests {
     fn test_api_key_config_per_provider() {
         let mut map = HashMap::new();
         map.insert("openai".into(), "sk-openai".into());
-        let config = ApiKeyConfig::PerProvider(map);
+        let config = ProviderValue::PerProvider(map);
         match config {
-            ApiKeyConfig::PerProvider(m) => assert_eq!(m["openai"], "sk-openai"),
+            ProviderValue::PerProvider(m) => assert_eq!(m["openai"], "sk-openai"),
             _ => panic!("expected PerProvider"),
         }
     }
@@ -387,12 +387,12 @@ mod tests {
     #[test]
     fn test_merge_profile_api_base_into_none() {
         let merged = merge_profile_api_base(
-            ApiBaseConfig::None,
+            ProviderValue::None,
             Some("local"),
             Some("http://127.0.0.1:8000/v1"),
         );
         match merged {
-            ApiBaseConfig::PerProvider(m) => {
+            ProviderValue::PerProvider(m) => {
                 assert_eq!(m["local"], "http://127.0.0.1:8000/v1");
             }
             _ => panic!("expected PerProvider"),
@@ -404,12 +404,12 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("local".into(), "http://192.168.1.10:9000/v1".into());
         let merged = merge_profile_api_base(
-            ApiBaseConfig::PerProvider(map),
+            ProviderValue::PerProvider(map),
             Some("local"),
             Some("http://127.0.0.1:8000/v1"),
         );
         match merged {
-            ApiBaseConfig::PerProvider(m) => {
+            ProviderValue::PerProvider(m) => {
                 // Env entry must win.
                 assert_eq!(m["local"], "http://192.168.1.10:9000/v1");
             }
@@ -421,12 +421,12 @@ mod tests {
     fn test_merge_profile_api_base_single_is_pass_through() {
         // Global ELI_API_BASE is a broad directive; don't fight it.
         let merged = merge_profile_api_base(
-            ApiBaseConfig::Single("http://proxy.example.com/v1".into()),
+            ProviderValue::Single("http://proxy.example.com/v1".into()),
             Some("local"),
             Some("http://127.0.0.1:8000/v1"),
         );
         match merged {
-            ApiBaseConfig::Single(s) => assert_eq!(s, "http://proxy.example.com/v1"),
+            ProviderValue::Single(s) => assert_eq!(s, "http://proxy.example.com/v1"),
             _ => panic!("expected Single"),
         }
     }
@@ -436,12 +436,12 @@ mod tests {
         // Brand aliases ("agent-infer", "ollama", …) must land in the "local"
         // slot so the downstream provider lookup finds it.
         let merged = merge_profile_api_base(
-            ApiBaseConfig::None,
+            ProviderValue::None,
             Some("ollama"),
             Some("http://127.0.0.1:11434/v1"),
         );
         match merged {
-            ApiBaseConfig::PerProvider(m) => {
+            ProviderValue::PerProvider(m) => {
                 assert!(m.contains_key("local"));
                 assert_eq!(m["local"], "http://127.0.0.1:11434/v1");
             }
@@ -477,8 +477,8 @@ mod tests {
             home: PathBuf::from("/tmp"),
             model: "test-model".into(),
             fallback_models: Some(vec!["fallback1".into()]),
-            api_key: ApiKeyConfig::Single("sk-test".into()),
-            api_base: ApiBaseConfig::None,
+            api_key: ProviderValue::Single("sk-test".into()),
+            api_base: ProviderValue::None,
             api_format: ApiFormat::Completion,
             max_steps: 10,
             max_tokens: 512,

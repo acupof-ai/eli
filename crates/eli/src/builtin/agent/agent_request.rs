@@ -7,7 +7,7 @@ use nexil::llm::{ChatRequest, LLM};
 use nexil::{ConduitError, TapeContext, Tool, ToolAutoResult, ToolContext, ToolSet};
 use serde_json::Value;
 
-use crate::builtin::settings::{AgentSettings, ApiBaseConfig, ApiKeyConfig};
+use crate::builtin::settings::{AgentSettings, ProviderValue};
 use crate::builtin::store::ForkTapeStore;
 use crate::prompt_builder::{PromptBuilder, PromptMode};
 
@@ -195,13 +195,13 @@ fn resolve_model_string(model_str: &str) -> String {
 
 fn apply_api_key(
     builder: nexil::llm::LLMBuilder,
-    config: &ApiKeyConfig,
+    config: &ProviderValue,
     model_str: &str,
 ) -> nexil::llm::LLMBuilder {
     let (api_key, api_key_map) = match config.clone() {
-        ApiKeyConfig::Single(k) => (Some(k), None),
-        ApiKeyConfig::PerProvider(m) => (None, Some(m)),
-        ApiKeyConfig::None => resolve_stored_api_key(model_str).unwrap_or((None, None)),
+        ProviderValue::Single(k) => (Some(k), None),
+        ProviderValue::PerProvider(m) => (None, Some(m)),
+        ProviderValue::None => resolve_stored_api_key(model_str).unwrap_or((None, None)),
     };
     match (api_key, api_key_map) {
         (Some(key), _) => builder.api_key(&key),
@@ -212,12 +212,12 @@ fn apply_api_key(
 
 fn apply_api_base(
     builder: nexil::llm::LLMBuilder,
-    config: &ApiBaseConfig,
+    config: &ProviderValue,
 ) -> nexil::llm::LLMBuilder {
     match config.clone() {
-        ApiBaseConfig::Single(b) => builder.api_base(&b),
-        ApiBaseConfig::PerProvider(m) => builder.api_base_map(m),
-        ApiBaseConfig::None => builder,
+        ProviderValue::Single(b) => builder.api_base(&b),
+        ProviderValue::PerProvider(m) => builder.api_base_map(m),
+        ProviderValue::None => builder,
     }
 }
 
@@ -409,7 +409,7 @@ mod tests {
     use std::path::Path;
 
     use super::*;
-    use crate::builtin::settings::{ApiBaseConfig, ApiKeyConfig};
+    use crate::builtin::settings::ProviderValue;
     use nexil::llm::ApiFormat;
     use serde_json::json;
 
@@ -418,8 +418,8 @@ mod tests {
             home: home.to_path_buf(),
             model: "test-model".into(),
             fallback_models: None,
-            api_key: ApiKeyConfig::None,
-            api_base: ApiBaseConfig::None,
+            api_key: ProviderValue::None,
+            api_base: ProviderValue::None,
             api_format: ApiFormat::Auto,
             max_steps: 5,
             max_tokens: 256,

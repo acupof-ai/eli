@@ -22,7 +22,7 @@ use serde_json::Value;
 
 pub use crate::core::api_format::ApiFormat;
 use crate::core::errors::{ConduitError, ErrorKind};
-use crate::core::execution::{ApiBaseConfig, ApiKeyConfig, LLMCore};
+use crate::core::execution::{ProviderValue, LLMCore};
 use crate::core::response_parser::TransportResponse;
 use crate::tape::{AsyncTapeManager, AsyncTapeStoreAdapter, InMemoryTapeStore, TapeContext};
 use crate::tools::context::ToolContext;
@@ -130,15 +130,15 @@ impl LLM {
             LLMCore::resolve_model_provider(model_str, provider)?;
 
         let api_key_config = match (api_key, api_key_map) {
-            (Some(key), _) => ApiKeyConfig::Single(key),
-            (None, Some(map)) => ApiKeyConfig::PerProvider(map),
-            (None, None) => ApiKeyConfig::None,
+            (Some(key), _) => ProviderValue::Single(key),
+            (None, Some(map)) => ProviderValue::PerProvider(map),
+            (None, None) => ProviderValue::None,
         };
 
         let api_base_config = match (api_base, api_base_map) {
-            (Some(base), _) => ApiBaseConfig::Single(base),
-            (None, Some(map)) => ApiBaseConfig::PerProvider(map),
-            (None, None) => ApiBaseConfig::None,
+            (Some(base), _) => ProviderValue::Single(base),
+            (None, Some(map)) => ProviderValue::PerProvider(map),
+            (None, None) => ProviderValue::None,
         };
 
         let api_format = api_format.unwrap_or_default();

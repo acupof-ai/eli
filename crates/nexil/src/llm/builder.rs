@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::auth::APIKeyResolver;
 use crate::core::api_format::ApiFormat;
 use crate::core::errors::{ConduitError, ErrorKind};
-use crate::core::execution::{ApiBaseConfig, ApiKeyConfig, LLMCore, OAuthTokenRefresher};
+use crate::core::execution::{ProviderValue, LLMCore, OAuthTokenRefresher};
 use crate::core::provider_registry::{ProviderConfig, ProviderRegistry};
 use crate::tape::{
     AsyncTapeManager, AsyncTapeStore, AsyncTapeStoreAdapter, InMemoryTapeStore, TapeContext,
@@ -196,26 +196,26 @@ impl LLMBuilder {
             LLMCore::resolve_model_provider(model_str, provider_str)?;
 
         let api_key_config = if let Some(key) = self.api_key {
-            ApiKeyConfig::Single(key)
+            ProviderValue::Single(key)
         } else if let Some(resolver) = &self.api_key_resolver {
             // Call the resolver for the default provider at build time.
             if let Some(resolved_key) = resolver(&resolved_provider) {
-                ApiKeyConfig::Single(resolved_key)
+                ProviderValue::Single(resolved_key)
             } else if let Some(map) = self.api_key_map {
-                ApiKeyConfig::PerProvider(map)
+                ProviderValue::PerProvider(map)
             } else {
-                ApiKeyConfig::None
+                ProviderValue::None
             }
         } else if let Some(map) = self.api_key_map {
-            ApiKeyConfig::PerProvider(map)
+            ProviderValue::PerProvider(map)
         } else {
-            ApiKeyConfig::None
+            ProviderValue::None
         };
 
         let api_base_config = match (self.api_base, self.api_base_map) {
-            (Some(base), _) => ApiBaseConfig::Single(base),
-            (None, Some(map)) => ApiBaseConfig::PerProvider(map),
-            (None, None) => ApiBaseConfig::None,
+            (Some(base), _) => ProviderValue::Single(base),
+            (None, Some(map)) => ProviderValue::PerProvider(map),
+            (None, None) => ProviderValue::None,
         };
 
         let api_format = self.api_format.unwrap_or_default();
