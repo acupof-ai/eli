@@ -2083,14 +2083,8 @@ fn tool_tape_reset() -> Tool {
 fn tool_tape_handoff() -> Tool {
     Tool::with_context(
         "tape.handoff",
-        "Save a named checkpoint (anchor) to the tape with a summary.\n\n\
-         Examples: mark a phase as complete, create a resumption point before switching tasks, record state before handing off to another agent.\n\n\
-         Compact instructions — when writing the summary, preserve in priority order:\n\
-         1. Architecture decisions (NEVER summarize)\n\
-         2. Modified files and their key changes\n\
-         3. Current verification status (pass/fail)\n\
-         4. Open TODOs and rollback notes\n\
-         5. Tool outputs (can delete, keep pass/fail only)",
+        "Save a named checkpoint (anchor) to the tape with a summary for later resumption.\n\n\
+         Summary priority: 1) architecture decisions (never summarize) 2) modified files + key changes 3) verification status 4) open TODOs/rollback notes 5) tool outputs (keep pass/fail only).",
         serde_json::json!({
             "type": "object",
             "properties": {
@@ -2383,22 +2377,11 @@ fn tool_web_fetch() -> Tool {
 fn tool_agent() -> Tool {
     Tool::with_context(
         "agent",
-        "Launch a sub-agent to handle a task via an external coding CLI (claude, codex, kimi).\n\n\
-         By default runs **synchronously** — waits for the agent to finish and returns its output directly.\n\
-         Set `run_in_background: true` to launch asynchronously; the result will be injected as an inbound message when done.\n\n\
-         WHEN TO USE:\n\
-         - Task is independent and well-scoped: describable in a single prompt.\n\
-         - Parallelizable work: use `run_in_background` for 2+ concurrent tasks.\n\
-         - Long-running changes: refactors, migrations, large code generation.\n\
-         - Cross-repo work: changes in a different directory.\n\
-         - Research + implement split: spawn a background agent to explore while you build.\n\n\
-         WHEN NOT TO USE:\n\
-         - Task depends on your current work — do it yourself.\n\
-         - Task is trivial (< 30 seconds) — overhead not worth it.\n\
-         - Task needs interactive user input — agents can't ask questions.\n\n\
-         ISOLATION:\n\
-         - Set `isolation: \"worktree\"` to run the agent in a temporary git worktree.\n\
-         - The worktree is auto-removed if no changes; preserved with path returned if changes were made.",
+        "Launch a sub-agent (claude/codex/kimi) for an independent, well-scoped task.\n\n\
+         Default: synchronous (waits, returns output). Set `run_in_background: true` for async — result arrives as an inbound message.\n\
+         Use for: parallelizable work, long-running changes (refactors, migrations), cross-repo work, research-while-you-build.\n\
+         Don't use for: tasks depending on your current work, trivial tasks (<30s), tasks needing interactive input.\n\
+         Set `isolation: \"worktree\"` to run in a temporary git worktree (auto-removed if no changes).",
         serde_json::json!({
             "type": "object",
             "properties": {
