@@ -41,8 +41,12 @@ fn parse_args_to_json(tokens: &[String]) -> Value {
     let kwargs: serde_json::Map<String, Value> = tokens
         .iter()
         .filter_map(|t| {
-            t.find('=')
-                .map(|pos| (t[..pos].to_owned(), Value::String(t[pos + 1..].to_owned())))
+            t.find('=').map(|pos| {
+                let key = t[..pos].to_owned();
+                let raw = &t[pos + 1..];
+                let value = parse_scalar(raw);
+                (key, value)
+            })
         })
         .collect();
 
@@ -64,6 +68,54 @@ fn parse_args_to_json(tokens: &[String]) -> Value {
         map.insert("value".to_owned(), Value::String(joined));
     }
     Value::Object(map)
+}
+
+/// Parse a scalar string value into the appropriate JSON type.
+///
+/// Handles booleans ("true"/"false"), integers, floats, JSON objects/arrays,
+/// and falls back to strings. For objects/arrays, also supports the unquoted
+/// form produced when the shell strips double quotes (e.g. `{FOO:bar}`).
+fn parse_scalar(raw: &str) -> Value {
+    match raw {
+        "true" => Value::Bool(true),
+        "false" => Value::Bool(false),
+        _ => {
+            if let Ok(n) = raw.parse::<i64>() {
+                Value::from(n)
+            } else if let Ok(n) = raw.parse::<f64>() {
+                Value::from(n)
+            } else if (raw.starts_with('{') && raw.ends_with('}'))
+                || (raw.starts_with('[') && raw.ends_with(']'))
+            {
+                parse_relaxed_json(raw)
+            } else {
+                Value::String(raw.to_owned())
+            }
+        }
+    }
+}
+
+/// Parse a JSON-like string that may have unquoted keys/values.
+///
+/// The shell strips double quotes from CLI arguments, so `{"FOO":"bar"}`
+/// arrives as `{FOO:bar}`. This function adds quotes around bare identifiers
+/// and string values before delegating to `serde_json`.
+fn parse_relaxed_json(raw: &str) -> Value {
+    // First try strict JSON.
+    if let Ok(v) = serde_json::from_str(raw) {
+        return v;
+    }
+    // Fall back: quote bare identifiers (keys and unquoted string values).
+    // This handles the common case of {KEY:VALUE,KEY2:VALUE2} where values
+    // don't contain spaces or special characters.
+    let quoted = raw
+        .replace('{', "{\"")
+        .replace('}', "\"}")
+        .replace('[', "[\"")
+        .replace(']', "\"]")
+        .replace(':', "\":\"")
+        .replace(',', "\",\"");
+    serde_json::from_str(&quoted).unwrap_or_else(|_| Value::String(raw.to_owned()))
 }
 
 fn command_tool_name(name: &str) -> &str {

@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -67,12 +66,29 @@ impl ShellManager {
     }
 
     /// Spawn a new shell process.
-    pub async fn start(&self, cmd: &str, cwd: Option<&str>) -> anyhow::Result<String> {
+    pub async fn start(
+        &self,
+        cmd: &str,
+        cwd: Option<&str>,
+        env: Option<&HashMap<String, String>>,
+        stdin: Option<&str>,
+    ) -> anyhow::Result<String> {
         let shell_id = format!("bash-{}", &uuid::Uuid::new_v4().to_string()[..8]);
-        let mut child = spawn_shell(cmd, cwd)?;
+        let mut child = spawn_shell(cmd, cwd, env, stdin)?;
 
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
+        let mut child_stdin = child.stdin.take();
+
+        // Write stdin data (if any) and close the pipe so the child sees EOF.
+        if let Some(input) = stdin
+            && let Some(ref mut stdin_pipe) = child_stdin
+        {
+            use tokio::io::AsyncWriteExt;
+            let _ = stdin_pipe.write_all(input.as_bytes()).await;
+            let _ = stdin_pipe.shutdown().await;
+        }
+        drop(child_stdin);
 
         let shell = Arc::new(Mutex::new(ManagedShell {
             shell_id: shell_id.clone(),
@@ -183,11 +199,27 @@ impl ShellManager {
     }
 }
 
-fn spawn_shell(cmd: &str, cwd: Option<&str>) -> std::io::Result<tokio::process::Child> {
+fn spawn_shell(
+    cmd: &str,
+    cwd: Option<&str>,
+    env: Option<&HashMap<String, String>>,
+    stdin: Option<&str>,
+) -> std::io::Result<tokio::process::Child> {
     let mut command = Command::new("sh");
     command.arg("-c").arg(cmd);
     if let Some(dir) = cwd {
         command.current_dir(dir);
+    }
+    if let Some(env_map) = env {
+        command.env_clear();
+        command.envs(env_map);
+        // Always inherit PATH so basic commands work.
+        if let Some(path) = std::env::var_os("PATH") {
+            command.env("PATH", path);
+        }
+    }
+    if stdin.is_some() {
+        command.stdin(std::process::Stdio::piped());
     }
     command
         .stdout(std::process::Stdio::piped())
@@ -241,7 +273,7 @@ mod tests {
     #[tokio::test]
     async fn test_shell_manager_start_and_wait() {
         let mgr = ShellManager::new();
-        let shell_id = mgr.start("echo hello", None).await.unwrap();
+        let shell_id = mgr.start("echo hello", None, None, None).await.unwrap();
         assert!(shell_id.starts_with("bash-"));
 
         let (output, code, status) = mgr.wait_closed(&shell_id).await.unwrap();
@@ -253,7 +285,7 @@ mod tests {
     #[tokio::test]
     async fn test_shell_manager_terminate() {
         let mgr = ShellManager::new();
-        let shell_id = mgr.start("sleep 60", None).await.unwrap();
+        let shell_id = mgr.start("sleep 60", None, None, None).await.unwrap();
 
         let (_, code, status) = mgr.terminate(&shell_id).await.unwrap();
         assert!(code.is_some());
@@ -270,7 +302,7 @@ mod tests {
     #[tokio::test]
     async fn test_shell_manager_start_with_cwd() {
         let mgr = ShellManager::new();
-        let shell_id = mgr.start("pwd", Some("/tmp")).await.unwrap();
+        let shell_id = mgr.start("pwd", Some("/tmp"), None, None).await.unwrap();
         let (output, code, _) = mgr.wait_closed(&shell_id).await.unwrap();
         // On macOS /tmp may be a symlink to /private/tmp
         assert!(output.contains("tmp"));
@@ -280,7 +312,10 @@ mod tests {
     #[tokio::test]
     async fn test_shell_manager_get_output() {
         let mgr = ShellManager::new();
-        let shell_id = mgr.start("echo test_output", None).await.unwrap();
+        let shell_id = mgr
+            .start("echo test_output", None, None, None)
+            .await
+            .unwrap();
         let (output, code, status) = mgr.wait_closed(&shell_id).await.unwrap();
         assert!(output.contains("test_output"));
         assert_eq!(code, Some(0));

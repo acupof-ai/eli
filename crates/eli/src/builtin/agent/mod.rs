@@ -198,7 +198,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(output, "     1\thello from workspace");
+        assert!(output.ends_with("     1\thello from workspace"));
     }
 
     #[tokio::test]

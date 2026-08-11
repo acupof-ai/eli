@@ -1,7 +1,7 @@
 //! Builtin tool implementations: bash, fs, tape, web, agent, etc.
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -427,6 +427,33 @@ fn open_text_reader(path: &Path) -> Result<BufReader<std::fs::File>, ConduitErro
         .map_err(read_err)
 }
 
+/// Heuristic binary detection: a file is treated as binary if it contains a
+/// NUL byte within the first 8 KiB.  This catches executables, images,
+/// compressed files, etc. without reading the whole file.
+fn is_probably_binary(path: &Path) -> Result<bool, ConduitError> {
+    let mut file = std::fs::File::open(path).map_err(read_err)?;
+    let mut buf = [0u8; 8192];
+    let n = file.read(&mut buf).map_err(read_err)?;
+    Ok(buf[..n].contains(&0))
+}
+
+/// Format file metadata (size, mtime) for the fs.read header.
+fn file_metadata_header(path: &Path) -> Result<String, ConduitError> {
+    let meta = std::fs::metadata(path).map_err(read_err)?;
+    let size = meta.len();
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| {
+            let secs = d.as_secs();
+            let dt = chrono::DateTime::from_timestamp(secs as i64, 0).unwrap_or_default();
+            dt.format("%Y-%m-%d %H:%M:%S").to_string()
+        })
+        .unwrap_or_else(|| "unknown".to_owned());
+    Ok(format!("Size: {size} bytes | Modified: {mtime}"))
+}
+
 fn read_next_line(reader: &mut impl BufRead, line: &mut String) -> Result<bool, ConduitError> {
     line.clear();
     reader
@@ -531,8 +558,10 @@ fn invalid_edit(path: &Path, old: &str, start: usize) -> ConduitError {
     ConduitError::new(
         ErrorKind::InvalidInput,
         format!(
-            "'{preview}{ellipsis}' not found in {} from line {start}. \
-             Read the file with fs.read first, then copy exact text into 'old'.",
+            "'{preview}{ellipsis}' not found in {} from line {start}.\n\
+             Common causes: trailing whitespace, different line endings (\\r\\n vs \\n), \
+             or the file changed since you read it.\n\
+             Fix: fs.read the exact range, then copy the text verbatim into 'old'.",
             path.display()
         ),
     )
@@ -570,12 +599,15 @@ fn write_replacement(
     writer: &mut AtomicTextWriter,
     pending: &str,
     split: usize,
-    old: &str,
+    _old: &str,
     new: &str,
 ) -> Result<(), ConduitError> {
+    // Write the text before the match and the replacement.
+    // The text after the match (pending[split + old.len()..]) is intentionally
+    // NOT written here — it stays in `pending` so replace_all can scan it for
+    // further matches, and it gets flushed at the end of replace_stream.
     writer.write_str(&pending[..split])?;
-    writer.write_str(new)?;
-    writer.write_str(&pending[split + old.len()..])
+    writer.write_str(new)
 }
 
 fn copy_prefix_lines(
@@ -598,28 +630,51 @@ fn replace_stream(
     writer: &mut AtomicTextWriter,
     old: &str,
     new: &str,
+    replace_all: bool,
 ) -> Result<bool, ConduitError> {
     let mut line = String::new();
     let mut pending = String::new();
+    let mut replaced = false;
     while read_next_line(reader, &mut line)? {
         pending.push_str(&line);
         if let Some(split) = pending.find(old) {
             write_replacement(writer, &pending, split, old, new)?;
-            writer.copy_from(reader)?;
-            return Ok(true);
+            // Keep only the text after the match in pending so it can be
+            // scanned for further matches (replace_all) or flushed.
+            pending.drain(..split + old.len());
+            replaced = true;
+            if !replace_all {
+                // Write the remaining pending text (after the match) and copy
+                // the rest of the file verbatim.
+                writer.write_str(&pending)?;
+                writer.copy_from(reader)?;
+                return Ok(true);
+            }
+            // Scan the remaining pending text for more matches before reading
+            // the next line.
+            while let Some(split) = pending.find(old) {
+                write_replacement(writer, &pending, split, old, new)?;
+                pending.drain(..split + old.len());
+            }
         }
         flush_pending(writer, &mut pending, old.len().saturating_sub(1))?;
     }
     writer.write_str(&pending)?;
-    Ok(false)
+    Ok(replaced)
 }
 
-fn edit_text_file(path: &Path, old: &str, new: &str, start: usize) -> Result<(), ConduitError> {
+fn edit_text_file(
+    path: &Path,
+    old: &str,
+    new: &str,
+    start: usize,
+    replace_all: bool,
+) -> Result<(), ConduitError> {
     non_empty_old(old)?;
     let mut reader = open_text_reader(path)?;
     let mut writer = AtomicTextWriter::new(path)?;
     copy_prefix_lines(&mut reader, &mut writer, start)?;
-    if replace_stream(&mut reader, &mut writer, old, new)? {
+    if replace_stream(&mut reader, &mut writer, old, new, replace_all)? {
         writer.persist()
     } else {
         Err(invalid_edit(path, old, start))
@@ -844,7 +899,7 @@ fn spill_preview_fallback(output: &str) -> String {
 
 /// Write large tool output to a spill file and return a preview + path. `label`
 /// names the producing tool (e.g. "bash", "web") for the spill filename.
-fn spill_large_output(output: &str, label: &str) -> String {
+fn spill_large_output(output: &str, label: &str, tail: bool) -> String {
     let dir = eli_home().join("tool-results");
     if let Err(e) = std::fs::create_dir_all(&dir) {
         tracing::warn!("{label} spill: failed to create {}: {e}", dir.display());
@@ -859,10 +914,17 @@ fn spill_large_output(output: &str, label: &str) -> String {
     }
 
     let total = output.chars().count();
-    let preview: String = output.chars().take(TOOL_OUTPUT_PREVIEW_CHARS).collect();
+    let preview: String = if tail {
+        // Show the last N chars instead of the first.
+        let skip = total.saturating_sub(TOOL_OUTPUT_PREVIEW_CHARS);
+        output.chars().skip(skip).collect()
+    } else {
+        output.chars().take(TOOL_OUTPUT_PREVIEW_CHARS).collect()
+    };
     let abs = path.canonicalize().unwrap_or(path);
+    let position = if tail { "last" } else { "first" };
     format!(
-        "[Output: {total} chars — showing first ~{shown}, full output saved to {path}]\n\n\
+        "[Output: {total} chars — showing {position} ~{shown}, full output saved to {path}]\n\n\
          {preview}\n\n\
          ...\n\n\
          [Use fs.read(path=\"{path}\") to read more]",
@@ -874,9 +936,9 @@ fn spill_large_output(output: &str, label: &str) -> String {
 /// Return the output as-is, or spill to disk (preview + path) if it exceeds the
 /// large threshold. Full output stays recoverable on disk — only the *view* is
 /// trimmed, preserving the infinite-context design.
-fn maybe_spill_output(output: &str, label: &str) -> String {
+fn maybe_spill_output(output: &str, label: &str, tail: bool) -> String {
     if output.chars().count() > TOOL_OUTPUT_LARGE_THRESHOLD {
-        spill_large_output(output, label)
+        spill_large_output(output, label, tail)
     } else {
         output.to_owned()
     }
@@ -900,7 +962,10 @@ fn tool_bash() -> Tool {
                 "description": {"type": "string", "description": "Brief description of what this command does and why."},
                 "cwd": {"type": "string", "description": "Absolute path. Defaults to workspace."},
                 "timeout_seconds": {"type": "integer", "description": "Kill the process after N seconds (default 30). Ignored when background=true."},
-                "background": {"type": "boolean", "description": "Returns shell_id; poll with bash.output."}
+                "background": {"type": "boolean", "description": "Returns shell_id; poll with bash.output."},
+                "env": {"type": "object", "description": "Environment variables as {\"KEY\": \"VALUE\"}. Inherits PATH automatically."},
+                "stdin": {"type": "string", "description": "Data to pipe to the command's stdin."},
+                "tail": {"type": "boolean", "description": "When output is large, show the last ~2000 chars instead of the first."}
             },
             "required": ["cmd", "description"]
         }),
@@ -920,6 +985,20 @@ fn tool_bash() -> Tool {
                     .unwrap_or(DEFAULT_COMMAND_TIMEOUT_SECONDS as i64)
                     as u64;
                 let background = args.get_bool_field("background").unwrap_or(false);
+                let stdin = args
+                    .get("stdin")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_owned());
+                let tail = args.get_bool_field("tail").unwrap_or(false);
+
+                // Parse env vars from a JSON object.
+                let env: Option<HashMap<String, String>> = args.get("env").and_then(|v| {
+                    v.as_object().map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
+                            .collect()
+                    })
+                });
 
                 // Sleep guard: block `sleep N` (N≥2) unless backgrounded
                 if !background && let Some(reason) = is_blocking_sleep(&cmd) {
@@ -934,9 +1013,12 @@ fn tool_bash() -> Tool {
                 let target_cwd = cwd_arg.or(workspace);
 
                 let mgr = shell_manager();
-                let shell_id = mgr.start(&cmd, target_cwd.as_deref()).await.map_err(|e| {
-                    ConduitError::new(ErrorKind::Tool, format!("Failed to start shell: {e}"))
-                })?;
+                let shell_id = mgr
+                    .start(&cmd, target_cwd.as_deref(), env.as_ref(), stdin.as_deref())
+                    .await
+                    .map_err(|e| {
+                        ConduitError::new(ErrorKind::Tool, format!("Failed to start shell: {e}"))
+                    })?;
 
                 if background {
                     return ok_val(format!(
@@ -965,7 +1047,7 @@ fn tool_bash() -> Tool {
                                     } else {
                                         format!("exit code {code}: {msg}\n{trimmed}")
                                     };
-                                    return ok_val(maybe_spill_output(&body, "bash"));
+                                    return ok_val(maybe_spill_output(&body, "bash", tail));
                                 }
                                 ExitOutcome::Error => {
                                     let body = if trimmed.is_empty() {
@@ -992,7 +1074,7 @@ fn tool_bash() -> Tool {
                                 "(command succeeded, no output)"
                             });
                         }
-                        ok_val(maybe_spill_output(trimmed, "bash"))
+                        ok_val(maybe_spill_output(trimmed, "bash", tail))
                     }
                     Ok(Err(e)) => Err(ConduitError::new(ErrorKind::Tool, format!("{e}"))),
                     Err(_) => {
@@ -1133,6 +1215,7 @@ struct FsEditRequest {
     old: String,
     new: String,
     start: usize,
+    replace_all: bool,
 }
 
 fn fs_read_request(args: &Value) -> Result<FsReadRequest, ConduitError> {
@@ -1176,6 +1259,7 @@ fn fs_edit_request(args: &Value) -> Result<FsEditRequest, ConduitError> {
             .map_err(invalid_input)?
             .to_owned(),
         start: args.get_i64_field("start").unwrap_or(0).max(0) as usize,
+        replace_all: args.get_bool_field("replace_all").unwrap_or(false),
     })
 }
 
@@ -1183,16 +1267,27 @@ async fn run_fs_read(args: Value, ctx: Option<ToolContext>) -> ToolResult {
     maybe_send_user_facing_notice("fs.read", ctx.as_ref(), &args).await;
     let request = fs_read_request(&args)?;
     let path = resolve_tool_path(ctx, &request.raw_path)?;
+
+    if is_probably_binary(&path)? {
+        return ok_val(format!(
+            "{} is a binary file (contains NUL bytes). \
+             Use bash to inspect it (e.g. `file`, `xxd`, `strings`).",
+            path.display()
+        ));
+    }
+
+    let header = file_metadata_header(&path)?;
     let effective_limit = request.limit.or(Some(DEFAULT_READ_LINE_LIMIT));
-    let (mut text, truncated) = read_text_window(&path, request.offset, effective_limit)?;
+    let (text, truncated) = read_text_window(&path, request.offset, effective_limit)?;
+    let mut output = format!("{header}\n\n{text}");
     if truncated && request.limit.is_none() {
         let next = request.offset + DEFAULT_READ_LINE_LIMIT;
-        text.push_str(&format!(
+        output.push_str(&format!(
             "\n[... truncated at {DEFAULT_READ_LINE_LIMIT} lines. \
              Use offset={next} limit={DEFAULT_READ_LINE_LIMIT} to continue.]"
         ));
     }
-    ok_val(text)
+    ok_val(output)
 }
 
 async fn run_fs_write(args: Value, ctx: Option<ToolContext>) -> ToolResult {
@@ -1245,9 +1340,20 @@ async fn run_fs_edit(args: Value, ctx: Option<ToolContext>) -> ToolResult {
     let path = resolve_tool_path(ctx, &request.raw_path)?;
     let old_len = request.old.lines().count();
     let new_len = request.new.lines().count();
-    edit_text_file(&path, &request.old, &request.new, request.start)?;
+    edit_text_file(
+        &path,
+        &request.old,
+        &request.new,
+        request.start,
+        request.replace_all,
+    )?;
+    let action = if request.replace_all {
+        "replace_all"
+    } else {
+        "replace"
+    };
     let mut msg = format!(
-        "edited: {} ({old_len} lines → {new_len} lines)",
+        "edited: {} ({action}: {old_len} lines → {new_len} lines)",
         path.display()
     );
     if let Some(errors) = syntax_check(&path) {
@@ -1309,9 +1415,10 @@ fn tool_fs_write() -> Tool {
 fn tool_fs_edit() -> Tool {
     Tool::with_context(
         "fs.edit",
-        "Find-and-replace exact text in a file (first match only).\n\n\
+        "Find-and-replace exact text in a file.\n\n\
+         By default only the first match is replaced. Set replace_all=true to replace every occurrence.\n\
          IMPORTANT: fs.read the target range first, then copy the exact file content \
-         (without line numbers) into 'old'. Mismatched text is the #1 cause of failures.\n\
+         (without line numbers) into 'old'. Mismatched whitespace or line endings is the #1 cause of failures.\n\
          Runs syntax check after edit and warns if errors are detected.",
         serde_json::json!({
             "type": "object",
@@ -1319,7 +1426,8 @@ fn tool_fs_edit() -> Tool {
                 "path": {"type": "string", "description": "Absolute or workspace-relative."},
                 "old": {"type": "string"},
                 "new": {"type": "string"},
-                "start": {"type": "integer", "description": "0-based line to start search."}
+                "start": {"type": "integer", "description": "0-based line to start search."},
+                "replace_all": {"type": "boolean", "description": "Replace all occurrences (default: false)."}
             },
             "required": ["path", "old", "new"]
         }),
@@ -2364,7 +2472,7 @@ fn tool_web_fetch() -> Tool {
                 // Spill large pages to disk (preview + path) so a big-but-under-cap
                 // response doesn't flood the context window; full content stays
                 // recoverable via fs.read, exactly like bash output.
-                ok_val(maybe_spill_output(&text, "web"))
+                ok_val(maybe_spill_output(&text, "web", false))
             })
         },
     )
@@ -2536,7 +2644,7 @@ fn tool_agent() -> Tool {
 
                 let mgr = shell_manager();
                 let shell_id = mgr
-                    .start(&full_cmd, Some(&effective_cwd))
+                    .start(&full_cmd, Some(&effective_cwd), None, None)
                     .await
                     .map_err(|e| {
                         ConduitError::new(ErrorKind::Tool, format!("failed to start CLI: {e}"))
@@ -3411,13 +3519,13 @@ mod tests {
     #[test]
     fn small_output_passes_through_unspilled() {
         let out = "short output";
-        assert_eq!(maybe_spill_output(out, "bash"), out);
+        assert_eq!(maybe_spill_output(out, "bash", false), out);
     }
 
     #[test]
     fn large_output_spills_to_preview_with_steering() {
         let big = "x".repeat(TOOL_OUTPUT_LARGE_THRESHOLD + 1);
-        let view = maybe_spill_output(&big, "web");
+        let view = maybe_spill_output(&big, "web", false);
         // The view is trimmed (not the full output) but steers to the full copy.
         assert!(view.chars().count() < big.chars().count());
         assert!(view.contains("fs.read"));
@@ -3541,7 +3649,9 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(value.as_str().unwrap(), "     2\tsecond\r\n");
+        // Output starts with a metadata header, then the line-numbered content.
+        let text = value.as_str().unwrap();
+        assert!(text.ends_with("     2\tsecond\r\n"));
     }
 
     #[tokio::test]
@@ -3918,7 +4028,7 @@ mod tests {
             .await
             .unwrap();
         let text = value.as_str().unwrap();
-        assert!(text.starts_with("     1\talpha\n"));
+        assert!(text.contains("     1\talpha\n"));
         assert!(text.contains("     2\tbeta\n"));
         assert!(text.contains("     3\tgamma\n"));
     }
