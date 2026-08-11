@@ -487,6 +487,27 @@ fn read_text_window(
     Ok((output, truncated))
 }
 
+/// Read a line range without line numbers — output can be copied verbatim
+/// into `fs.edit`'s `old` parameter.
+fn read_text_raw(
+    path: &Path,
+    offset: usize,
+    limit: Option<usize>,
+) -> Result<(String, bool), ConduitError> {
+    let mut line = String::new();
+    let mut index = 0;
+    let mut output = String::new();
+    let mut reader = open_text_reader(path)?;
+    while !line_limit_reached(index, offset, limit) && read_next_line(&mut reader, &mut line)? {
+        if index >= offset {
+            output.push_str(&line);
+        }
+        index += 1;
+    }
+    let truncated = read_next_line(&mut reader, &mut line)?;
+    Ok((output, truncated))
+}
+
 fn create_parent_dir(path: &Path) -> Result<(), ConduitError> {
     path.parent().map_or(Ok(()), |parent| {
         std::fs::create_dir_all(parent).map_err(write_err)
@@ -631,29 +652,30 @@ fn replace_stream(
     old: &str,
     new: &str,
     replace_all: bool,
+    occurrence: usize,
 ) -> Result<bool, ConduitError> {
     let mut line = String::new();
     let mut pending = String::new();
     let mut replaced = false;
+    let mut match_count = 0usize;
     while read_next_line(reader, &mut line)? {
         pending.push_str(&line);
-        if let Some(split) = pending.find(old) {
-            write_replacement(writer, &pending, split, old, new)?;
-            // Keep only the text after the match in pending so it can be
-            // scanned for further matches (replace_all) or flushed.
-            pending.drain(..split + old.len());
-            replaced = true;
-            if !replace_all {
-                // Write the remaining pending text (after the match) and copy
-                // the rest of the file verbatim.
-                writer.write_str(&pending)?;
-                writer.copy_from(reader)?;
-                return Ok(true);
-            }
-            // Scan the remaining pending text for more matches before reading
-            // the next line.
-            while let Some(split) = pending.find(old) {
+        while let Some(split) = pending.find(old) {
+            match_count += 1;
+            let is_target = replace_all || match_count == occurrence;
+            if is_target {
                 write_replacement(writer, &pending, split, old, new)?;
+                pending.drain(..split + old.len());
+                replaced = true;
+                if !replace_all {
+                    writer.write_str(&pending)?;
+                    writer.copy_from(reader)?;
+                    return Ok(true);
+                }
+            } else {
+                // Not the target occurrence — write up to and including this
+                // match unchanged, then continue scanning.
+                writer.write_str(&pending[..split + old.len()])?;
                 pending.drain(..split + old.len());
             }
         }
@@ -669,12 +691,13 @@ fn edit_text_file(
     new: &str,
     start: usize,
     replace_all: bool,
+    occurrence: usize,
 ) -> Result<(), ConduitError> {
     non_empty_old(old)?;
     let mut reader = open_text_reader(path)?;
     let mut writer = AtomicTextWriter::new(path)?;
     copy_prefix_lines(&mut reader, &mut writer, start)?;
-    if replace_stream(&mut reader, &mut writer, old, new, replace_all)? {
+    if replace_stream(&mut reader, &mut writer, old, new, replace_all, occurrence)? {
         writer.persist()
     } else {
         Err(invalid_edit(path, old, start))
@@ -1203,6 +1226,7 @@ struct FsReadRequest {
     raw_path: String,
     offset: usize,
     limit: Option<usize>,
+    raw: bool,
 }
 
 struct FsWriteRequest {
@@ -1216,6 +1240,7 @@ struct FsEditRequest {
     new: String,
     start: usize,
     replace_all: bool,
+    occurrence: usize,
 }
 
 fn fs_read_request(args: &Value) -> Result<FsReadRequest, ConduitError> {
@@ -1228,6 +1253,7 @@ fn fs_read_request(args: &Value) -> Result<FsReadRequest, ConduitError> {
         limit: args
             .get_i64_field("limit")
             .map(|value| value.max(0) as usize),
+        raw: args.get_bool_field("raw").unwrap_or(false),
     })
 }
 
@@ -1245,6 +1271,7 @@ fn fs_write_request(args: &Value) -> Result<FsWriteRequest, ConduitError> {
 }
 
 fn fs_edit_request(args: &Value) -> Result<FsEditRequest, ConduitError> {
+    let occurrence = args.get_i64_field("occurrence").unwrap_or(1).max(1) as usize;
     Ok(FsEditRequest {
         raw_path: args
             .require_str_field("path")
@@ -1260,6 +1287,7 @@ fn fs_edit_request(args: &Value) -> Result<FsEditRequest, ConduitError> {
             .to_owned(),
         start: args.get_i64_field("start").unwrap_or(0).max(0) as usize,
         replace_all: args.get_bool_field("replace_all").unwrap_or(false),
+        occurrence,
     })
 }
 
@@ -1278,8 +1306,16 @@ async fn run_fs_read(args: Value, ctx: Option<ToolContext>) -> ToolResult {
 
     let header = file_metadata_header(&path)?;
     let effective_limit = request.limit.or(Some(DEFAULT_READ_LINE_LIMIT));
-    let (text, truncated) = read_text_window(&path, request.offset, effective_limit)?;
-    let mut output = format!("{header}\n\n{text}");
+    let (text, truncated) = if request.raw {
+        read_text_raw(&path, request.offset, effective_limit)?
+    } else {
+        read_text_window(&path, request.offset, effective_limit)?
+    };
+    let mut output = if request.raw {
+        text
+    } else {
+        format!("{header}\n\n{text}")
+    };
     if truncated && request.limit.is_none() {
         let next = request.offset + DEFAULT_READ_LINE_LIMIT;
         output.push_str(&format!(
@@ -1334,6 +1370,23 @@ fn syntax_check(path: &Path) -> Option<String> {
     }
 }
 
+/// Format a minimal diff of an edit (old → new) for the response.
+///
+/// Shows removed lines prefixed with `-` and added lines prefixed with `+`.
+/// This lets the model verify the edit without re-reading the file, saving
+/// a round-trip and tokens. No newline markers are emitted — the model can
+/// infer trailing-newline handling from the surrounding context.
+fn format_edit_diff(old: &str, new: &str) -> String {
+    let mut diff = String::from("\n--- old\n+++ new\n");
+    for line in old.lines() {
+        diff.push_str(&format!("-{line}\n"));
+    }
+    for line in new.lines() {
+        diff.push_str(&format!("+{line}\n"));
+    }
+    diff
+}
+
 async fn run_fs_edit(args: Value, ctx: Option<ToolContext>) -> ToolResult {
     maybe_send_user_facing_notice("fs.edit", ctx.as_ref(), &args).await;
     let request = fs_edit_request(&args)?;
@@ -1346,6 +1399,7 @@ async fn run_fs_edit(args: Value, ctx: Option<ToolContext>) -> ToolResult {
         &request.new,
         request.start,
         request.replace_all,
+        request.occurrence,
     )?;
     let action = if request.replace_all {
         "replace_all"
@@ -1356,9 +1410,11 @@ async fn run_fs_edit(args: Value, ctx: Option<ToolContext>) -> ToolResult {
         "edited: {} ({action}: {old_len} lines → {new_len} lines)",
         path.display()
     );
+    // Show the diff so the model can verify without re-reading the file.
+    msg.push_str(&format_edit_diff(&request.old, &request.new));
     if let Some(errors) = syntax_check(&path) {
         msg.push_str(&format!(
-            "\n\n⚠ syntax check failed:\n{errors}\n\
+            "\n⚠ syntax check failed:\n{errors}\n\
              Fix the syntax error with another fs.edit call."
         ));
     }
@@ -1370,13 +1426,15 @@ fn tool_fs_read() -> Tool {
         "fs.read",
         "Read a text file with line numbers (1-based, like `cat -n`).\n\n\
          Default limit: 500 lines. Use offset/limit to paginate large files.\n\
-         Line numbers are for reference only — do NOT include them in fs.edit 'old' parameter.",
+         Line numbers are for reference only — do NOT include them in fs.edit 'old' parameter.\n\
+         Set raw=true to get content without line numbers (directly copyable to fs.edit 'old').",
         serde_json::json!({
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Absolute or workspace-relative."},
                 "offset": {"type": "integer", "description": "0-based line number."},
-                "limit": {"type": "integer", "description": "Max lines."}
+                "limit": {"type": "integer", "description": "Max lines."},
+                "raw": {"type": "boolean", "description": "Return content without line numbers (for fs.edit 'old')."}
             },
             "required": ["path"]
         }),
@@ -1416,9 +1474,11 @@ fn tool_fs_edit() -> Tool {
     Tool::with_context(
         "fs.edit",
         "Find-and-replace exact text in a file.\n\n\
-         By default only the first match is replaced. Set replace_all=true to replace every occurrence.\n\
+         By default only the first match is replaced. Use occurrence=N to replace the Nth match, \
+         or replace_all=true to replace every occurrence.\n\
          IMPORTANT: fs.read the target range first, then copy the exact file content \
          (without line numbers) into 'old'. Mismatched whitespace or line endings is the #1 cause of failures.\n\
+         Returns a diff of the change so you can verify without re-reading. \
          Runs syntax check after edit and warns if errors are detected.",
         serde_json::json!({
             "type": "object",
@@ -1427,6 +1487,7 @@ fn tool_fs_edit() -> Tool {
                 "old": {"type": "string"},
                 "new": {"type": "string"},
                 "start": {"type": "integer", "description": "0-based line to start search."},
+                "occurrence": {"type": "integer", "description": "Replace the Nth match (1-based, default 1)."},
                 "replace_all": {"type": "boolean", "description": "Replace all occurrences (default: false)."}
             },
             "required": ["path", "old", "new"]

@@ -211,12 +211,10 @@ fn spawn_shell(
         command.current_dir(dir);
     }
     if let Some(env_map) = env {
-        command.env_clear();
+        // Inherit the parent environment and override with the provided vars.
+        // This preserves HOME, PATH, LD_LIBRARY_PATH, etc. while letting the
+        // caller override specific variables.
         command.envs(env_map);
-        // Always inherit PATH so basic commands work.
-        if let Some(path) = std::env::var_os("PATH") {
-            command.env("PATH", path);
-        }
     }
     if stdin.is_some() {
         command.stdin(std::process::Stdio::piped());
