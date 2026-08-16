@@ -49,6 +49,9 @@ pub enum CliCommand {
         /// Optional session id.
         #[arg(long)]
         session_id: Option<String>,
+        /// Emit newline-delimited JSON events on stdout instead of REPL text.
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
     /// Authenticate with a provider (openai, claude, github-copilot, coding-plan, deepseek).
     Login {
@@ -309,7 +312,8 @@ pub async fn execute(cmd: CliCommand) -> anyhow::Result<()> {
         CliCommand::Chat {
             chat_id,
             session_id,
-        } => chat::chat_command(chat_id, session_id).await,
+            json,
+        } => chat::chat_command(chat_id, session_id, json).await,
         CliCommand::Login {
             provider,
             codex_home,

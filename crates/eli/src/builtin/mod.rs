@@ -15,6 +15,10 @@ pub mod tape;
 pub mod tape_viewer;
 pub mod tools;
 
+/// Set by `eli chat --json`: the CLI-mode dispatch_outbound prints are
+/// suppressed because stdout carries the ndjson event stream.
+pub static JSON_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -594,6 +598,10 @@ impl EliHookSpec for BuiltinImpl {
 
         let Some(maybe_channel) = resolved else {
             // CLI mode: print to stdout.
+            if crate::builtin::JSON_MODE.load(std::sync::atomic::Ordering::SeqCst) {
+                // `eli chat --json` owns stdout as its event stream.
+                return Some(true);
+            }
             if !content.trim().is_empty() {
                 println!("{content}");
             }
