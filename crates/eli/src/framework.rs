@@ -108,6 +108,7 @@ impl EliFramework {
             save_events: Default::default(),
             dispatch: Some(dispatch),
             outbound_media: Default::default(),
+            text_sink: crate::control_plane::take_text_sink(),
         };
 
         with_turn_context(turn_ctx, async {

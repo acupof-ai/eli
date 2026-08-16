@@ -1,6 +1,7 @@
 //! Interactive REPL chat session, plus `--json` event mode for GUI front-ends.
 //!
 //! JSON mode speaks newline-delimited JSON on stdout (one event per line):
+//!   {"type":"text_delta","delta":"..."}            — live, as the model generates prose
 //!   {"type":"tool_call","id","name","arguments"}   — live, from the tape
 //!   {"type":"tool_result","id","output","is_error"} — live, from the tape
 //!   {"type":"assistant","text"}                     — turn end
@@ -135,6 +136,21 @@ async fn chat_json(
             std::thread::spawn(move || tail_tape(&path, stop, out))
         };
 
+        // Streaming text deltas: install a sink the agent forwards prose into
+        // as the model generates it, drained here as text_delta events. The
+        // framework takes the sink into this turn's context; clear it after
+        // the run so a stale sender can't leak into the next turn.
+        let (text_tx, mut text_rx) = tokio::sync::mpsc::channel::<String>(256);
+        crate::control_plane::set_text_sink(Some(text_tx));
+        let text_drain = {
+            let stdout = stdout.clone();
+            tokio::spawn(async move {
+                while let Some(delta) = text_rx.recv().await {
+                    emit(json!({"type": "text_delta", "delta": delta}), &stdout);
+                }
+            })
+        };
+
         let inbound = json!({
             "session_id": session,
             "channel": "cli",
@@ -147,6 +163,12 @@ async fn chat_json(
         // Let the tailer drain entries written in the final moments.
         std::thread::sleep(Duration::from_millis(30));
         let _ = tail.join();
+
+        // All senders are gone once the turn ends; awaiting the drain task
+        // flushes every delta before the turn-end events, so ordering stays
+        // text_delta* -> assistant -> usage.
+        crate::control_plane::set_text_sink(None);
+        let _ = text_drain.await;
 
         match result {
             Ok(r) => {

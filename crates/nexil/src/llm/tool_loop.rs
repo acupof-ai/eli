@@ -1,6 +1,7 @@
 //! Tool-calling loop — `run_tools`, `tool_calls`, and supporting helpers.
 
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::core::errors::{ConduitError, ErrorKind};
@@ -33,6 +34,9 @@ pub(super) struct RoundParams<'a> {
     pub tools: &'a ToolSet,
     pub tool_context: Option<&'a ToolContext>,
     pub session_id: Option<&'a str>,
+    pub cancellation: Option<&'a CancellationToken>,
+    /// When set, the round is streamed and prose deltas are forwarded here.
+    pub text_sink: Option<&'a tokio::sync::mpsc::Sender<String>>,
 }
 
 /// Result of a single tool-calling round.
@@ -219,6 +223,7 @@ impl LLM {
             session_id,
             token_budget,
             tail_reminder,
+            text_sink,
         } = req;
         let tools = tools.ok_or_else(|| {
             ConduitError::new(ErrorKind::InvalidInput, "run_tools requires tools")
@@ -252,6 +257,8 @@ impl LLM {
             tools,
             tool_context: context,
             session_id,
+            cancellation: cancellation.as_ref(),
+            text_sink: text_sink.as_ref(),
         };
 
         let max_iterations: usize = max_tool_iterations.unwrap_or(250);
@@ -498,21 +505,40 @@ impl LLM {
         msgs: &[Value],
         params: &RoundParams<'_>,
     ) -> Result<ToolRound, ConduitError> {
-        let response = self
-            .core
-            .run_chat(
-                msgs.to_vec(),
-                params.schemas.clone(),
-                params.model,
-                params.provider,
-                params.max_tokens,
-                false,
-                None,
-                Default::default(),
-                params.session_id,
-                |resp: TransportResponse| Ok(resp.payload),
-            )
-            .await?;
+        let response = match params.text_sink {
+            // Streaming round: text deltas go to the sink; the reconstructed
+            // response has the same shape as a non-streaming one, so everything
+            // below (usage, tool extraction, persistence) is shared.
+            Some(sink) => {
+                self.stream_round(
+                    msgs.to_vec(),
+                    params.schemas.clone(),
+                    params.model,
+                    params.provider,
+                    params.max_tokens,
+                    params.session_id,
+                    params.cancellation,
+                    sink,
+                )
+                .await?
+            }
+            None => {
+                self.core
+                    .run_chat(
+                        msgs.to_vec(),
+                        params.schemas.clone(),
+                        params.model,
+                        params.provider,
+                        params.max_tokens,
+                        false,
+                        None,
+                        Default::default(),
+                        params.session_id,
+                        |resp: TransportResponse| Ok(resp.payload),
+                    )
+                    .await?
+            }
+        };
 
         let model_name = response
             .get("model")

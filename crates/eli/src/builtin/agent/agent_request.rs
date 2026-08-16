@@ -384,6 +384,7 @@ pub(super) async fn run_tools_once(
             session_id: Some(session_id),
             token_budget: settings.max_turn_tokens,
             tail_reminder,
+            text_sink: crate::control_plane::turn_text_sink(),
             ..Default::default()
         })
         .await?;

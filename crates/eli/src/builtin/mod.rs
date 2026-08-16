@@ -940,6 +940,7 @@ mod tests {
             save_events: Default::default(),
             dispatch: None,
             outbound_media: Default::default(),
+            text_sink: None,
         };
         with_turn_context(ctx, async {
             // Simulate tool producing media during the turn.
@@ -984,6 +985,7 @@ mod tests {
             save_events: Default::default(),
             dispatch: None,
             outbound_media: Default::default(),
+            text_sink: None,
         };
         with_turn_context(ctx, async {
             let builtin = BuiltinImpl::new();

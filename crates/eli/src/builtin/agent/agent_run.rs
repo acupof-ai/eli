@@ -1185,6 +1185,7 @@ mod tests {
             save_events: Default::default(),
             dispatch: None,
             outbound_media: Default::default(),
+            text_sink: None,
         }
     }
 

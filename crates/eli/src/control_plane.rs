@@ -74,6 +74,9 @@ pub struct TurnContext {
     pub dispatch: Option<DispatchFn>,
     /// Media items accumulated during the turn for outbound delivery.
     pub outbound_media: Arc<Mutex<Vec<OutboundMedia>>>,
+    /// Optional streaming sink: the agent forwards model prose deltas here as
+    /// they are generated (JSON chat mode drains them as `text_delta` events).
+    pub text_sink: Option<tokio::sync::mpsc::Sender<String>>,
 }
 
 /// Run `fut` with the given [`TurnContext`] bound to the current task.
@@ -176,6 +179,34 @@ pub fn turn_wrap_tools() -> Option<WrapToolsFn> {
 }
 
 // ---------------------------------------------------------------------------
+// Streaming text sink (JSON chat mode)
+// ---------------------------------------------------------------------------
+
+/// Process-wide slot holding the sink for the next turn. JSON chat installs it
+/// before `process_inbound`; the framework moves it into that turn's
+/// [`TurnContext`] (taking it out, so it never leaks into a later turn).
+static TEXT_SINK: std::sync::LazyLock<Mutex<Option<tokio::sync::mpsc::Sender<String>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(None));
+
+/// Install (or clear) the streaming text sink for the next turn.
+pub fn set_text_sink(sink: Option<tokio::sync::mpsc::Sender<String>>) {
+    *TEXT_SINK.lock() = sink;
+}
+
+/// Take the installed sink into a turn. Leaves the slot empty.
+pub fn take_text_sink() -> Option<tokio::sync::mpsc::Sender<String>> {
+    TEXT_SINK.lock().take()
+}
+
+/// Clone the current turn's text sink, if one was installed.
+pub fn turn_text_sink() -> Option<tokio::sync::mpsc::Sender<String>> {
+    TURN_CTX
+        .try_with(|ctx| ctx.text_sink.clone())
+        .ok()
+        .flatten()
+}
+
+// ---------------------------------------------------------------------------
 // Inbound injection (subagent results, synthetic messages)
 // ---------------------------------------------------------------------------
 
@@ -242,6 +273,7 @@ mod tests {
             save_events: Default::default(),
             dispatch: None,
             outbound_media: Default::default(),
+            text_sink: None,
         };
         let result = with_turn_context(ctx, async {
             let t = turn_cancellation().unwrap();
@@ -269,6 +301,7 @@ mod tests {
             save_events: Default::default(),
             dispatch: None,
             outbound_media: Default::default(),
+            text_sink: None,
         };
         with_turn_context(ctx, async {
             push_outbound_media(OutboundMedia {

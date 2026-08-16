@@ -83,6 +83,12 @@ pub struct ChatRequest<'a> {
     /// prefix so it doesn't affect prompt caching. Re-surfacing the live plan at
     /// the tail counters lost-in-the-middle drift on long contexts.
     pub tail_reminder: Option<String>,
+    /// Optional sink for streaming text deltas. When set, `run_tools` streams
+    /// each model round and forwards prose deltas to this sink as they arrive;
+    /// tool calls and usage are reconstructed from the stream so the rest of
+    /// the loop (execution, tape persistence) is unchanged. `None` (default)
+    /// keeps the non-streaming path.
+    pub text_sink: Option<tokio::sync::mpsc::Sender<String>>,
 }
 
 // ---------------------------------------------------------------------------
