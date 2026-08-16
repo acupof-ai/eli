@@ -43,6 +43,12 @@ pub trait BaseTransportParser: Send + Sync {
     /// Extract the text content from a single streaming chunk.
     fn extract_chunk_text(&self, chunk: &Value) -> String;
 
+    /// Reasoning delta (`choices[0].delta.reasoning_content` on OpenAI-compatible
+    /// transports); empty when the transport has none.
+    fn extract_chunk_reasoning(&self, _chunk: &Value) -> String {
+        String::new()
+    }
+
     /// Extract the full text from a completed (non-streaming) response.
     fn extract_text(&self, response: &Value) -> String;
 

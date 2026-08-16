@@ -36,7 +36,7 @@ pub(super) struct RoundParams<'a> {
     pub session_id: Option<&'a str>,
     pub cancellation: Option<&'a CancellationToken>,
     /// When set, the round is streamed and prose deltas are forwarded here.
-    pub text_sink: Option<&'a tokio::sync::mpsc::Sender<String>>,
+    pub text_sink: Option<&'a tokio::sync::mpsc::Sender<crate::llm::StreamChunk>>,
 }
 
 /// Result of a single tool-calling round.

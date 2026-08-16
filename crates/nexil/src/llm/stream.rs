@@ -114,7 +114,7 @@ impl LLM {
         max_tokens: Option<u32>,
         session_id: Option<&str>,
         cancellation: Option<&CancellationToken>,
-        text_sink: &tokio::sync::mpsc::Sender<String>,
+        text_sink: &tokio::sync::mpsc::Sender<crate::llm::StreamChunk>,
     ) -> Result<Value, ConduitError> {
         let (response, transport, _prov, resolved_model) = self
             .core
@@ -173,11 +173,24 @@ impl LLM {
                             content.push_str(&text);
                             // A closed receiver just means nobody is listening;
                             // the reconstructed response still carries the text.
-                            if text_sink.send(text).await.is_err() {
+                            if text_sink
+                                .send(crate::llm::StreamChunk::Text(text))
+                                .await
+                                .is_err()
+                            {
                                 tracing::debug!(
                                     "text delta sink closed; dropping remaining deltas"
                                 );
                             }
+                        }
+                        let reasoning = parser.extract_chunk_reasoning(&val);
+                        if !reasoning.is_empty()
+                            && text_sink
+                                .send(crate::llm::StreamChunk::Reasoning(reasoning))
+                                .await
+                                .is_err()
+                        {
+                            tracing::debug!("reasoning delta sink closed; dropping remaining deltas");
                         }
                         for delta in parser.extract_chunk_tool_call_deltas(&val) {
                             accumulate_tool_delta(&mut tool_builders, delta);

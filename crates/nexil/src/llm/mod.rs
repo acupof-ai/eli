@@ -88,7 +88,16 @@ pub struct ChatRequest<'a> {
     /// tool calls and usage are reconstructed from the stream so the rest of
     /// the loop (execution, tape persistence) is unchanged. `None` (default)
     /// keeps the non-streaming path.
-    pub text_sink: Option<tokio::sync::mpsc::Sender<String>>,
+    pub text_sink: Option<tokio::sync::mpsc::Sender<StreamChunk>>,
+}
+
+/// A live output chunk forwarded to a front-end sink.
+#[derive(Debug)]
+pub enum StreamChunk {
+    /// Model prose (`content` delta).
+    Text(String),
+    /// Model reasoning (`reasoning_content` delta).
+    Reasoning(String),
 }
 
 // ---------------------------------------------------------------------------

@@ -110,6 +110,12 @@ impl BaseTransportParser for CompletionTransportParser {
             .unwrap_or_default()
     }
 
+    fn extract_chunk_reasoning(&self, chunk: &Value) -> String {
+        first_choice_delta(chunk)
+            .map(|d| field_str(d, "reasoning_content").to_owned())
+            .unwrap_or_default()
+    }
+
     fn extract_text(&self, response: &Value) -> String {
         if let Some(s) = response.as_str() {
             return s.to_owned();
@@ -180,6 +186,22 @@ mod tests {
             }]
         });
         assert_eq!(parser.extract_chunk_text(&chunk), "chunk");
+    }
+
+    #[test]
+    fn test_extract_chunk_reasoning() {
+        let parser = CompletionTransportParser;
+        let chunk = json!({
+            "choices": [{
+                "delta": {
+                    "reasoning_content": "thinking",
+                    "content": "chunk"
+                }
+            }]
+        });
+        assert_eq!(parser.extract_chunk_reasoning(&chunk), "thinking");
+        // Chunks without reasoning_content (or without a delta) yield empty.
+        assert_eq!(parser.extract_chunk_reasoning(&json!({"choices": [{}]})), "");
     }
 
     #[test]

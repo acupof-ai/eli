@@ -76,7 +76,7 @@ pub struct TurnContext {
     pub outbound_media: Arc<Mutex<Vec<OutboundMedia>>>,
     /// Optional streaming sink: the agent forwards model prose deltas here as
     /// they are generated (JSON chat mode drains them as `text_delta` events).
-    pub text_sink: Option<tokio::sync::mpsc::Sender<String>>,
+    pub text_sink: Option<tokio::sync::mpsc::Sender<nexil::llm::StreamChunk>>,
 }
 
 /// Run `fut` with the given [`TurnContext`] bound to the current task.
@@ -185,21 +185,22 @@ pub fn turn_wrap_tools() -> Option<WrapToolsFn> {
 /// Process-wide slot holding the sink for the next turn. JSON chat installs it
 /// before `process_inbound`; the framework moves it into that turn's
 /// [`TurnContext`] (taking it out, so it never leaks into a later turn).
-static TEXT_SINK: std::sync::LazyLock<Mutex<Option<tokio::sync::mpsc::Sender<String>>>> =
-    std::sync::LazyLock::new(|| Mutex::new(None));
+static TEXT_SINK: std::sync::LazyLock<
+    Mutex<Option<tokio::sync::mpsc::Sender<nexil::llm::StreamChunk>>>,
+> = std::sync::LazyLock::new(|| Mutex::new(None));
 
 /// Install (or clear) the streaming text sink for the next turn.
-pub fn set_text_sink(sink: Option<tokio::sync::mpsc::Sender<String>>) {
+pub fn set_text_sink(sink: Option<tokio::sync::mpsc::Sender<nexil::llm::StreamChunk>>) {
     *TEXT_SINK.lock() = sink;
 }
 
 /// Take the installed sink into a turn. Leaves the slot empty.
-pub fn take_text_sink() -> Option<tokio::sync::mpsc::Sender<String>> {
+pub fn take_text_sink() -> Option<tokio::sync::mpsc::Sender<nexil::llm::StreamChunk>> {
     TEXT_SINK.lock().take()
 }
 
 /// Clone the current turn's text sink, if one was installed.
-pub fn turn_text_sink() -> Option<tokio::sync::mpsc::Sender<String>> {
+pub fn turn_text_sink() -> Option<tokio::sync::mpsc::Sender<nexil::llm::StreamChunk>> {
     TURN_CTX
         .try_with(|ctx| ctx.text_sink.clone())
         .ok()
