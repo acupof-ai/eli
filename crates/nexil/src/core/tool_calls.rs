@@ -42,7 +42,7 @@ pub(crate) fn normalize_message_tool_calls(message: &Value) -> Value {
 
 pub(crate) fn parse_dsml_tool_calls(text: &str) -> Vec<Value> {
     let Some(body) = extract_between(text, DSML_TOOL_CALLS_OPEN, DSML_TOOL_CALLS_CLOSE) else {
-        return Vec::new();
+        return parse_xml_tool_calls(text);
     };
     let calls: Vec<Value> = extract_blocks(body, DSML_INVOKE_OPEN, DSML_INVOKE_CLOSE)
         .into_iter()
@@ -53,6 +53,11 @@ pub(crate) fn parse_dsml_tool_calls(text: &str) -> Vec<Value> {
 }
 
 pub(crate) fn strip_dsml_tool_call_block(text: &str) -> String {
+    let stripped = strip_dsml_only(text);
+    strip_xml_tool_calls(&stripped)
+}
+
+fn strip_dsml_only(text: &str) -> String {
     let Some(start) = text.find(DSML_TOOL_CALLS_OPEN) else {
         return text.to_owned();
     };
@@ -328,4 +333,110 @@ mod tests {
         assert_eq!(normalized["reasoning_content"], "Need a tool.");
         assert_eq!(normalized["tool_calls"][0]["function"]["name"], "echo");
     }
+
+    #[test]
+    fn test_xml_tool_calls_parse_and_strip() {
+        let input = format!(
+            "<function=fs_write>\n<parameter=content>\nDebug: Break.\n{}\n<parameter=path>\n/tmp/x.txt\n{}\n{}",
+            XML_PARAMETER_CLOSE, XML_PARAMETER_CLOSE, XML_FUNCTION_CLOSE
+        );
+        let calls = parse_dsml_tool_calls(&input);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0]["function"]["name"], "fs_write");
+        let args: Value =
+            serde_json::from_str(calls[0]["function"]["arguments"].as_str().unwrap()).unwrap();
+        assert_eq!(args["content"], "Debug: Break.");
+        assert_eq!(args["path"], "/tmp/x.txt");
+
+        let text = format!(
+            "I will write.\n<function=fs_write><parameter=path>/tmp/x{}{}",
+            XML_PARAMETER_CLOSE, XML_FUNCTION_CLOSE
+        );
+        assert_eq!(strip_dsml_tool_call_block(&text), "I will write.\n");
+    }
+
+}
+
+
+const XML_FUNCTION_OPEN: &str = "<function=";
+const XML_FUNCTION_CLOSE: &str = "</function>";
+const XML_PARAMETER_OPEN: &str = "<parameter=";
+const XML_PARAMETER_CLOSE: &str = "</parameter>";
+
+pub(crate) fn parse_xml_tool_calls(text: &str) -> Vec<Value> {
+    let calls: Vec<Value> = extract_xml_blocks(text, XML_FUNCTION_OPEN, XML_FUNCTION_CLOSE)
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, block)| parse_xml_function(block, index))
+        .collect();
+    normalize_tool_calls(&calls)
+}
+
+pub(crate) fn strip_xml_tool_calls(text: &str) -> String {
+    let mut result = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(XML_FUNCTION_OPEN) {
+        result.push_str(&rest[..start]);
+        let block_start = &rest[start..];
+        let block_len = match block_start.find(XML_FUNCTION_CLOSE) {
+            Some(end) => end + XML_FUNCTION_CLOSE.len(),
+            None => block_start.len(),
+        };
+        rest = &block_start[block_len..];
+    }
+    result.push_str(rest);
+    result
+}
+
+/// Like extract_blocks, but an unclosed tag tolerantly takes the rest.
+fn extract_xml_blocks<'a>(text: &'a str, open: &str, close: &str) -> Vec<&'a str> {
+    let mut blocks = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(open) {
+        let block_start = &rest[start..];
+        let block = match block_start.find(close) {
+            Some(end) => &block_start[..end + close.len()],
+            None => block_start,
+        };
+        blocks.push(block);
+        rest = &block_start[block.len()..];
+    }
+    blocks
+}
+
+fn parse_xml_function(block: &str, index: usize) -> Option<Value> {
+    let tag_end = block.find('>')?;
+    let name = block[..tag_end].strip_prefix(XML_FUNCTION_OPEN)?.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let body = &block[tag_end + 1..];
+    let body = body.strip_suffix(XML_FUNCTION_CLOSE).unwrap_or(body);
+    Some(serde_json::json!({
+        "type": "function_call",
+        "call_id": format!("call_{}", index + 1),
+        "name": name,
+        "arguments": Value::Object(parse_xml_parameters(body)),
+    }))
+}
+
+fn parse_xml_parameters(body: &str) -> Map<String, Value> {
+    let mut params = Map::new();
+    for block in extract_xml_blocks(body, XML_PARAMETER_OPEN, XML_PARAMETER_CLOSE) {
+        if let Some((name, value)) = parse_xml_parameter(block) {
+            params.insert(name, value);
+        }
+    }
+    params
+}
+
+fn parse_xml_parameter(block: &str) -> Option<(String, Value)> {
+    let tag_end = block.find('>')?;
+    let name = block[..tag_end].strip_prefix(XML_PARAMETER_OPEN)?.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let body = &block[tag_end + 1..];
+    let body = body.strip_suffix(XML_PARAMETER_CLOSE).unwrap_or(body);
+    Some((name.to_owned(), Value::String(body.trim().to_owned())))
 }
