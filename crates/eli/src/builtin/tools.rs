@@ -437,6 +437,47 @@ fn is_probably_binary(path: &Path) -> Result<bool, ConduitError> {
     Ok(buf[..n].contains(&0))
 }
 
+/// PDFs carry text the model needs; extract with `pdftotext` when available.
+/// Detected by magic bytes (`%PDF-`), not extension — and checked before the
+/// binary sniff, since a PDF's first 8KiB is often NUL-free text (the header)
+/// even though its streams are binary. None for non-PDFs or a missing/failed
+/// tool, so the caller falls through to the normal text/binary path.
+fn extract_pdf_text(path: &Path) -> Option<String> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut magic = [0u8; 5];
+    let n = file.read(&mut magic).ok()?;
+    if &magic[..n] != b"%PDF-" {
+        return None;
+    }
+    let out = std::process::Command::new("pdftotext")
+        .arg(path)
+        .arg("-")
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8(out.stdout).ok()
+}
+
+/// When a bash command fails with 126/127 and its first token is an existing
+/// file path, the model tried to execute a file. Hint at fs.read so it
+/// recovers instead of looping on permission-denied.
+fn file_exec_hint(cmd: &str, code: i32) -> Option<String> {
+    if code != 126 && code != 127 {
+        return None;
+    }
+    let first = cmd.trim().split_whitespace().next()?;
+    if Path::new(first).is_file() {
+        Some(format!(
+            "`{first}` is a file, not a command. Use fs.read to read it \
+             (PDFs are auto-extracted to text)."
+        ))
+    } else {
+        None
+    }
+}
+
 /// Format file metadata (size, mtime) for the fs.read header.
 fn file_metadata_header(path: &Path) -> Result<String, ConduitError> {
     let meta = std::fs::metadata(path).map_err(read_err)?;
@@ -1078,6 +1119,16 @@ fn tool_bash() -> Tool {
                                     } else {
                                         trimmed.to_owned()
                                     };
+                                    // A file executed as a command (126/127) is
+                                    // recoverable: return it as a result with a
+                                    // hint so the model retries with fs.read
+                                    // instead of the error aborting the turn.
+                                    if let Some(hint) = file_exec_hint(&cmd, code) {
+                                        let msg = format!(
+                                            "command exited with code {code}\noutput:\n{body}\n\n{hint}"
+                                        );
+                                        return ok_val(maybe_spill_output(&msg, "bash", tail));
+                                    }
                                     return Err(ConduitError::new(
                                         ErrorKind::Tool,
                                         format!(
@@ -1295,6 +1346,11 @@ async fn run_fs_read(args: Value, ctx: Option<ToolContext>) -> ToolResult {
     maybe_send_user_facing_notice("fs.read", ctx.as_ref(), &args).await;
     let request = fs_read_request(&args)?;
     let path = resolve_tool_path(ctx, &request.raw_path)?;
+
+    // PDFs before the binary sniff: their first 8KiB is often NUL-free text.
+    if let Some(text) = extract_pdf_text(&path) {
+        return ok_val(text);
+    }
 
     if is_probably_binary(&path)? {
         return ok_val(format!(
@@ -4129,6 +4185,70 @@ mod tests {
             .unwrap();
         let text = value.as_str().unwrap();
         assert!(!text.contains("truncated"));
+    }
+
+    // -- PDF text extraction & file-exec hint -------------------------------
+
+    /// A minimal one-page PDF pdftotext can recover text from (no xref needed).
+    const MINIMAL_PDF: &[u8] = b"%PDF-1.1\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n4 0 obj\n<< /Length 45 >>\nstream\nBT /F1 12 Tf 100 700 Td (Hello PDF) Tj ET\nendstream\nendobj\n5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF\n";
+
+    #[test]
+    fn pdf_extract_returns_text_for_pdf() {
+        // Requires pdftotext (poppler); skip when absent.
+        if std::process::Command::new("pdftotext").arg("-v").output().is_err() {
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("paper.pdf");
+        std::fs::write(&path, MINIMAL_PDF).unwrap();
+        let text = extract_pdf_text(&path).expect("pdftotext should extract text");
+        assert!(text.contains("Hello PDF"), "extracted: {text}");
+    }
+
+    #[test]
+    fn pdf_extract_skips_non_pdf() {
+        let f = NamedTempFile::new().unwrap();
+        assert!(extract_pdf_text(f.path()).is_none());
+    }
+
+    #[tokio::test]
+    async fn test_fs_read_pdf_extracts_text_despite_nul_free_header() {
+        // Regression: PDFs start with NUL-free text, so the binary sniff
+        // misses them; fs.read must extract text via pdftotext first.
+        if std::process::Command::new("pdftotext").arg("-v").output().is_err() {
+            return;
+        }
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("paper.pdf");
+        std::fs::write(&path, MINIMAL_PDF).unwrap();
+        let value = tool_fs_read()
+            .run(
+                json!({"path": path.to_string_lossy()}),
+                Some(ToolContext::new("test-run")),
+            )
+            .await
+            .unwrap();
+        let text = value.as_str().unwrap();
+        assert!(text.contains("Hello PDF"), "fs.read should extract PDF text: {text}");
+        assert!(!text.contains("%PDF-"), "should not return raw PDF source: {text}");
+    }
+
+    #[test]
+    fn file_exec_hint_on_existing_file() {
+        let f = NamedTempFile::new().unwrap();
+        let cmd = format!("{} 看下这个观点", f.path().display());
+        let hint = file_exec_hint(&cmd, 126).unwrap();
+        assert!(hint.contains("fs.read"), "hint should steer to fs.read: {hint}");
+        assert!(file_exec_hint(&cmd, 127).is_some());
+    }
+
+    #[test]
+    fn file_exec_hint_skips_real_commands_and_other_codes() {
+        assert!(file_exec_hint("ls -la", 126).is_none());
+        let f = NamedTempFile::new().unwrap();
+        let cmd = format!("{} arg", f.path().display());
+        assert!(file_exec_hint(&cmd, 0).is_none());
+        assert!(file_exec_hint(&cmd, 1).is_none());
     }
 
     #[tokio::test]
