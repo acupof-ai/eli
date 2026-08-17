@@ -25,6 +25,18 @@ fn workspace_from_state(state: &HashMap<String, Value>) -> PathBuf {
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
 }
 
+/// Whether a user message should be intercepted as a slash command.
+/// A path-like first token (e.g. `/Users/.../file.pdf`) is NOT a command —
+/// it falls through to the model, which can read the file.
+fn is_slash_command(text: &str) -> bool {
+    let trimmed = text.trim();
+    if !trimmed.starts_with('/') {
+        return false;
+    }
+    let first = trimmed[1..].split_whitespace().next().unwrap_or("");
+    !first.contains('/')
+}
+
 // ---------------------------------------------------------------------------
 // Agent
 // ---------------------------------------------------------------------------
@@ -95,9 +107,8 @@ impl Agent {
         tapes.ensure_bootstrap_anchor(&tape_name).await?;
 
         if let PromptValue::Text(ref text) = prompt {
-            let trimmed = text.trim();
-            if trimmed.starts_with('/') {
-                return run_command(tapes, &tape_name, trimmed, &tool_state).await;
+            if is_slash_command(text) {
+                return run_command(tapes, &tape_name, text.trim(), &tool_state).await;
             }
         }
 
@@ -184,6 +195,18 @@ mod tests {
             context_window: 128_000,
             max_turn_tokens: None,
         }
+    }
+
+    #[test]
+    fn slash_command_detects_commands_not_paths() {
+        assert!(is_slash_command("/help"));
+        assert!(is_slash_command("/fs.read path=note.txt"));
+        assert!(is_slash_command("/ls -la"));
+        // Absolute paths must fall through to the model, not execute as bash.
+        assert!(!is_slash_command("/Users/bytedance/Downloads/paper.pdf 看下这个观点"));
+        assert!(!is_slash_command("/tmp/foo.txt"));
+        assert!(!is_slash_command("hello"));
+        assert!(!is_slash_command(""));
     }
 
     #[tokio::test]
