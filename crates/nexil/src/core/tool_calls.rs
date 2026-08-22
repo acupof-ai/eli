@@ -354,9 +354,7 @@ mod tests {
         );
         assert_eq!(strip_dsml_tool_call_block(&text), "I will write.\n");
     }
-
 }
-
 
 const XML_FUNCTION_OPEN: &str = "<function=";
 const XML_FUNCTION_CLOSE: &str = "</function>";

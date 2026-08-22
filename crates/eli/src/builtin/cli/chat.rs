@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::framework::EliFramework;
 
@@ -123,7 +123,11 @@ async fn chat_json(
         // Tolerate both {"content": "..."} and raw text.
         let content = serde_json::from_str::<Value>(trimmed)
             .ok()
-            .and_then(|v| v.get("content").and_then(|c| c.as_str()).map(str::to_string))
+            .and_then(|v| {
+                v.get("content")
+                    .and_then(|c| c.as_str())
+                    .map(str::to_string)
+            })
             .unwrap_or_else(|| trimmed.to_string());
         if content.is_empty() {
             continue;
@@ -141,8 +145,7 @@ async fn chat_json(
         // as the model generates it, drained here as text_delta events. The
         // framework takes the sink into this turn's context; clear it after
         // the run so a stale sender can't leak into the next turn.
-        let (text_tx, mut text_rx) =
-            tokio::sync::mpsc::channel::<nexil::llm::StreamChunk>(256);
+        let (text_tx, mut text_rx) = tokio::sync::mpsc::channel::<nexil::llm::StreamChunk>(256);
         crate::control_plane::set_text_sink(Some(text_tx));
         let text_drain = {
             let stdout = stdout.clone();
@@ -183,11 +186,15 @@ async fn chat_json(
             Ok(r) => {
                 // Model failures are swallowed into model_output by the framework.
                 if r.model_output.starts_with("[Error:")
-                    || r.model_output.starts_with("(model returned empty response)")
+                    || r.model_output
+                        .starts_with("(model returned empty response)")
                 {
                     emit(json!({"type": "error", "message": r.model_output}), &stdout);
                 } else if !r.model_output.trim().is_empty() {
-                    emit(json!({"type": "assistant", "text": r.model_output}), &stdout);
+                    emit(
+                        json!({"type": "assistant", "text": r.model_output}),
+                        &stdout,
+                    );
                 }
                 emit(
                     json!({

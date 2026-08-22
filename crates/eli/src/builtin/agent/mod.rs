@@ -106,10 +106,10 @@ impl Agent {
 
         tapes.ensure_bootstrap_anchor(&tape_name).await?;
 
-        if let PromptValue::Text(ref text) = prompt {
-            if is_slash_command(text) {
-                return run_command(tapes, &tape_name, text.trim(), &tool_state).await;
-            }
+        if let PromptValue::Text(ref text) = prompt
+            && is_slash_command(text)
+        {
+            return run_command(tapes, &tape_name, text.trim(), &tool_state).await;
         }
 
         agent_loop(
@@ -202,7 +202,9 @@ mod tests {
         assert!(is_slash_command("/fs.read path=note.txt"));
         assert!(is_slash_command("/ls -la"));
         // Absolute paths must fall through to the model, not execute as bash.
-        assert!(!is_slash_command("/Users/bytedance/Downloads/paper.pdf 看下这个观点"));
+        assert!(!is_slash_command(
+            "/Users/bytedance/Downloads/paper.pdf 看下这个观点"
+        ));
         assert!(!is_slash_command("/tmp/foo.txt"));
         assert!(!is_slash_command("hello"));
         assert!(!is_slash_command(""));

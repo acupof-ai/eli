@@ -187,7 +187,8 @@ impl LLM {
                     ));
                 }
                 Next::Chunk(c) => {
-                    idle.as_mut().reset(tokio::time::Instant::now() + idle_timeout);
+                    idle.as_mut()
+                        .reset(tokio::time::Instant::now() + idle_timeout);
                     c
                 }
             };
@@ -239,7 +240,9 @@ impl LLM {
                                 .await
                                 .is_err()
                         {
-                            tracing::debug!("reasoning delta sink closed; dropping remaining deltas");
+                            tracing::debug!(
+                                "reasoning delta sink closed; dropping remaining deltas"
+                            );
                         }
                         for delta in parser.extract_chunk_tool_call_deltas(&val) {
                             accumulate_tool_delta(&mut tool_builders, delta);
@@ -353,9 +356,7 @@ struct SseLineSplitter {
 
 impl SseLineSplitter {
     fn new() -> Self {
-        Self {
-            buffer: Vec::new(),
-        }
+        Self { buffer: Vec::new() }
     }
 
     fn push(&mut self, bytes: &[u8]) -> Vec<SseLine> {
@@ -527,7 +528,10 @@ mod tests {
     #[test]
     fn accumulator_groups_by_index_and_concatenates_arguments() {
         let mut builders = Vec::new();
-        accumulate_tool_delta(&mut builders, delta(Some(0), Some("call_1"), "echo", "", false));
+        accumulate_tool_delta(
+            &mut builders,
+            delta(Some(0), Some("call_1"), "echo", "", false),
+        );
         accumulate_tool_delta(&mut builders, delta(Some(0), None, "", "{\"x\":", false));
         accumulate_tool_delta(&mut builders, delta(Some(0), None, "", " 1}", false));
         assert_eq!(builders.len(), 1);
@@ -540,7 +544,10 @@ mod tests {
     #[test]
     fn accumulator_complete_arguments_replaces_fragments() {
         let mut builders = Vec::new();
-        accumulate_tool_delta(&mut builders, delta(Some(0), Some("c"), "f", "{\"x\":", false));
+        accumulate_tool_delta(
+            &mut builders,
+            delta(Some(0), Some("c"), "f", "{\"x\":", false),
+        );
         // Responses API: the .done event carries the full arguments string.
         accumulate_tool_delta(&mut builders, delta(Some(0), None, "", "{\"x\": 1}", true));
         assert_eq!(builders[0].1.arguments, "{\"x\": 1}");
@@ -555,10 +562,15 @@ mod tests {
             "gpt-4o-mini".to_owned(),
         );
         // extract_content / extract_tool_calls must work unchanged.
-        assert_eq!(super::super::helpers::extract_content(&resp).unwrap(), "hello");
-        assert!(super::super::helpers::extract_tool_calls(&resp)
-            .unwrap()
-            .is_empty());
+        assert_eq!(
+            super::super::helpers::extract_content(&resp).unwrap(),
+            "hello"
+        );
+        assert!(
+            super::super::helpers::extract_tool_calls(&resp)
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(resp["model"], "gpt-4o-mini");
         assert!(resp.get("usage").is_none());
     }
@@ -566,7 +578,10 @@ mod tests {
     #[test]
     fn build_round_response_with_tool_calls_roundtrips() {
         let mut builders = Vec::new();
-        accumulate_tool_delta(&mut builders, delta(Some(0), Some("call_1"), "echo", "", false));
+        accumulate_tool_delta(
+            &mut builders,
+            delta(Some(0), Some("call_1"), "echo", "", false),
+        );
         accumulate_tool_delta(
             &mut builders,
             delta(Some(0), None, "", "{\"msg\":\"hi\"}", false),
@@ -583,8 +598,8 @@ mod tests {
         assert_eq!(calls[0]["function"]["arguments"], "{\"msg\":\"hi\"}");
         // Tool-only round: content is null, extract_content yields empty.
         assert_eq!(super::super::helpers::extract_content(&resp).unwrap(), "");
-        let event = crate::core::results::UsageEvent::from_raw(resp.get("usage").unwrap(), "m")
-            .unwrap();
+        let event =
+            crate::core::results::UsageEvent::from_raw(resp.get("usage").unwrap(), "m").unwrap();
         assert_eq!(event.input_tokens, 10);
         assert_eq!(event.output_tokens, 5);
     }

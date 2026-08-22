@@ -33,12 +33,14 @@ struct Cli {
 /// probes liveness: ESRCH means dead; EPERM means alive in another session,
 /// so only ESRCH triggers the exit.
 fn spawn_parent_watch(parent: u32) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        if unsafe { libc::kill(parent as libc::pid_t, 0) } == -1
-            && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
-        {
-            std::process::exit(0);
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            if unsafe { libc::kill(parent as libc::pid_t, 0) } == -1
+                && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+            {
+                std::process::exit(0);
+            }
         }
     });
 }

@@ -204,7 +204,10 @@ mod tests {
         });
         assert_eq!(parser.extract_chunk_reasoning(&chunk), "thinking");
         // Chunks without reasoning_content (or without a delta) yield empty.
-        assert_eq!(parser.extract_chunk_reasoning(&json!({"choices": [{}]})), "");
+        assert_eq!(
+            parser.extract_chunk_reasoning(&json!({"choices": [{}]})),
+            ""
+        );
     }
 
     #[test]

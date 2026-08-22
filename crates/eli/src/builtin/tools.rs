@@ -467,7 +467,7 @@ fn file_exec_hint(cmd: &str, code: i32) -> Option<String> {
     if code != 126 && code != 127 {
         return None;
     }
-    let first = cmd.trim().split_whitespace().next()?;
+    let first = cmd.split_whitespace().next()?;
     if Path::new(first).is_file() {
         Some(format!(
             "`{first}` is a file, not a command. Use fs.read to read it \
@@ -4195,7 +4195,11 @@ mod tests {
     #[test]
     fn pdf_extract_returns_text_for_pdf() {
         // Requires pdftotext (poppler); skip when absent.
-        if std::process::Command::new("pdftotext").arg("-v").output().is_err() {
+        if std::process::Command::new("pdftotext")
+            .arg("-v")
+            .output()
+            .is_err()
+        {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
@@ -4215,7 +4219,11 @@ mod tests {
     async fn test_fs_read_pdf_extracts_text_despite_nul_free_header() {
         // Regression: PDFs start with NUL-free text, so the binary sniff
         // misses them; fs.read must extract text via pdftotext first.
-        if std::process::Command::new("pdftotext").arg("-v").output().is_err() {
+        if std::process::Command::new("pdftotext")
+            .arg("-v")
+            .output()
+            .is_err()
+        {
             return;
         }
         let tmp = tempfile::tempdir().unwrap();
@@ -4229,8 +4237,14 @@ mod tests {
             .await
             .unwrap();
         let text = value.as_str().unwrap();
-        assert!(text.contains("Hello PDF"), "fs.read should extract PDF text: {text}");
-        assert!(!text.contains("%PDF-"), "should not return raw PDF source: {text}");
+        assert!(
+            text.contains("Hello PDF"),
+            "fs.read should extract PDF text: {text}"
+        );
+        assert!(
+            !text.contains("%PDF-"),
+            "should not return raw PDF source: {text}"
+        );
     }
 
     #[test]
@@ -4238,7 +4252,10 @@ mod tests {
         let f = NamedTempFile::new().unwrap();
         let cmd = format!("{} 看下这个观点", f.path().display());
         let hint = file_exec_hint(&cmd, 126).unwrap();
-        assert!(hint.contains("fs.read"), "hint should steer to fs.read: {hint}");
+        assert!(
+            hint.contains("fs.read"),
+            "hint should steer to fs.read: {hint}"
+        );
         assert!(file_exec_hint(&cmd, 127).is_some());
     }
 

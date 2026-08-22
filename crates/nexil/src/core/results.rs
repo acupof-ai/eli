@@ -288,11 +288,13 @@ impl UsageEvent {
             // DeepSeek returns prompt_cache_hit_tokens (flat) or
             // prompt_tokens_details.cached_tokens (nested, OpenAI-style).
             cache_read_input_tokens: field("cache_read_input_tokens", "prompt_cache_hit_tokens")
-                .max(usage
-                    .get("prompt_tokens_details")
-                    .and_then(|v| v.get("cached_tokens"))
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0)),
+                .max(
+                    usage
+                        .get("prompt_tokens_details")
+                        .and_then(|v| v.get("cached_tokens"))
+                        .and_then(Value::as_u64)
+                        .unwrap_or(0),
+                ),
             timestamp: chrono::Utc::now().to_rfc3339(),
         })
     }
