@@ -752,7 +752,7 @@ fn record_run_event(
         }
     };
 
-    crate::control_plane::record_turn_usage(total_input, total_output);
+    crate::control_plane::record_turn_usage(total_input, total_output, cache_read);
 
     let mut event = serde_json::json!({
         "elapsed_ms": elapsed_ms,

@@ -207,6 +207,7 @@ impl EliFramework {
                     input_tokens: u.input_tokens(),
                     output_tokens: u.output_tokens(),
                     total_tokens: u.total_tokens(),
+                    cache_read_tokens: u.cache_read_tokens(),
                 })
                 .unwrap_or_default();
 

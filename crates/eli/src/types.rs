@@ -25,6 +25,7 @@ pub struct TurnUsageInfo {
     pub input_tokens: u64,
     pub output_tokens: u64,
     pub total_tokens: u64,
+    pub cache_read_tokens: u64,
 }
 
 /// Result of one complete message turn through the framework.

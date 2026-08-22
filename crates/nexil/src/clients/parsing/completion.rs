@@ -72,6 +72,9 @@ const USAGE_KEY_MAPPINGS: &[(&[&str], &str)] = &[
     (&["output_tokens", "completion_tokens"], "output_tokens"),
     (&["total_tokens"], "total_tokens"),
     (&["requests"], "requests"),
+    // Pass through cache fields so UsageEvent::from_raw can read them.
+    (&["prompt_cache_hit_tokens"], "prompt_cache_hit_tokens"),
+    (&["prompt_tokens_details"], "prompt_tokens_details"),
 ];
 
 fn normalize_usage_fields(

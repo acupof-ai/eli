@@ -194,6 +194,7 @@ async fn chat_json(
                         "type": "usage",
                         "input_tokens": r.usage.input_tokens,
                         "output_tokens": r.usage.output_tokens,
+                        "cache_read_tokens": r.usage.cache_read_tokens,
                     }),
                     &stdout,
                 );

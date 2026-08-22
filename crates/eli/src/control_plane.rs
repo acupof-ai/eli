@@ -32,12 +32,14 @@ tokio::task_local! {
 pub struct TurnUsage {
     input: Arc<AtomicU64>,
     output: Arc<AtomicU64>,
+    cache_read: Arc<AtomicU64>,
 }
 
 impl TurnUsage {
-    pub fn record(&self, input_tokens: u64, output_tokens: u64) {
+    pub fn record(&self, input_tokens: u64, output_tokens: u64, cache_read_tokens: u64) {
         self.input.fetch_add(input_tokens, Ordering::Relaxed);
         self.output.fetch_add(output_tokens, Ordering::Relaxed);
+        self.cache_read.fetch_add(cache_read_tokens, Ordering::Relaxed);
     }
 
     pub fn input_tokens(&self) -> u64 {
@@ -46,6 +48,10 @@ impl TurnUsage {
 
     pub fn output_tokens(&self) -> u64 {
         self.output.load(Ordering::Relaxed)
+    }
+
+    pub fn cache_read_tokens(&self) -> u64 {
+        self.cache_read.load(Ordering::Relaxed)
     }
 
     pub fn total_tokens(&self) -> u64 {
@@ -98,8 +104,8 @@ pub fn turn_usage() -> Option<TurnUsage> {
 }
 
 /// Record token usage into the current turn context.
-pub fn record_turn_usage(input_tokens: u64, output_tokens: u64) {
-    let _ = TURN_CTX.try_with(|ctx| ctx.usage.record(input_tokens, output_tokens));
+pub fn record_turn_usage(input_tokens: u64, output_tokens: u64, cache_read_tokens: u64) {
+    let _ = TURN_CTX.try_with(|ctx| ctx.usage.record(input_tokens, output_tokens, cache_read_tokens));
 }
 
 /// Push a save event into the current turn context.
