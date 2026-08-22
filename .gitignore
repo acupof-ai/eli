@@ -42,3 +42,4 @@ site/*.swp
 
 # Evolution runtime output (rules/candidates/evaluations emitted by eli)
 .agents/evolution/
+logs/
