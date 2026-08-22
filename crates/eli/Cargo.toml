@@ -33,6 +33,7 @@ clap = { version = "4", features = ["derive"] }
 crossterm = "0.28"
 md5 = "0.7"
 dirs = "6"
+libc = "0.2"
 dotenvy = "0.15"
 serde_yaml = "0.9"
 toml = "0.8"

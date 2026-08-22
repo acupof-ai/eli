@@ -244,7 +244,6 @@ pub struct AgentSettings {
     pub api_format: ApiFormat,
     pub max_steps: usize,
     pub max_tokens: usize,
-    pub model_timeout_seconds: Option<u64>,
     pub verbose: u8,
     /// Context window size in tokens. Auto-detected from model name if not set
     /// via `ELI_CONTEXT_WINDOW`.
@@ -321,7 +320,6 @@ impl AgentSettings {
             max_steps: env_parse("ELI_MAX_STEPS").unwrap_or(50),
             max_tokens: env_parse("ELI_MAX_TOKENS")
                 .unwrap_or_else(|| infer_max_output_tokens(&model)),
-            model_timeout_seconds: env_parse("ELI_MODEL_TIMEOUT_SECONDS"),
             verbose: env_parse::<u8>("ELI_VERBOSE").unwrap_or(0).min(2),
             context_window,
             max_turn_tokens: env_parse("ELI_MAX_TURN_BUDGET"),
@@ -482,7 +480,6 @@ mod tests {
             api_format: ApiFormat::Completion,
             max_steps: 10,
             max_tokens: 512,
-            model_timeout_seconds: Some(30),
             verbose: 1,
             context_window: 128_000,
             max_turn_tokens: None,

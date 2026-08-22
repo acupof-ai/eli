@@ -140,26 +140,75 @@ impl LLM {
         let mut byte_stream = response.bytes_stream();
         let mut splitter = SseLineSplitter::new();
 
+        // Idle timeout: a stream that sends no bytes for this long is hung.
+        // The total-request timeout in ClientConfig stays as a backstop for
+        // streams that are alive but very long (reasoning models). Reset on
+        // every chunk.
+        let idle_timeout = std::time::Duration::from_secs(
+            std::env::var("ELI_STREAM_IDLE_TIMEOUT_SECS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(120),
+        );
+        let mut idle = Box::pin(tokio::time::sleep(idle_timeout));
+
         'outer: loop {
-            let chunk_result = match cancellation {
-                Some(token) => {
-                    tokio::select! {
-                        biased;
-                        _ = token.cancelled() => {
-                            tracing::info!("SSE stream cancelled");
-                            break;
-                        }
-                        chunk = byte_stream.next() => chunk,
-                    }
+            // What the select! produced. Generic over the chunk byte type so
+            // this needs no direct bytes dep.
+            enum Next<B> {
+                Chunk(Option<Result<B, reqwest::Error>>),
+                Cancelled,
+                Idle,
+            }
+            let next = match cancellation {
+                Some(token) => tokio::select! {
+                    biased;
+                    _ = token.cancelled() => Next::Cancelled,
+                    _ = &mut idle => Next::Idle,
+                    chunk = byte_stream.next() => Next::Chunk(chunk),
+                },
+                None => tokio::select! {
+                    _ = &mut idle => Next::Idle,
+                    chunk = byte_stream.next() => Next::Chunk(chunk),
+                },
+            };
+            let chunk_result = match next {
+                Next::Cancelled => {
+                    tracing::info!("SSE stream cancelled");
+                    break;
                 }
-                None => byte_stream.next().await,
+                Next::Idle => {
+                    return Err(ConduitError::new(
+                        crate::core::errors::ErrorKind::Timeout,
+                        format!(
+                            "stream idle timeout: no bytes received for {}s",
+                            idle_timeout.as_secs()
+                        ),
+                    ));
+                }
+                Next::Chunk(c) => {
+                    idle.as_mut().reset(tokio::time::Instant::now() + idle_timeout);
+                    c
+                }
             };
             let Some(chunk_result) = chunk_result else {
                 break; // stream finished
             };
             let bytes = match chunk_result {
                 Ok(b) => b,
-                Err(_) => break,
+                Err(e) => {
+                    // Propagate transport errors instead of silently
+                    // breaking: a mid-stream timeout used to assemble an
+                    // empty response and surface as
+                    // "(model returned empty response)" — a content filter
+                    // red herring.
+                    let kind = if e.is_timeout() {
+                        crate::core::errors::ErrorKind::Timeout
+                    } else {
+                        crate::core::errors::ErrorKind::Temporary
+                    };
+                    return Err(ConduitError::new(kind, format!("stream interrupted: {e}")));
+                }
             };
             for line in splitter.push(&bytes) {
                 match line {
@@ -262,7 +311,12 @@ impl LLM {
             };
             let bytes = match chunk_result {
                 Ok(b) => b,
-                Err(_) => break,
+                Err(e) => {
+                    // Best-effort loop: partial content already went through
+                    // the channel; log so a timeout isn't a silent stop.
+                    tracing::warn!("SSE stream interrupted: {e}");
+                    break;
+                }
             };
             for line in splitter.push(&bytes) {
                 match line {

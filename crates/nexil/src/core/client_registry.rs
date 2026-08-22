@@ -44,7 +44,15 @@ impl Default for ClientConfig {
     fn default() -> Self {
         Self {
             default_headers: HashMap::new(),
-            timeout_secs: 120,
+            // Total-request timeout, streaming included. 600s: reasoning
+            // models (deepseek-v4-flash etc.) can stream thinking for several
+            // minutes; the old 120s default cut them mid-stream and surfaced
+            // as "(model returned empty response)". Overridable via
+            // ELI_MODEL_TIMEOUT_SECONDS.
+            timeout_secs: std::env::var("ELI_MODEL_TIMEOUT_SECONDS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(600),
         }
     }
 }
@@ -142,6 +150,7 @@ impl ClientRegistry {
 
         Client::builder()
             .default_headers(headers)
+            .connect_timeout(std::time::Duration::from_secs(10))
             .timeout(std::time::Duration::from_secs(timeout_secs))
             .build()
             .unwrap_or_else(|err| {

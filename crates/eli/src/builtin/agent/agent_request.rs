@@ -411,7 +411,6 @@ mod tests {
             api_format: ApiFormat::Auto,
             max_steps: 5,
             max_tokens: 256,
-            model_timeout_seconds: None,
             verbose: 0,
             context_window: 128_000,
             max_turn_tokens: None,

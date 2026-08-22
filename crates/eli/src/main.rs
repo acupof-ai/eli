@@ -20,6 +20,27 @@ use eli::builtin::config::eli_home;
 struct Cli {
     #[command(subcommand)]
     command: CliCommand,
+
+    /// Exit when this parent pid dies. App-spawned sessions use it as an
+    /// orphan guard: if the app is killed (SIGTERM/crash) SwiftUI runs no
+    /// willTerminate, so without this the eli children leak — same problem
+    /// arle solves with its own --parent-pid.
+    #[arg(long, global = true)]
+    parent_pid: Option<u32>,
+}
+
+/// Poll the parent pid once a second and exit when it's gone. `kill(pid, 0)`
+/// probes liveness: ESRCH means dead; EPERM means alive in another session,
+/// so only ESRCH triggers the exit.
+fn spawn_parent_watch(parent: u32) {
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        if unsafe { libc::kill(parent as libc::pid_t, 0) } == -1
+            && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH)
+        {
+            std::process::exit(0);
+        }
+    });
 }
 
 fn init_tracing() -> anyhow::Result<()> {
@@ -93,5 +114,8 @@ async fn main() -> anyhow::Result<()> {
     init_tracing()?;
 
     let cli = Cli::parse();
+    if let Some(ppid) = cli.parent_pid {
+        spawn_parent_watch(ppid);
+    }
     execute(cli.command).await
 }

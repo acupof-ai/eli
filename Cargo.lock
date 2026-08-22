@@ -420,6 +420,7 @@ dependencies = [
  "dirs",
  "dotenvy",
  "futures",
+ "libc",
  "md5",
  "nexil",
  "open",

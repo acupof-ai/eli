@@ -326,7 +326,6 @@ fn evaluation_settings(home: &std::path::Path) -> AgentSettings {
         api_format: ApiFormat::Auto,
         max_steps: 50,
         max_tokens: DEFAULT_MAX_OUTPUT_TOKENS,
-        model_timeout_seconds: None,
         verbose: 0,
         context_window: DEFAULT_CONTEXT_WINDOW,
         max_turn_tokens: None,
