@@ -20,8 +20,6 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
@@ -34,23 +32,8 @@ jobs:
       - run: rustup target add ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
 
-      - name: Install cross-compilation tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu libssl-dev:arm64
-
-      - name: Set cross OpenSSL env
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          echo "OPENSSL_LIB_DIR=/usr/aarch64-linux-gnu/lib" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/aarch64-linux-gnu/include" >> $GITHUB_ENV
-
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Package
         run: |
