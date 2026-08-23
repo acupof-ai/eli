@@ -24,7 +24,6 @@ jobs:
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
       python: ${{ steps.filter.outputs.python }}
-      sidecar: ${{ steps.filter.outputs.sidecar }}
       docs_only: ${{ steps.filter.outputs.docs_only }}
     steps:
       - uses: actions/checkout@v4
@@ -45,11 +44,6 @@ jobs:
               - 'justfile'
               - 'scripts/**'
               - 'crates/**'
-            sidecar:
-              - 'sidecar/**'
-              - '.github/workflows/main.yml'
-              - 'justfile'
-              - 'scripts/**'
             docs_only:
               - 'README.md'
               - 'docs/**'
@@ -125,23 +119,3 @@ jobs:
       - run: python3 -m pytest tests/test_basic.py -k 'version or status or help or invalid_subcommand or run_without_message' -v
         env:
           ELI_BIN: ${{ github.workspace }}/target/release/eli
-
-  sidecar:
-    name: Sidecar
-    needs: changes
-    if: ${{ github.event_name == 'schedule' || needs.changes.outputs.sidecar == 'true' || needs.changes.outputs.docs_only != 'true' }}
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sidecar
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: sidecar/package-lock.json
-      - uses: oven-sh/setup-bun@v2
-      - run: npm install
-      - run: npm test
-      - run: npm run build
